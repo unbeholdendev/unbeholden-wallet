@@ -333,6 +333,6 @@ classification, the Tailscale documentation and the local container path exist
 to address this specific problem and should be treated as product surface, not
 plumbing.
 
-**Open question.** The devcontainer currently maps port 4321, which is Astro's
-default rather than Vite's 5173. Confirm whether the mapping is deliberate
-before the Vite configuration is written.
+**Dev server port.** The devcontainer maps host 4329 to container 5173, Vite's
+default. The Vite configuration must bind to 0.0.0.0 rather than localhost, or
+the forwarded port will refuse connections from outside the container.
