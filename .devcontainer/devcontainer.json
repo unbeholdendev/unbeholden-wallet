@@ -1,5 +1,5 @@
 {
   "name": "btc-browser-wallet",
   "image": "oven/bun:1.4",
-  "appPort": ["4329:5173"]
+  "appPort": ["5173:5173"]
 }
