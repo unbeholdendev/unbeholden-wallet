@@ -6,6 +6,22 @@ keys, connects only to the user's own Electrum server.
 
 Spec: `docs/spec-v1.md`.
 
+## Commands
+
+`bun run dev`, `bun run build`, `bun run typecheck`, `bun run test` (Vitest),
+`bun run test:e2e` (Playwright).
+
+Not `bun test`: that is Bun's own runner, which ignores the Vitest config and
+so never loads the `fake-indexeddb` setup.
+
+The CSP has no `unsafe-inline`, and it is injected into the built HTML only,
+because the dev server's React refresh preamble is inline. So: no `style={{…}}`
+attributes, style them with Tailwind classes. An inline style works in dev and
+is silently dropped in the build.
+
+Nothing checks the bundle for external origins. The CSP is the only thing
+holding the no-outbound-requests guarantee, so read what a new dependency ships.
+
 ## Agent skills
 
 ### Issue tracker
