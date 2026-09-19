@@ -22,6 +22,19 @@ is silently dropped in the build.
 Nothing checks the bundle for external origins. The CSP is the only thing
 holding the no-outbound-requests guarantee, so read what a new dependency ships.
 
+## Constants and test vectors
+
+A constant you cannot work out from the code carries the URL it came from, on
+the line above it. Version bytes, charsets, generator polynomials.
+
+Fetch a test vector from its spec and cite it. Never write one from memory. A
+remembered vector that happens to match the code proves nothing, and no
+reviewer can tell that kind from the real kind by looking.
+
+Where a test needs the same constants as the code, it keeps its own copy. If
+it imports the table it is checking, a wrong value agrees with itself and the
+test passes.
+
 ## Agent skills
 
 ### Issue tracker
