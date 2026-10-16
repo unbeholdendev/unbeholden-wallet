@@ -1,5 +1,6 @@
 import type { WalletCoin, WalletSnapshot } from "../core/wallet";
 import { outpoint } from "../wallet/coin";
+import { groupSats } from "./amount";
 
 /** Coins the chain already shows to have one owner, as the coin list and the map draw them. */
 export type Source = {
@@ -98,7 +99,7 @@ export function sourcesOf(snapshot: WalletSnapshot): Source[] {
       name: label ?? `${kind} ${shortAddress(oldest.address)}`,
       short: label ? (label.length > 16 ? `${label.slice(0, 15)}…` : label) : `…${oldest.address.slice(-4)}`,
       note: [
-        oldest.height === null ? "Not yet confirmed" : `First seen in block ${oldest.height.toLocaleString("en-GB")}`,
+        oldest.height === null ? "Not yet confirmed" : `First seen in block ${groupSats(oldest.height)}`,
         coins.length > 1 ? "already linked on-chain" : "",
       ]
         .filter(Boolean)

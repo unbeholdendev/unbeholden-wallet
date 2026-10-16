@@ -7,6 +7,21 @@ const paths = {
     </>
   ),
   plus: <path d="M10 4.5v11M4.5 10h11" />,
+  unlock: (
+    <>
+      <rect x="4.5" y="9" width="11" height="8" rx="1.5" />
+      <path d="M7 9V6.5a3 3 0 015.8-1.1" />
+    </>
+  ),
+  pencil: <path d="M12.5 4.5l3 3-8.5 8.5H4v-3zM11 6l3 3" />,
+  search: (
+    <>
+      <circle cx="9" cy="9" r="5" />
+      <path d="M13 13l3.5 3.5" />
+    </>
+  ),
+  download: <path d="M10 3.5v9M6.5 9l3.5 3.5L13.5 9M4.5 16.5h11" />,
+  upload: <path d="M10 13V3.5M6.5 7L10 3.5 13.5 7M4.5 16.5h11" />,
   check: <path d="M4.5 10.5l3.5 3.5 7.5-8" />,
   warn: (
     <>
