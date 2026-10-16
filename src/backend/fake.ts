@@ -141,7 +141,9 @@ export function fakeBackend(fixture: Partial<Fixture> = {}): FakeBackend {
       headers.push(header);
       previous = sha256x2(header);
     });
-    for (const raw of mempool) register(raw, null);
+    for (const raw of mempool) {
+      if (!known.has(Transaction.fromRaw(raw, PARSE).id)) register(raw, null);
+    }
     // A mempool transaction can reach a server before the one it spends, so
     // nothing is attributed until every transaction is known.
     for (const entry of known.values()) attribute(entry);
