@@ -1,0 +1,329 @@
+import { useState, type FormEvent, type ReactNode } from "react";
+import { useConnection, type Connection, type Failure } from "../app/connection";
+import { Heading } from "../app/layout";
+import { useVault } from "../app/vault";
+import { groupSats } from "../ui/amount";
+import { Icon } from "../ui/icons";
+import { Button, buttonClass, Field, inputClass, linkClass, Steps } from "../ui/kit";
+
+const host = (url: string) => {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
+};
+
+const httpsForm = (url: string) => `https://${host(url)}/`;
+
+const breaks: Record<Failure, string> = {
+  "certificate-rejected": "certificate",
+  "mixed-content": "blocked by the browser",
+  refused: "refused",
+  timeout: "no answer",
+  "not-electrum": "not Electrum",
+  "invalid-url": "",
+};
+
+/** The connection drawn as a route from this tab to the server, broken where it failed. */
+function RouteLine({ connection }: { connection: Connection }) {
+  const failed = connection.phase === "failed" ? connection.failure : null;
+  const reached = connection.phase === "connected" || connection.phase === "retrying";
+  const live = connection.phase === "connecting" || connection.phase === "retrying";
+  const label = failed ? breaks[failed] : "";
+  return (
+    <svg
+      viewBox="0 0 360 64"
+      className="h-16 w-full max-w-[640px]"
+      preserveAspectRatio="xMinYMid meet"
+      role="img"
+      aria-label={
+        failed ? `The route from this tab to your server stops: ${label}.` : reached ? "This tab talks only to your server." : "This tab will talk only to your server."
+      }
+    >
+      <circle cx="18" cy="32" r="7" className="fill-sheet stroke-ink stroke-[1.6]" />
+      <text x="18" y="58" textAnchor="middle" className="fill-ink-2 text-[11px]">
+        This tab
+      </text>
+      <path
+        d={`M28 32H${failed ? 168 : 330}`}
+        className={`fill-none stroke-2 [stroke-dasharray:5_4] ${failed || reached || live ? "stroke-route" : "stroke-rule-2"} ${live ? "animate-[march_900ms_linear_infinite]" : ""}`}
+      />
+      {failed && (
+        <>
+          <path d="M173 24l14 16M187 24l-14 16" className="stroke-bad stroke-[2.4] [stroke-linecap:round]" />
+          <text x="180" y="14" textAnchor="middle" className="fill-bad text-[11px] font-semibold">
+            {label}
+          </text>
+          <path d="M193 32H330" className="fill-none stroke-rule-2 stroke-2 [stroke-dasharray:5_4]" />
+        </>
+      )}
+      <g transform="translate(342 32)">
+        <path d="M0 -9L8 6H-8Z" className={`stroke-[1.6] ${reached ? "fill-route-tint stroke-route" : "fill-sheet stroke-ink"}`} />
+        <circle r="2" cy="1.5" className={reached ? "fill-route" : "fill-ink"} />
+      </g>
+      <text x="352" y="58" textAnchor="end" className="fill-ink-2 text-[11px]">
+        Your server
+      </text>
+    </svg>
+  );
+}
+
+function Url({ children }: { children: ReactNode }) {
+  return <span className="mt-1 inline-block rounded-[4px] bg-sunk px-2 py-1 font-mono text-[0.86em] break-all">{children}</span>;
+}
+
+const tailscale = (
+  <p className="m-0">
+    To stop this happening on every device, give your server a real certificate on a private name with Tailscale.{" "}
+    <a className={linkClass} href="#/guide">
+      Read the Tailscale guide
+    </a>
+  </p>
+);
+
+function Guidance({ failure, url, message }: { failure: Failure | null; url: string; message: string }) {
+  const h = host(url);
+  const guides: Record<Exclude<Failure, "invalid-url">, { title: string; body: ReactNode; more?: ReactNode }> = {
+    "certificate-rejected": {
+      title: "The browser rejected this server's certificate",
+      body: (
+        <>
+          <p className="m-0">
+            Your server at <span className="font-mono text-[0.86em]">{h}</span> answered, but with a certificate this
+            browser does not trust, usually because it is self-signed. WebSocket connections have no "proceed anyway"
+            button, so you accept the certificate once in an ordinary tab.
+          </p>
+          <Steps>
+            <li>
+              <div>
+                <b className="font-semibold">Open the server's https address in a new tab.</b>
+                <br />
+                <Url>{httpsForm(url)}</Url>{" "}
+                <a className={`${buttonClass({ size: "sm" })} mt-1 align-middle`} href={httpsForm(url)} target="_blank" rel="noreferrer">
+                  Open it <Icon name="ext" className="size-4" />
+                </a>
+              </div>
+            </li>
+            <li>
+              <div>
+                <b className="font-semibold">Check the warning is about your own server, then accept it.</b> In Chrome
+                choose Advanced, then Proceed. In Firefox choose Advanced, then Accept the Risk and Continue. In Safari
+                choose Show Details, then visit this website.
+              </div>
+            </li>
+            <li>
+              <div>
+                <b className="font-semibold">Expect a blank page or an error there.</b> That is normal: the server only
+                speaks Electrum. Close that tab.
+              </div>
+            </li>
+            <li>
+              <div>
+                <b className="font-semibold">Come back here and choose Retry connection.</b>
+              </div>
+            </li>
+          </Steps>
+        </>
+      ),
+      more: tailscale,
+    },
+    "mixed-content": {
+      title: "This page cannot open a plain ws:// connection",
+      body: (
+        <>
+          <p className="m-0">
+            This app was loaded over https, and browsers do not let an https page open an unencrypted ws:// connection to
+            another machine. There are two ways round it.
+          </p>
+          <Steps>
+            <li>
+              <div>
+                <b className="font-semibold">Give your server a certificate and use wss://.</b> Tailscale does this for
+                you on a private name. <a className={linkClass} href="#/guide">Read the Tailscale guide</a>
+              </div>
+            </li>
+            <li>
+              <div>
+                <b className="font-semibold">Or run this app from the local container.</b> It serves the app on{" "}
+                <span className="font-mono text-[0.86em]">http://localhost:8080</span>, and a localhost page may open
+                ws:// to a node on your own network.{" "}
+                <a className={linkClass} href="#/guide">How to run it</a>
+              </div>
+            </li>
+          </Steps>
+        </>
+      ),
+    },
+    refused: {
+      title: `Nothing at ${h} accepted the connection`,
+      body: (
+        <>
+          <p className="m-0">The address was reached, or looked up, but no service took the connection. Check, in order:</p>
+          <Steps>
+            <li>
+              <div>
+                <b className="font-semibold">The server is running</b> and has finished starting up.
+              </div>
+            </li>
+            <li>
+              <div>
+                <b className="font-semibold">The port is the WebSocket one.</b> Fulcrum's TCP ports (50001, 50002) do not
+                speak WebSocket; the <span className="font-mono text-[0.86em]">ws</span> and{" "}
+                <span className="font-mono text-[0.86em]">wss</span> settings in fulcrum.conf name the right ports.
+              </div>
+            </li>
+            <li>
+              <div>
+                <b className="font-semibold">Nothing between you blocks it:</b> a firewall on the node, or a router that
+                does not forward the port.
+              </div>
+            </li>
+          </Steps>
+        </>
+      ),
+      more: tailscale,
+    },
+    timeout: {
+      title: `${h} did not answer within 10 seconds`,
+      body: (
+        <>
+          <p className="m-0">Nothing came back at all, which usually means this device cannot reach that address:</p>
+          <Steps>
+            <li>
+              <div>
+                <b className="font-semibold">A home network address while you are away from home.</b> Addresses like
+                192.168… only work on that network.
+              </div>
+            </li>
+            <li>
+              <div>
+                <b className="font-semibold">A firewall that drops the connection</b> rather than refusing it.
+              </div>
+            </li>
+            <li>
+              <div>
+                <b className="font-semibold">A server still indexing the chain.</b> Fulcrum does not answer until its
+                first sync is done.
+              </div>
+            </li>
+          </Steps>
+        </>
+      ),
+      more: tailscale,
+    },
+    "not-electrum": {
+      title: "Something answered, but it is not an Electrum server",
+      body: (
+        <p className="m-0">
+          A service at <span className="font-mono text-[0.86em]">{h}</span> accepted the connection and did not speak the
+          Electrum protocol. Check that the port is your Electrum server's WebSocket port and not, say, a web server or
+          bitcoind's RPC port. Fulcrum and ElectrumX serve WebSocket; electrs does not, so it needs a proxy in front.
+        </p>
+      ),
+    },
+  };
+  const guide =
+    failure && failure !== "invalid-url"
+      ? guides[failure]
+      : { title: "The connection failed", body: <p className="m-0">The browser reported: {message}</p>, more: tailscale };
+  return (
+    <section aria-live="polite" className="overflow-hidden rounded-panel border border-[color-mix(in_srgb,var(--bad)_40%,var(--rule))] bg-sheet">
+      <div className="flex items-start gap-2.5 bg-bad-tint px-4 py-3.5 text-bad">
+        <Icon name="warn" className="mt-0.5 size-5" />
+        <h2 className="m-0 text-md font-semibold">{guide.title}</h2>
+      </div>
+      <div className="grid gap-3.5 p-4 text-ink-2 [&_p]:max-w-[62ch]">
+        {guide.body}
+        {guide.more && <div className="grid gap-2 border-t border-rule pt-3.5 text-sm">{guide.more}</div>}
+      </div>
+    </section>
+  );
+}
+
+function Status({ connection }: { connection: Connection }) {
+  if (connection.phase === "connected" || connection.phase === "retrying")
+    return (
+      <section className="grid gap-2 rounded-panel border border-rule bg-sheet p-4">
+        <h2 className="m-0 flex items-center gap-2 text-md font-semibold">
+          <span className={`size-2 rounded-full ${connection.phase === "connected" ? "bg-ok" : "bg-warn"}`} />
+          {connection.phase === "connected" ? `Connected to ${host(connection.url)}` : `Reconnecting to ${host(connection.url)}`}
+        </h2>
+        <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
+          <dt className="text-ink-2">Server software</dt>
+          <dd className="m-0">{connection.software ?? "Not reported"}</dd>
+          <dt className="text-ink-2">Chain tip</dt>
+          <dd className="m-0">{connection.tip === null ? "Asking" : `Block ${groupSats(connection.tip)}`}</dd>
+        </dl>
+      </section>
+    );
+  return (
+    <section className="grid gap-2 rounded-panel border border-rule bg-sheet p-4">
+      <h2 className="m-0 text-md font-semibold">What happens when you connect</h2>
+      <p className="m-0 text-sm text-ink-2">
+        The app asks your server for block headers and for the history of your addresses. Your addresses and
+        transactions go to that server and nowhere else.
+      </p>
+    </section>
+  );
+}
+
+export function Connect({ onboarding = false }: { onboarding?: boolean }) {
+  const { settings, saveSettings } = useVault();
+  const { connection, connect } = useConnection();
+  const [url, setUrl] = useState(settings.server ?? (connection.phase === "idle" ? "" : connection.url));
+  const busy = connection.phase === "connecting";
+  const failed = connection.phase === "failed" && connection.url === url.trim() ? connection : null;
+  const invalid = failed?.failure === "invalid-url";
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    const target = url.trim();
+    if (!target) return;
+    if (target !== settings.server) await saveSettings({ server: target });
+    await connect(target);
+  };
+
+  return (
+    <div className="grid gap-8">
+      <div className="grid gap-4">
+        <Heading title={onboarding ? "Connect to your Electrum server" : "Your Electrum server"}>
+          This wallet talks only to a server you run. Nothing about your wallet is sent anywhere else.
+        </Heading>
+        <RouteLine connection={connection.phase === "failed" && !failed ? { phase: "idle" } : connection} />
+      </div>
+      <div className="grid items-start gap-6 @min-[900px]:grid-cols-[400px_minmax(0,1fr)] @min-[900px]:gap-12">
+        <form onSubmit={submit} className="grid min-w-0 content-start gap-4" noValidate>
+          <Field
+            label="Electrum server address"
+            hint="wss:// and the port your server listens on for WebSocket Secure, often 50004."
+            error={invalid ? "Write it as wss://host:port, for example wss://node.your-tailnet.ts.net:50004." : undefined}
+          >
+            {(props) => (
+              <input
+                {...props}
+                className={`${inputClass} font-mono text-[0.86em] ${failed && !invalid ? "border-bad" : ""}`}
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="wss://node.your-tailnet.ts.net:50004"
+                spellCheck={false}
+                autoCapitalize="none"
+                autoComplete="off"
+                inputMode="url"
+              />
+            )}
+          </Field>
+          {busy && <p className="m-0 text-sm text-ink-2" role="status">Connecting to {host(url)}. Waiting up to 10 seconds for an answer.</p>}
+          <Button type="submit" variant="primary" wide disabled={busy || !url.trim()} icon={failed && !invalid ? "retry" : undefined}>
+            {failed && !invalid ? "Retry connection" : busy ? "Connecting" : connection.phase === "connected" && connection.url === url.trim() ? "Reconnect" : "Connect"}
+          </Button>
+          <p className="m-0 text-sm text-ink-3">
+            There is no default or public server. If yours is unreachable, this app does nothing rather than ask someone
+            else.
+          </p>
+        </form>
+        {failed && !invalid ? <Guidance failure={failed.failure} url={failed.url} message={failed.message} /> : <Status connection={connection} />}
+      </div>
+    </div>
+  );
+}

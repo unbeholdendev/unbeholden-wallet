@@ -8,6 +8,7 @@ import {
   requestPersistence,
   unlockVault,
   vaultExists,
+  VaultBusy,
   VaultChanged,
   VaultLocked,
   WrongPassphrase,
@@ -115,6 +116,18 @@ describe("vault", () => {
     expect(await reopened.get("wallet/a")).toEqual(wallets["wallet/a"]);
     expect(await reopened.get("wallet/b")).toEqual(wallets["wallet/b"]);
     reopened.lock();
+  });
+
+  it("says so when another connection keeps the vault from being deleted", async () => {
+    (await createVault(PASSPHRASE, CHEAP)).lock();
+    const open = await new Promise<IDBDatabase>((resolve) => {
+      const request = indexedDB.open("vault");
+      request.onsuccess = () => resolve(request.result);
+    });
+    await expect(destroyVault()).rejects.toThrow(VaultBusy);
+    open.close();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(await vaultExists()).toBe(false);
   });
 
   it("stops a stale tab writing after another changed the passphrase", async () => {
