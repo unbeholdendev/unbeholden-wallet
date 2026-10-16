@@ -236,3 +236,15 @@ export async function reorg(depth = 1): Promise<void> {
   await rpc("invalidateblock", await rpc("getblockhash", height - depth + 1));
   await mine(depth + 1);
 }
+
+/** Signs every input of a PSBT the app built for a test wallet, as a signer would, and leaves finalising to the app. */
+export function signPsbt(psbt: Uint8Array, wallet: TestWallet): Uint8Array {
+  const tx = Transaction.fromPSBT(psbt);
+  for (let i = 0; i < tx.inputsLength; i++) {
+    const input = tx.getInput(i);
+    const path = input.bip32Derivation?.[0]?.[1].path ?? input.tapBip32Derivation?.[0]?.[1].der.path;
+    const [chain, index] = path!.slice(-2);
+    tx.signIdx(wallet.account.deriveChild(chain!).deriveChild(index!).privateKey!, i);
+  }
+  return tx.toPSBT();
+}

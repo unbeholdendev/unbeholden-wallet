@@ -11,6 +11,8 @@ import { CreateVault } from "./screens/CreateVault";
 import { Guide, Trust } from "./screens/Guides";
 import { ImportWallet } from "./screens/ImportWallet";
 import { Placeholder } from "./screens/Placeholders";
+import { Bump } from "./screens/send/Bump";
+import { Send } from "./screens/send/Send";
 import { Settings } from "./screens/Settings";
 import { Unlock } from "./screens/Unlock";
 import { Button, LinkButton } from "./ui/kit";
@@ -43,10 +45,12 @@ function Unlocked({ route }: { route: string[] }) {
     screen === "connect" ? <Connect /> :
     screen === "import" ? <ImportWallet /> :
     screen === "tx" ? <Placeholder screen="tx" detail={detail} /> :
+    screen === "send" ? <Send /> :
+    screen === "bump" && detail ? <Bump key={detail} txid={detail} /> :
     <Placeholder screen={TABS.includes(screen) ? (screen as Tab) : "home"} />;
   return (
     <SessionProvider>
-      <Shell tab={TABS.includes(screen) ? (screen as Tab) : null}>{body}</Shell>
+      <Shell tab={screen === "bump" ? "send" : TABS.includes(screen) ? (screen as Tab) : null}>{body}</Shell>
     </SessionProvider>
   );
 }
