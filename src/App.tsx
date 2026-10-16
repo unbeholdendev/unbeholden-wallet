@@ -10,9 +10,13 @@ import { Connect } from "./screens/Connect";
 import { CreateVault } from "./screens/CreateVault";
 import { Guide, Trust } from "./screens/Guides";
 import { ImportWallet } from "./screens/ImportWallet";
-import { Placeholder } from "./screens/Placeholders";
+import { Addresses } from "./screens/Addresses";
+import { Coins } from "./screens/Coins";
+import { Home } from "./screens/Home";
+import { Receive } from "./screens/Receive";
 import { Bump } from "./screens/send/Bump";
 import { Send } from "./screens/send/Send";
+import { Transaction } from "./screens/Transaction";
 import { Settings } from "./screens/Settings";
 import { Unlock } from "./screens/Unlock";
 import { Button, LinkButton } from "./ui/kit";
@@ -44,10 +48,13 @@ function Unlocked({ route }: { route: string[] }) {
     screen === "settings" ? <Settings /> :
     screen === "connect" ? <Connect /> :
     screen === "import" ? <ImportWallet /> :
-    screen === "tx" ? <Placeholder screen="tx" detail={detail} /> :
+    screen === "tx" ? <Transaction txid={detail} /> :
     screen === "send" ? <Send /> :
     screen === "bump" && detail ? <Bump key={detail} txid={detail} /> :
-    <Placeholder screen={TABS.includes(screen) ? (screen as Tab) : "home"} />;
+    screen === "receive" ? <Receive /> :
+    screen === "coins" ? <Coins /> :
+    screen === "addresses" ? <Addresses /> :
+    <Home />;
   return (
     <SessionProvider>
       <Shell tab={screen === "bump" ? "send" : TABS.includes(screen) ? (screen as Tab) : null}>{body}</Shell>

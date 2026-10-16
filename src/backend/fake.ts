@@ -23,6 +23,8 @@ export type Fixture = {
   failure: ConnectionFailure | null;
   /** Makes `broadcast` reject with this reason rather than accept. */
   broadcastRejection: string | null;
+  /** Unconfirmed at the start. */
+  mempool: Uint8Array[];
 };
 
 export type FakeBackend = WalletBackend & {
@@ -85,7 +87,7 @@ export function fakeBackend(fixture: Partial<Fixture> = {}): FakeBackend {
   const startHeight = fixture.startHeight ?? 0;
   const feeHistogram = fixture.feeHistogram ?? [];
   const failure = fixture.failure ?? null;
-  const mempool: Uint8Array[] = [];
+  const mempool = [...(fixture.mempool ?? [])];
 
   let nonce = 0;
   let blocks: Block[] = (fixture.blocks?.length ? fixture.blocks : [[]]).map(
