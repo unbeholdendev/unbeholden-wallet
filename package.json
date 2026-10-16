@@ -9,7 +9,14 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:e2e": "playwright test --pass-with-no-tests",
-    "typecheck": "tsc --noEmit",
+    "test:integration": "bun --bun vitest run -c integration/vitest.config.ts",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p integration",
+    "regtest:up": "scripts/regtest/up.sh",
+    "regtest:down": "scripts/regtest/down.sh",
+    "regtest:fixture": "bun scripts/regtest/cli.ts fixture",
+    "regtest:fund": "bun scripts/regtest/cli.ts fund",
+    "regtest:mine": "bun scripts/regtest/cli.ts mine",
+    "regtest:reorg": "bun scripts/regtest/cli.ts reorg",
     "hashes": "cd dist && find . -type f | LC_ALL=C sort | xargs sha256sum"
   },
   "dependencies": {
@@ -24,6 +31,7 @@
   "devDependencies": {
     "@playwright/test": "^1.63.0",
     "@tailwindcss/vite": "^4.3.3",
+    "@types/bun": "^1.4.3",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

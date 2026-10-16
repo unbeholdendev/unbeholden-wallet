@@ -1,0 +1,19 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  check:
+    runs-on: docker
+    container: node:22-bookworm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: https://github.com/oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run test
+      - run: bun run build
+      - run: bunx playwright install --with-deps chromium-headless-shell
+      - run: bun run test:integration
