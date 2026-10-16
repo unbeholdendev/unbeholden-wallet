@@ -179,6 +179,18 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
                 does not forward the port.
               </div>
             </li>
+            {url.startsWith("wss:") && (
+              <li>
+                <div>
+                  <b className="font-semibold">A self-signed certificate can look exactly like this.</b> Open{" "}
+                  <Url>{httpsForm(url)}</Url> in a new tab, accept the warning if it is about your own server, then
+                  come back and retry.{" "}
+                  <a className={`${buttonClass({ size: "sm" })} mt-1 align-middle`} href={httpsForm(url)} target="_blank" rel="noreferrer">
+                    Open it <Icon name="ext" className="size-4" />
+                  </a>
+                </div>
+              </li>
+            )}
           </Steps>
         </>
       ),
