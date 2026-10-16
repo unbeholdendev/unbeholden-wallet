@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { descriptorFromExtendedKey } from "../wallet/descriptor";
 import { derivePublicKey } from "../wallet/derive";
 import { BIP84_ZPUB } from "../wallet/vectors";
-import { ConnectionError, scriptHash } from "./backend";
+import { BroadcastError, ConnectionError, scriptHash } from "./backend";
 import { fakeBackend } from "./fake";
 
 const PARSE = {
@@ -37,6 +37,11 @@ function blockHash(header: Uint8Array): string {
 
 function previousHash(header: Uint8Array): string {
   return hex.encode(header.slice(4, 36));
+}
+
+// https://developer.bitcoin.org/reference/block_chain.html
+function blockTime(header: Uint8Array): number {
+  return new DataView(header.buffer, header.byteOffset).getUint32(68, true);
 }
 
 const descriptor = descriptorFromExtendedKey(BIP84_ZPUB, "mainnet");
@@ -93,6 +98,7 @@ describe("connecting", () => {
     "refused",
     "timeout",
     "not-electrum",
+    "mixed-content",
   ] as const)("reports a %s failure the user can act on", async (failure) => {
     const error = await fakeBackend({ failure }).connect().then(
       () => null,
@@ -136,6 +142,20 @@ describe("a wallet with history", () => {
   it("serves the tip of the fixture's chain", async () => {
     const backend = await wallet();
     expect((await backend.chainTip()).height).toBe(101);
+  });
+
+  it("serves headers with block times ten minutes apart", async () => {
+    const backend = await wallet();
+    const [first, second, tip] = await backend.blockHeaders([100, 101, 101]);
+    expect(hex.encode(tip!)).toBe(hex.encode((await backend.chainTip()).header));
+    expect(previousHash(second!)).toBe(blockHash(first!));
+    expect(blockTime(second!) - blockTime(first!)).toBe(600);
+    expect(new Date(blockTime(first!) * 1000).getUTCFullYear()).toBeGreaterThan(2009);
+  });
+
+  it("serves no header above the tip", async () => {
+    const backend = await wallet();
+    await expect(backend.blockHeaders([102])).rejects.toThrow(/102/);
   });
 
   it("serves the fixture's fee histogram", async () => {
@@ -197,6 +217,21 @@ describe("the mempool", () => {
       height: null,
       unconfirmedParents: false,
     });
+  });
+
+  it("hands back the node's reason when it rejects a broadcast", async () => {
+    const reason = "insufficient fee, rejecting replacement";
+    const backend = fakeBackend({ broadcastRejection: reason });
+    await backend.connect();
+    const raw = transaction(
+      [{ txid: "44".repeat(32), index: 0 }],
+      [{ script: OTHER, amount: 1_000n }],
+    );
+    const error = await backend.broadcast(raw).catch((thrown: unknown) => thrown);
+    expect(error).toBeInstanceOf(BroadcastError);
+    expect((error as BroadcastError).message).toBe(reason);
+    const [other = []] = await backend.history([scriptHash(OTHER)]);
+    expect(other.map((entry) => entry.txid)).not.toContain(txid(raw));
   });
 });
 
