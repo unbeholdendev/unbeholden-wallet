@@ -255,6 +255,11 @@ export class FountainDecoder {
     return { captured: this.simple.size, expected, fraction };
   }
 
+  /** Which fragments are recovered, by index from 0. */
+  get parts(): number[] {
+    return [...this.simple.keys()];
+  }
+
   private processSimple(part: Mixed) {
     const index = part.indexes[0]!;
     if (this.simple.has(index)) return;
