@@ -37,7 +37,7 @@ const BATCH = 100;
 const PROBE_PORT = "2";
 // Pages on these hosts may open ws:// even from https:
 // https://w3c.github.io/webappsec-secure-contexts/#is-origin-trustworthy
-const LOOPBACK = /^(localhost|.+\.localhost|127\.\d+\.\d+\.\d+|\[::1\])$/;
+export const LOOPBACK = /^(localhost|.+\.localhost|127\.\d+\.\d+\.\d+|\[::1\])$/;
 const MAX_BACKOFF = 30_000;
 
 class RpcError extends Error {}

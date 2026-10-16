@@ -25,6 +25,13 @@ export class VaultLocked extends Error {
   }
 }
 
+export class VaultBusy extends Error {
+  constructor() {
+    super("Another tab has the vault open");
+    this.name = "VaultBusy";
+  }
+}
+
 /** Another tab wrote while the passphrase was changing. Nothing changed; try again. */
 export class VaultChanged extends Error {
   constructor() {
@@ -165,9 +172,18 @@ export async function unlockVault(
   }
 }
 
-/** Deletes every wallet in this browser. Lock open vaults first. */
+/**
+ * Deletes every wallet in this browser. Lock open vaults first. Rejects with
+ * `VaultBusy` while another tab holds the vault open; the deletion then
+ * finishes by itself once that tab closes.
+ */
 export async function destroyVault(): Promise<void> {
-  await done(indexedDB.deleteDatabase(DB));
+  const request = indexedDB.deleteDatabase(DB);
+  await new Promise<void>((resolve, reject) => {
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+    request.onblocked = () => reject(new VaultBusy());
+  });
 }
 
 /** An unlocked vault: JSON documents by name, each encrypted on its own. */
