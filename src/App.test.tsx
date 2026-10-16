@@ -88,7 +88,7 @@ describe("onboarding", () => {
     expect(await screen.findByRole("heading", { name: title })).toBeTruthy();
     for (const [other, otherTitle] of guidance)
       if (other !== failure) expect(screen.queryByRole("heading", { name: otherTitle })).toBeNull();
-    if (failure === "certificate-rejected")
+    if (failure === "certificate-rejected" || failure === "refused")
       expect(screen.getByRole("link", { name: /Open it/ }).getAttribute("href")).toBe("https://node.example.ts.net:50004/");
   });
 
