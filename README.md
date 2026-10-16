@@ -83,3 +83,16 @@ Fulcrum before they expire, for example from a monthly cron job.
 
 `bun run dev`, `bun run build`, `bun run typecheck`, `bun run test`,
 `bun run test:e2e`. See `AGENTS.md` and `docs/spec-v1.md`.
+
+### Try it on regtest
+
+```sh
+bun run regtest:up        # bitcoind + Fulcrum, prints ws://127.0.0.1:50003
+bun run regtest:fixture   # a funded test wallet; prints its descriptors
+bun run dev               # then connect to ws://127.0.0.1:50003 and import one
+```
+
+`regtest:fund <address> [btc]`, `regtest:mine [n]` and `regtest:reorg [depth]`
+move the chain; `regtest:down` stops it. `bun run test:integration` and the
+send spec in `bun run test:e2e` need the same stack. The fixture's private
+keys are in `scripts/regtest/fixture.ts`, for signing in tests only.
