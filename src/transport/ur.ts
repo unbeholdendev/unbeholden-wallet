@@ -217,6 +217,11 @@ export class UrDecoder {
     return this.fountain.error;
   }
 
+  /** Which of the message's parts are in, by index from 0. */
+  get parts(): number[] {
+    return this.result && this.fountain.progress.expected === 0 ? [0] : this.fountain.parts;
+  }
+
   get progress(): Progress {
     return this.result && this.fountain.progress.expected === 0
       ? { captured: 1, expected: 1, fraction: 1 }
