@@ -16,12 +16,17 @@ export type HistoryEntry = {
 /** One bar of the mempool's fee histogram: total vsize paying that rate. */
 export type FeeBucket = { feeRate: number; vsize: number };
 
-/** The four outcomes the connection screen has to tell apart. */
+/**
+ * The outcomes the connection screen has to tell apart. `mixed-content` is a
+ * `ws://` server asked for from an `https:` page, which the browser refuses
+ * without trying.
+ */
 export type ConnectionFailure =
   | "certificate-rejected"
   | "refused"
   | "timeout"
-  | "not-electrum";
+  | "not-electrum"
+  | "mixed-content";
 
 export class ConnectionError extends Error {
   readonly failure: ConnectionFailure;
@@ -30,6 +35,14 @@ export class ConnectionError extends Error {
     super(failure);
     this.name = "ConnectionError";
     this.failure = failure;
+  }
+}
+
+/** The node turned a transaction down; `message` is its reason, verbatim. */
+export class BroadcastError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BroadcastError";
   }
 }
 
@@ -51,6 +64,9 @@ export interface WalletBackend {
     listener: (tip: BlockHeader) => void,
   ): Promise<Unsubscribe>;
 
+  /** One 80-byte header per height, in the order asked for. */
+  blockHeaders(heights: number[]): Promise<Uint8Array[]>;
+
   /** One history per scripthash, in the order asked for. */
   history(scriptHashes: string[]): Promise<HistoryEntry[][]>;
   /** One raw transaction per txid, in the order asked for. */
@@ -62,7 +78,10 @@ export interface WalletBackend {
   ): Promise<Unsubscribe>;
 
   feeHistogram(): Promise<FeeBucket[]>;
-  /** @returns the txid of the broadcast transaction. */
+  /**
+   * @returns the txid of the broadcast transaction.
+   * @throws {BroadcastError} carrying the node's reason when it rejects it.
+   */
   broadcast(raw: Uint8Array): Promise<string>;
 }
 

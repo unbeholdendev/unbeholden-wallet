@@ -2,6 +2,7 @@ import { hex } from "@scure/base";
 import { Transaction } from "@scure/btc-signer";
 import { sha256x2 } from "@scure/btc-signer/utils.js";
 import {
+  BroadcastError,
   ConnectionError,
   scriptHash,
   type BlockHeader,
@@ -20,6 +21,8 @@ export type Fixture = {
   feeHistogram: FeeBucket[];
   /** Makes `connect` fail this way rather than succeed. */
   failure: ConnectionFailure | null;
+  /** Makes `broadcast` reject with this reason rather than accept. */
+  broadcastRejection: string | null;
 };
 
 export type FakeBackend = WalletBackend & {
@@ -50,7 +53,8 @@ type Known = {
 /**
  * Nothing here verifies the merkle root, so it is a stand-in rather than a
  * merkle tree. It only has to differ when the block's transactions do, and
- * the nonce covers the blocks that are otherwise identical.
+ * the nonce covers the blocks that are otherwise identical. Blocks are ten
+ * minutes apart, from an arbitrary real date.
  *
  * Field offsets and sizes:
  * https://developer.bitcoin.org/reference/block_chain.html
@@ -58,12 +62,15 @@ type Known = {
 function buildHeader(
   previous: Uint8Array,
   txids: string[],
+  height: number,
   nonce: number,
 ): Uint8Array {
   const header = new Uint8Array(80);
   header.set(previous, 4);
   header.set(sha256x2(hex.decode(txids.join(""))), 36);
-  new DataView(header.buffer).setUint32(76, nonce, true);
+  const view = new DataView(header.buffer);
+  view.setUint32(68, 1_700_000_000 + height * 600, true);
+  view.setUint32(76, nonce, true);
   return header;
 }
 
@@ -130,7 +137,7 @@ export function fakeBackend(fixture: Partial<Fixture> = {}): FakeBackend {
       const txids = block.transactions.map((raw) =>
         register(raw, startHeight + i),
       );
-      const header = buildHeader(previous, txids, block.nonce);
+      const header = buildHeader(previous, txids, startHeight + i, block.nonce);
       headers.push(header);
       previous = sha256x2(header);
     });
@@ -192,6 +199,15 @@ export function fakeBackend(fixture: Partial<Fixture> = {}): FakeBackend {
       return () => void headerListeners.delete(listener);
     },
 
+    async blockHeaders(heights) {
+      requireConnection();
+      return heights.map((height) => {
+        const header = headers[height - startHeight];
+        if (!header) throw new Error(`No block at height ${height}`);
+        return header;
+      });
+    },
+
     async history(scriptHashes) {
       requireConnection();
       return scriptHashes.map((hash) => histories.get(hash) ?? []);
@@ -220,6 +236,9 @@ export function fakeBackend(fixture: Partial<Fixture> = {}): FakeBackend {
 
     async broadcast(raw) {
       requireConnection();
+      if (fixture.broadcastRejection) {
+        throw new BroadcastError(fixture.broadcastRejection);
+      }
       backend.addToMempool(raw);
       return Transaction.fromRaw(raw, PARSE).id;
     },
