@@ -3,7 +3,9 @@ import { useConnection } from "../app/connection";
 import { IDLE_DEFAULT_MINUTES, useVault } from "../app/vault";
 import { APP_VERSION } from "../pwa/register";
 import { VaultChanged, WrongPassphrase } from "../vault/vault";
-import { Button, Field, linkClass, Notice, Panel, Segmented } from "../ui/kit";
+import { Button, buttonClass, Field, linkClass, Notice, Panel, Segmented } from "../ui/kit";
+import { Icon } from "../ui/icons";
+import { useWalletSession } from "../app/session";
 import { useToast } from "../ui/toast";
 import { DestroyVault } from "./DestroyVault";
 import { MIN_LENGTH, PassphraseInput, Strength, strength } from "./passphrase";
@@ -68,6 +70,57 @@ function ChangePassphrase() {
   );
 }
 
+function Labels() {
+  const session = useWalletSession();
+  const { wallets, walletId } = useVault();
+  const [report, setReport] = useState<string | null>(null);
+  const name = wallets.find((w) => w.id === walletId)?.name ?? "wallet";
+
+  const exportLabels = () => {
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([session!.exportLabels()], { type: "application/jsonl" }));
+    link.download = `${name.replace(/[^\w-]+/g, "-")}-labels.jsonl`;
+    link.click();
+  };
+  const importLabels = async (file: File | undefined) => {
+    if (!file || !session) return;
+    const { imported, skipped } = await session.importLabels(await file.text());
+    setReport(
+      `Imported ${imported === 1 ? "1 label" : `${imported} labels`}` +
+        (skipped ? `, skipped ${skipped} that were unreadable or belong to another wallet.` : "."),
+    );
+  };
+
+  return (
+    <Panel title="Labels" aside={name}>
+      <p className="m-0 text-sm text-ink-2">
+        Labels and frozen coins, as a BIP329 file that Sparrow and other wallets read. Importing adds to the labels here
+        and replaces any for the same thing.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button icon="download" disabled={!session} onClick={exportLabels}>
+          Export labels
+        </Button>
+        <label className={`${buttonClass({})} cursor-pointer has-disabled:cursor-not-allowed`}>
+          <Icon name="upload" />
+          Import labels
+          <input
+            type="file"
+            accept=".jsonl,.json,.txt,application/jsonl,application/json,text/plain"
+            disabled={!session}
+            className="sr-only"
+            onChange={(e) => {
+              void importLabels(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+          />
+        </label>
+      </div>
+      {report && <Notice tone="ok">{report}</Notice>}
+    </Panel>
+  );
+}
+
 export function Settings() {
   const { settings, saveSettings, lock, persistence, wallets } = useVault();
   const { connection } = useConnection();
@@ -97,6 +150,7 @@ export function Settings() {
             Add a wallet
           </a>
         </Panel>
+        <Labels />
         <Panel title="Storage">
           {status ? <Notice tone={status.tone}>{status.text}</Notice> : <p className="m-0 text-sm text-ink-3">Asking the browser.</p>}
         </Panel>
