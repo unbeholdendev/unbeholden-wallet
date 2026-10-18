@@ -1,0 +1,32 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  release:
+    runs-on: docker
+    container: node:22-bookworm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: https://github.com/oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - run: bun run --silent hashes > hashes.txt
+      - run: tar -czf "btc-browser-wallet-$GITHUB_REF_NAME.tar.gz" -C dist .
+      - name: Publish release
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          API: ${{ github.server_url }}/api/v1/repos/${{ github.repository }}/releases
+        run: |
+          id=$(curl -sSf -X POST "$API" \
+            -H "Authorization: token $TOKEN" -H "Content-Type: application/json" \
+            -d "{\"tag_name\":\"$GITHUB_REF_NAME\",\"name\":\"$GITHUB_REF_NAME\"}" \
+            | node -p "JSON.parse(require('fs').readFileSync(0)).id")
+          for f in hashes.txt "btc-browser-wallet-$GITHUB_REF_NAME.tar.gz"; do
+            curl -sSf -X POST "$API/$id/assets" \
+              -H "Authorization: token $TOKEN" -F "attachment=@$f"
+          done

@@ -15,3 +15,9 @@ jobs:
       - run: bun run typecheck
       - run: bun run test
       - run: bun run build
+      - name: Second build is byte-identical
+        run: |
+          bun run --silent hashes > ../hashes-1.txt
+          rm -rf dist
+          bun run build
+          bun run --silent hashes | diff ../hashes-1.txt -
