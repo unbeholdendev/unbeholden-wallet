@@ -21,7 +21,8 @@ import { Transaction } from "./screens/Transaction";
 import { CoinHistory } from "./screens/CoinHistory";
 import { Settings } from "./screens/Settings";
 import { Unlock } from "./screens/Unlock";
-import { Button, LinkButton } from "./ui/kit";
+import { RestoreBackup } from "./screens/Backup";
+import { Button, LinkButton, Panel } from "./ui/kit";
 import { ToastProvider } from "./ui/toast";
 import type { KdfParams } from "./vault/vault";
 
@@ -43,7 +44,16 @@ function Unlocked({ route }: { route: string[] }) {
   }, [connection.phase]);
 
   if (!wallets.length)
-    return <Page aside={draft ? undefined : <LinkButton onClick={lock}>Lock</LinkButton>}>{reached ? <ImportWallet /> : <Connect onboarding />}</Page>;
+    return (
+      <Page aside={draft ? undefined : <LinkButton onClick={lock}>Lock</LinkButton>}>
+        {reached ? <ImportWallet /> : <Connect onboarding />}
+        {draft && (
+          <Panel title="Or restore from a backup" className="max-w-[400px]">
+            <RestoreBackup />
+          </Panel>
+        )}
+      </Page>
+    );
   if (draft)
     return (
       <SessionProvider>
