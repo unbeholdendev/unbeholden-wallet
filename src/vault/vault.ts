@@ -43,7 +43,13 @@ export class VaultChanged extends Error {
 type Sealed = { iv: Uint8Array<ArrayBuffer>; data: Uint8Array<ArrayBuffer> };
 type Header = { salt: string; kdf: KdfParams; check: Sealed };
 
-const DB = "vault";
+let DB = "vault";
+
+/** For the demo page, which shares the app's origin on the dev server. */
+export function setVaultDatabase(name: string): void {
+  DB = name;
+}
+
 const CHECK = "";
 
 function done<T>(request: IDBRequest<T>): Promise<T> {

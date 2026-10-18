@@ -1,7 +1,7 @@
 import { createRoot } from "react-dom/client";
 import { App } from "../src/App";
 import { demoBackend, seedDemoVault } from "../src/backend/fixture";
-import { vaultExists } from "../src/vault/vault";
+import { setVaultDatabase, vaultExists } from "../src/vault/vault";
 import "../src/index.css";
 
 /**
@@ -10,6 +10,7 @@ import "../src/index.css";
  */
 const CHEAP = { m: 8, t: 1, p: 1 };
 
+setVaultDatabase("demo-vault");
 if (!(await vaultExists())) await seedDemoVault("demo passphrase", CHEAP, "wss://fulcrum.tail4b2c1.ts.net:50004");
 
 createRoot(document.getElementById("root")!).render(<App kdf={CHEAP} factory={() => demoBackend()} />);
