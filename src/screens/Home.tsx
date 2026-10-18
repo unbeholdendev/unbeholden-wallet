@@ -8,7 +8,6 @@ import { Amount, btcParts, groupSats } from "../ui/amount";
 import { confText, dateText, hostText, timeText, txFallback } from "../ui/format";
 import { Icon } from "../ui/icons";
 import { Button, Chip, Empty, LinkButton, linkClass } from "../ui/kit";
-import { SourceSwatch, sourcesOf } from "../ui/sources";
 import { Opening } from "./parts";
 
 const stages = { history: "Checking addresses", transactions: "Fetching transactions", blocks: "Fetching block times" };
@@ -65,37 +64,6 @@ function Balance({ snapshot }: { snapshot: WalletSnapshot }) {
         )}
       </div>
       <SyncLine snapshot={snapshot} />
-    </section>
-  );
-}
-
-function SourcesKey({ snapshot }: { snapshot: WalletSnapshot }) {
-  const sources = sourcesOf(snapshot);
-  if (!sources.length) return null;
-  return (
-    <section className="rounded-panel border border-rule bg-sheet">
-      <div className="flex items-baseline justify-between gap-3 px-4 pt-4 pb-2">
-        <h2 className="text-md font-semibold">Sources</h2>
-        <a className={`${linkClass} text-sm`} href="#/coins">
-          See coins
-        </a>
-      </div>
-      <p className="m-0 px-4 pb-3 text-sm text-ink-3">Coins in one source are already linked to each other on-chain.</p>
-      <ul className="m-0 list-none p-0">
-        {sources.map((s) => (
-          <li key={s.id} className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-2.5 border-t border-rule px-4 py-2.5 text-sm">
-            <SourceSwatch source={s} />
-            <span className="min-w-0">
-              <span className="block truncate text-base font-medium">{s.name}</span>
-              <span className="text-xs text-ink-3">
-                {s.coins.length === 1 ? "1 coin" : `${s.coins.length} coins`}
-                {s.tone === 0 && ", frozen"}
-              </span>
-            </span>
-            <Amount sats={s.total} />
-          </li>
-        ))}
-      </ul>
     </section>
   );
 }
@@ -226,9 +194,6 @@ export function Home() {
       )}
       <div className="grid content-start gap-6">
         <Balance snapshot={snapshot} />
-        <div className="hidden @min-[900px]/app:block">
-          <SourcesKey snapshot={snapshot} />
-        </div>
       </div>
       {fresh && snapshot.connection === "connected" && !snapshot.progress ? (
         <Empty title="No transactions yet">
@@ -249,9 +214,6 @@ export function Home() {
       ) : (
         <History snapshot={snapshot} />
       )}
-      <div className="@min-[900px]/app:hidden">
-        <SourcesKey snapshot={snapshot} />
-      </div>
     </div>
   );
 }

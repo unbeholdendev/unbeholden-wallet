@@ -63,6 +63,8 @@ export type WalletSession = {
   /** An empty or null label removes it. */
   setLabel(type: LabelType, ref: string, label: string | null): Promise<void>;
   setFrozen(coin: { txid: string; vout: number }, frozen: boolean): Promise<void>;
+  /** Marks or clears the coins as paid by someone who knows who the user is. */
+  setKyc(coins: { txid: string; vout: number }[], kyc: boolean): Promise<void>;
   exportLabels(): string;
   /** `skipped` counts unreadable lines and records labelled for another wallet. */
   importLabels(text: string): Promise<{ imported: number; skipped: number }>;
@@ -99,6 +101,7 @@ export async function openWallet(
   let raw: Record<string, string> = (await vault.get(`cache/${id}/txs`)) ?? {};
   const labels: Record<string, string> = (await vault.get(`labels/${id}`)) ?? {};
   const frozen = new Set<string>((await vault.get<string[]>(`frozen/${id}`)) ?? []);
+  const kyc = new Set<string>((await vault.get<string[]>(`kyc/${id}`)) ?? []);
 
   const scripts = new Map<string, { script: string; hash: string }>();
   const scriptOf = (address: string) => {
@@ -128,7 +131,7 @@ export async function openWallet(
     return p;
   };
   const allHashes = () => cache.addresses.flat().map((a) => scriptOf(a).hash);
-  const source = (): ViewSource => ({ descriptor, cache, labels, frozen, parsed, scriptOf, addressOf });
+  const source = (): ViewSource => ({ descriptor, cache, labels, frozen, kyc, parsed, scriptOf, addressOf });
   const lastUsed = (chain: number) => lastUsedOn(source(), chain);
 
   /** Derives up to the gap limit past the last used address, and returns the new scripthashes. */
@@ -327,6 +330,7 @@ export async function openWallet(
 
   const saveLabels = () => vault.put(`labels/${id}`, labels);
   const saveFrozen = () => vault.put(`frozen/${id}`, [...frozen]);
+  const saveKyc = () => vault.put(`kyc/${id}`, [...kyc]);
 
   void request();
 
@@ -368,6 +372,14 @@ export async function openWallet(
       rebuild();
       await saveFrozen();
     },
+    async setKyc(coins, on) {
+      for (const c of coins) {
+        if (on) kyc.add(outpoint(c));
+        else kyc.delete(outpoint(c));
+      }
+      rebuild();
+      await saveKyc();
+    },
     exportLabels() {
       const records = new Map<string, Bip329Record>();
       for (const [key, label] of Object.entries(labels)) {
@@ -377,6 +389,10 @@ export async function openWallet(
       for (const point of frozen) {
         const key = `output:${point}`;
         records.set(key, { ...(records.get(key) ?? { type: "output", ref: point }), spendable: false });
+      }
+      for (const point of kyc) {
+        const key = `output:${point}`;
+        records.set(key, { ...(records.get(key) ?? { type: "output", ref: point }), kyc: true });
       }
       return formatBip329([...records.values()].map((r) => (origin ? { ...r, origin } : r)));
     },
@@ -394,9 +410,13 @@ export async function openWallet(
           if (r.spendable) frozen.delete(r.ref);
           else frozen.add(r.ref);
         }
+        if (r.type === "output" && r.kyc !== undefined) {
+          if (r.kyc) kyc.add(r.ref);
+          else kyc.delete(r.ref);
+        }
       }
       rebuild();
-      await Promise.all([saveLabels(), saveFrozen()]);
+      await Promise.all([saveLabels(), saveFrozen(), saveKyc()]);
       return { imported, skipped: skipped + records.length - imported };
     },
     async addTransaction(bytes) {

@@ -11,6 +11,10 @@ export type Source = {
   dashed: boolean;
   seed: number;
   name: string;
+  /** What the user called it, when they did. */
+  label: string | null;
+  /** Some coin in it came from someone who knows who the user is. */
+  kyc: boolean;
   /** Short enough to sit inside a territory on the map. */
   short: string;
   note: string;
@@ -97,7 +101,9 @@ export function sourcesOf(snapshot: WalletSnapshot): Source[] {
       dashed,
       seed,
       name: label ?? `${kind} ${shortAddress(oldest.address)}`,
-      short: label ? (label.length > 16 ? `${label.slice(0, 15)}…` : label) : `…${oldest.address.slice(-4)}`,
+      label: label ?? null,
+      kyc: coins.some((c) => c.kyc),
+      short: label ? (label.length > 16 ? label.slice(0, 16).replace(/[\s,;:.-]+\S*$/, "") : label) : `…${oldest.address.slice(-4)}`,
       note: [
         oldest.height === null ? "Not yet confirmed" : `First seen in block ${groupSats(oldest.height)}`,
         coins.length > 1 ? "already linked on-chain" : "",

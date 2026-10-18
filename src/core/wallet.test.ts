@@ -392,11 +392,13 @@ describe("labels", () => {
     expect(parseBip329(session.exportLabels()).records).toEqual(expected);
   });
 
-  it("round-trips labels and frozen flags into another wallet", async () => {
+  it("round-trips labels, frozen and KYC flags into another wallet", async () => {
     const backend = chain();
     const session = await open(backend);
     await session.setLabel("tx", id(pay2), "Rent refund");
     await session.setFrozen(received(session.getSnapshot()), true);
+    await session.setKyc([received(session.getSnapshot())], true);
+    expect(received(session.getSnapshot()).kyc).toBe(true);
     const exported = session.exportLabels();
 
     const twin = await createWallet(vault, { name: "Twin", descriptor: DESCRIPTOR, network: "mainnet" });
@@ -405,6 +407,7 @@ describe("labels", () => {
     const s = other.getSnapshot();
     expect(s.transactions.find((t) => t.txid === id(pay2))?.label).toBe("Rent refund");
     expect(received(s).frozen).toBe(true);
+    expect(received(s).kyc).toBe(true);
     expect(other.exportLabels()).toBe(exported);
   });
 });
@@ -425,6 +428,7 @@ describe("wallet records", () => {
     const session = await open(chain());
     await session.setLabel("tx", id(pay1), "x");
     await session.setFrozen(session.getSnapshot().coins[0]!, true);
+    await session.setKyc([session.getSnapshot().coins[0]!], true);
     session.close();
     expect(await vault.keys(`cache/${walletId}/`)).not.toEqual([]);
 

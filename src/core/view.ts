@@ -48,7 +48,8 @@ export type WalletTx = {
   label: string | null;
 };
 
-export type WalletCoin = Coin & { label: string | null };
+/** `kyc`: the user said whoever paid this coin knows who they are. */
+export type WalletCoin = Coin & { label: string | null; kyc: boolean };
 
 /**
  * Sats. `confirmed` and `unconfirmed` cover every coin, frozen or not.
@@ -75,6 +76,7 @@ export type ViewSource = {
   cache: Cache;
   labels: Record<string, string>;
   frozen: Set<string>;
+  kyc: Set<string>;
   parsed: (txid: string) => Parsed | undefined;
   scriptOf: (address: string) => { script: string; hash: string };
   addressOf: (script: string) => string | null;
@@ -123,7 +125,7 @@ export const lastUsed = ({ cache, scriptOf }: Pick<ViewSource, "cache" | "script
 
 /** Balance, history, addresses and coins, worked out from the cached chain data alone. */
 export function deriveView(source: ViewSource) {
-  const { descriptor, cache, labels, frozen, parsed, scriptOf, addressOf } = source;
+  const { descriptor, cache, labels, frozen, kyc, parsed, scriptOf, addressOf } = source;
   const entries = new Map<string, HistoryEntry>();
   for (const list of Object.values(cache.histories)) {
     for (const entry of list) entries.set(entry.txid, entry);
@@ -213,6 +215,7 @@ export function deriveView(source: ViewSource) {
           status: statusOf(tx.txid),
           frozen: frozen.has(point),
           label: labels[`output:${point}`] ?? null,
+          kyc: kyc.has(point),
         },
       ];
     }),

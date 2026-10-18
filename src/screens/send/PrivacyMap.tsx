@@ -11,7 +11,7 @@ const MAX_DOTS = 6;
 
 /**
  * One territory per source, the selection drawn as routes from each chosen
- * coin to this transaction. Sources the selection does not touch fade.
+ * coin to this transaction. Sources the selection does not touch fade, and only touched ones are named.
  */
 export function PrivacyMap({ sources, selected }: { sources: Source[]; selected: Set<string> }) {
   const id = useId().replace(/\W/g, "");
@@ -47,9 +47,11 @@ export function PrivacyMap({ sources, selected }: { sources: Source[]; selected:
       {places.map(({ source, cx, cy, rx, ry }) => (
         <g key={source.id} className={`transition-opacity ${linked.size && !linked.has(source.id) ? "opacity-[0.38]" : ""}`}>
           <path d={blob(cx, cy, rx, ry, source.seed)} className={`${FILL[source.tone]} ${EDGE[source.tone]} stroke-[1.4] ${source.dashed ? "[stroke-dasharray:4_3]" : ""}`} />
-          <text x={cx} y={cy - ry * 0.4} textAnchor="middle" className={`${INK[source.tone]} text-[9px] font-semibold tracking-[0.06em] uppercase`}>
-            {source.short}
-          </text>
+          {linked.has(source.id) && (
+            <text x={cx} y={cy - ry * 0.4} textAnchor="middle" className={`${INK[source.tone]} text-[9px] font-semibold tracking-[0.06em] uppercase`}>
+              {source.short}
+            </text>
+          )}
         </g>
       ))}
       {places.flatMap(({ dots, cx }) =>
