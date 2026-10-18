@@ -10,7 +10,7 @@ import {
   type Unsubscribe,
   type WalletBackend,
 } from "../backend/backend";
-import type { Clock, Vault } from "../vault/vault";
+import type { Clock, Store } from "../vault/vault";
 import { outpoint } from "../wallet/coin";
 import { deriveAddress } from "../wallet/derive";
 import { NETWORKS } from "../wallet/network";
@@ -84,7 +84,7 @@ const PARSE = {
 
 
 export async function openWallet(
-  vault: Vault,
+  vault: Store,
   id: string,
   backend: WalletBackend,
   { now = Date.now as Clock, gapLimit = 20 } = {},
