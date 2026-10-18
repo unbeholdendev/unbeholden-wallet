@@ -75,6 +75,10 @@ function inputWeight(coin: Coin): number {
   throw new Error(`Cannot spend output script ${coin.script}`);
 }
 
+/** Sats to spend this coin as one input at `feeRate`, before the rest of the transaction. */
+export const spendCost = (coin: Coin, feeRate: number) =>
+  Math.ceil((inputWeight(coin) / 4) * feeRate);
+
 const countWeight = (count: number) => (count > 252 ? 8 : 0);
 
 const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);

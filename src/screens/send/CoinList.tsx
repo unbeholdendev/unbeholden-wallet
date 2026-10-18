@@ -1,9 +1,11 @@
 import type { WalletCoin } from "../../core/wallet";
-import { Amount, btcParts } from "../../ui/amount";
+import { Amount, btcParts, groupSats } from "../../ui/amount";
 import { Icon, type IconName } from "../../ui/icons";
 import { Button, Chip } from "../../ui/kit";
 import { SourceSwatch, TINT, type Source } from "../../ui/sources";
 import { outpoint } from "../../wallet/coin";
+import { spendCost } from "../../wallet/select";
+import { rateText } from "./fees";
 import { SourceTitle } from "../parts";
 
 /** Frozen coins and coins waiting on someone else's unconfirmed transaction cannot be chosen. */
@@ -31,11 +33,13 @@ function status(coin: WalletCoin): { text: string; tone?: "ok" | "warn"; icon?: 
 const COLUMNS = "@min-[900px]:grid-cols-[22px_150px_92px_minmax(0,1fr)]";
 
 /** One coin; given its source, the coin stands for the whole of a one-coin source. */
-function CoinRow({ coin, source, tip, on, onToggle }: { coin: WalletCoin; source?: Source; tip: number | null; on: boolean; onToggle: () => void }) {
+function CoinRow({ coin, source, tip, rate, on, onToggle }: { coin: WalletCoin; source?: Source; tip: number | null; rate: number; on: boolean; onToggle: () => void }) {
   const ok = selectable(coin);
   const s = status(coin);
   const { lead, rest } = btcParts(coin.value);
   const when = age(coin, tip);
+  const cost = spendCost(coin, rate);
+  const uneconomic = cost >= coin.value ? `Uneconomic at ${rateText(rate)} sat/vB` : null;
   return (
     <div
       data-on={on || undefined}
@@ -47,7 +51,7 @@ function CoinRow({ coin, source, tip, on, onToggle }: { coin: WalletCoin; source
         role="checkbox"
         aria-checked={on}
         aria-disabled={!ok}
-        aria-label={[`${lead}${rest} BTC`, source?.name ?? coin.label ?? coin.address, when, s?.text].filter(Boolean).join(", ")}
+        aria-label={[`${lead}${rest} BTC`, source?.name ?? coin.label ?? coin.address, when, s?.text, uneconomic].filter(Boolean).join(", ")}
         onClick={() => ok && onToggle()}
         className="mt-px grid size-5 place-items-center rounded-check border-[1.5px] border-ink-3 bg-sheet text-route-ink after:absolute after:inset-0 aria-checked:border-route aria-checked:bg-route aria-disabled:cursor-not-allowed aria-disabled:border-dashed aria-disabled:after:cursor-not-allowed"
       >
@@ -71,12 +75,14 @@ function CoinRow({ coin, source, tip, on, onToggle }: { coin: WalletCoin; source
           <span className={`min-w-0 ${coin.label ? "text-ink group-data-off:text-ink-3" : "truncate font-mono text-[0.86em]"}`}>{coin.label ?? coin.address}</span>
         )}
         <span className="whitespace-nowrap @min-[900px]:hidden">{when}</span>
+        <span className="whitespace-nowrap">{groupSats(cost)} sats to spend</span>
         {s && (
           <Chip tone={s.tone}>
             {s.icon && <Icon name={s.icon} className="size-3.5" />}
             {s.text}
           </Chip>
         )}
+        {uneconomic && <Chip tone="warn">{uneconomic}</Chip>}
       </span>
     </div>
   );
@@ -85,6 +91,7 @@ function CoinRow({ coin, source, tip, on, onToggle }: { coin: WalletCoin; source
 export function CoinList({
   sources,
   tip,
+  rate,
   selected,
   onToggle,
   onGroup,
@@ -94,6 +101,7 @@ export function CoinList({
 }: {
   sources: Source[];
   tip: number | null;
+  rate: number;
   selected: Set<string>;
   onToggle: (coin: WalletCoin) => void;
   onGroup: (source: Source) => void;
@@ -127,7 +135,7 @@ export function CoinList({
       {sources.map((source) => {
         if (source.coins.length === 1) {
           const coin = source.coins[0]!;
-          return <CoinRow key={source.id} coin={coin} source={source} tip={tip} on={selected.has(outpoint(coin))} onToggle={() => onToggle(coin)} />;
+          return <CoinRow key={source.id} coin={coin} source={source} tip={tip} rate={rate} on={selected.has(outpoint(coin))} onToggle={() => onToggle(coin)} />;
         }
         const open = source.coins.filter((c) => selectable(c) && c.status !== "foreign-unconfirmed");
         const whole = open.length > 0 && open.every((c) => selected.has(outpoint(c)));
@@ -148,7 +156,7 @@ export function CoinList({
               </div>
             </div>
             {source.coins.map((coin) => (
-              <CoinRow key={outpoint(coin)} coin={coin} tip={tip} on={selected.has(outpoint(coin))} onToggle={() => onToggle(coin)} />
+              <CoinRow key={outpoint(coin)} coin={coin} tip={tip} rate={rate} on={selected.has(outpoint(coin))} onToggle={() => onToggle(coin)} />
             ))}
           </div>
         );
