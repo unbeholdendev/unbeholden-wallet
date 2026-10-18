@@ -8,6 +8,8 @@ export type Bip329Record = {
   origin?: string;
   /** Outputs only: false is the do-not-spend flag. */
   spendable?: boolean;
+  /** Not in BIP329, this wallet's own. Outputs only: true when the payer knows who the user is. */
+  kyc?: boolean;
 };
 
 /** Skips lines that are not records, rather than failing the whole file. */
@@ -23,7 +25,8 @@ export function parseBip329(text: string): { records: Bip329Record[]; skipped: n
         typeof r.ref !== "string" ||
         !["string", "undefined"].includes(typeof r.label) ||
         !["string", "undefined"].includes(typeof r.origin) ||
-        !["boolean", "undefined"].includes(typeof r.spendable)
+        !["boolean", "undefined"].includes(typeof r.spendable) ||
+        !["boolean", "undefined"].includes(typeof r.kyc)
       ) {
         throw new Error();
       }

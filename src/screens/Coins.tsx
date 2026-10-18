@@ -5,7 +5,7 @@ import { ageText, confText, shortId } from "../ui/format";
 import { Icon } from "../ui/icons";
 import { Button, Chip, Empty, linkClass } from "../ui/kit";
 import { SourceSwatch, sourcesOf, TINT, type Source } from "../ui/sources";
-import { EditableLabel, Opening } from "./parts";
+import { EditableLabel, Opening, SourceTitle } from "./parts";
 
 const statusChip = {
   confirmed: null,
@@ -36,28 +36,34 @@ function lookup(snapshot: WalletSnapshot) {
   return found;
 }
 
-function CoinRow({ coin, snapshot }: { coin: WalletCoin; snapshot: WalletSnapshot }) {
+/** One coin; given its source, the coin stands for the whole of a one-coin source. */
+function CoinRow({ coin, source, snapshot }: { coin: WalletCoin; source?: Source; snapshot: WalletSnapshot }) {
   const session = useWalletSession();
   const tx = lookup(snapshot).tx.get(coin.txid);
   const confirmations = tx?.confirmations ?? 0;
   const age = tx?.time && snapshot.tip ? ageText(snapshot.tip.time - tx.time) : null;
+  const when = (confirmations < 6 || !age ? confText(confirmations) : age).toLowerCase();
   const path = lookup(snapshot).path.get(coin.address);
   const { lead, rest } = btcParts(coin.value);
   return (
     <li
-      className={`grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 border-t border-rule px-4 py-3 @min-[720px]:grid-cols-[140px_84px_84px_minmax(0,1fr)_auto] @min-[720px]:items-center ${coin.frozen ? "bg-[repeating-linear-gradient(135deg,transparent_0_6px,color-mix(in_srgb,var(--rule)_45%,transparent)_6px_7px)]" : "bg-sheet"}`}
+      className={`grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 border-t px-4 py-3 @min-[720px]:grid-cols-[140px_84px_minmax(0,1fr)_auto] @min-[720px]:items-center ${source ? "border-rule-2 first:border-t-0" : "border-rule"} ${coin.frozen ? "bg-[repeating-linear-gradient(135deg,transparent_0_6px,color-mix(in_srgb,var(--rule)_45%,transparent)_6px_7px)]" : source ? TINT[source.tone] : "bg-sheet"}`}
     >
       <a href={`#/tx/${coin.txid}`} className={`text-md font-medium no-underline hover:underline @min-[720px]:text-right ${coin.frozen ? "opacity-60" : "text-ink"}`}>
         <Amount sats={coin.value} />
       </a>
-      <span className="hidden text-right text-sm text-ink-2 @min-[720px]:block">{age}</span>
-      <span className="hidden text-right text-sm text-ink-2 @min-[720px]:block">{confText(confirmations)}</span>
-      <div className="col-span-2 row-start-2 grid min-w-0 gap-1 @min-[720px]:col-span-1 @min-[720px]:col-start-4 @min-[720px]:row-start-1">
-        <EditableLabel type="output" target={`${coin.txid}:${coin.vout}`} value={coin.label} placeholder="Label this coin" className="text-sm" />
-        <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-3">
-          <span className="@min-[720px]:hidden">
-            {age ? `${age} · ${confText(confirmations).toLowerCase()}` : "unconfirmed"}
+      <span className="hidden text-right text-sm text-ink-2 @min-[720px]:block">{when}</span>
+      <div className="col-span-2 row-start-2 grid min-w-0 gap-1 @min-[720px]:col-span-1 @min-[720px]:col-start-3 @min-[720px]:row-start-1">
+        {source ? (
+          <span className="flex min-w-0 items-center gap-2.5">
+            <SourceSwatch source={source} />
+            <SourceTitle source={source} />
           </span>
+        ) : (
+          <EditableLabel type="output" target={`${coin.txid}:${coin.vout}`} value={coin.label} placeholder="Label this coin" className="text-sm" />
+        )}
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-3">
+          <span className="@min-[720px]:hidden">{when}</span>
           <span className="font-mono">{shortId(coin.address, 10, 6)}</span>
           {path && <span className="font-mono">{path}</span>}
         </span>
@@ -77,7 +83,7 @@ function CoinRow({ coin, snapshot }: { coin: WalletCoin; snapshot: WalletSnapsho
         size="sm"
         icon={coin.frozen ? "unlock" : "lock"}
         aria-label={`${coin.frozen ? "Unfreeze" : "Freeze"} ${lead}${rest} BTC`}
-        className="col-start-2 row-start-1 @min-[720px]:col-start-5"
+        className="col-start-2 row-start-1 @min-[720px]:col-start-4"
         onClick={() => session?.setFrozen(coin, !coin.frozen)}
       >
         {coin.frozen ? "Unfreeze" : "Freeze"}
@@ -87,16 +93,14 @@ function CoinRow({ coin, snapshot }: { coin: WalletCoin; snapshot: WalletSnapsho
 }
 
 function Group({ source, snapshot }: { source: Source; snapshot: WalletSnapshot }) {
+  if (source.coins.length === 1) return <CoinRow coin={source.coins[0]!} source={source} snapshot={snapshot} />;
   return (
     <li className="border-t border-rule-2 first:border-t-0">
       <div className={`grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-2.5 px-4 py-2.5 ${TINT[source.tone]}`}>
         <SourceSwatch source={source} />
-        <div className="min-w-0">
-          <h3 className="truncate text-base font-semibold">{source.name}</h3>
-          <p className="m-0 text-xs text-ink-2">{source.note}</p>
-        </div>
+        <SourceTitle source={source} />
         <span className="text-right text-sm text-ink-2">
-          {source.coins.length === 1 ? "1 coin" : `${source.coins.length} coins`}
+          {source.coins.length} coins
           <br />
           <Amount sats={source.total} />
         </span>
@@ -142,10 +146,9 @@ export function Coins() {
               </div>
             ))}
           </dl>
-          <div className="hidden grid-cols-[140px_84px_84px_minmax(0,1fr)_auto] gap-x-3 border-t border-rule px-4 py-2 text-xs font-semibold tracking-[0.04em] text-ink-3 uppercase @min-[720px]:grid">
+          <div className="hidden grid-cols-[140px_84px_minmax(0,1fr)_auto] gap-x-3 border-t border-rule px-4 py-2 text-xs font-semibold tracking-[0.04em] text-ink-3 uppercase @min-[720px]:grid">
             <span className="text-right">Value</span>
             <span className="text-right">Age</span>
-            <span className="text-right">Confirmations</span>
             <span>Label</span>
           </div>
           <ul className="m-0 list-none border-t border-rule-2 p-0">

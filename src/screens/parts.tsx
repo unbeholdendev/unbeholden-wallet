@@ -3,7 +3,9 @@ import { useWalletSession } from "../app/session";
 import type { LabelType } from "../core/wallet";
 import { Icon } from "../ui/icons";
 import { Button, inputClass } from "../ui/kit";
+import type { Source } from "../ui/sources";
 import { useToast } from "../ui/toast";
+import { outpoint } from "../wallet/coin";
 
 /** A label that turns into a text field on click. Enter or leaving the field saves; Escape cancels. */
 export function EditableLabel({
@@ -98,5 +100,28 @@ export function CopyButton({ text, what }: { text: string; what: string }) {
     >
       Copy
     </Button>
+  );
+}
+
+/** A source's name, editable, what it is, and whether whoever paid it knows who the user is. */
+export function SourceTitle({ source }: { source: Source }) {
+  const session = useWalletSession();
+  return (
+    <div className="grid min-w-0 justify-items-start gap-0.5">
+      <EditableLabel type="output" target={outpoint(source.coins[0]!)} value={source.label} placeholder={source.name} className="relative z-[1] font-semibold" />
+      <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-2">
+        {source.note}
+        <button
+          type="button"
+          role="switch"
+          aria-checked={source.kyc}
+          onClick={() => session?.setKyc(source.coins, !source.kyc)}
+          className="relative z-[1] inline-flex items-center gap-1 rounded-chip px-1.5 py-px font-medium text-ink-3 underline decoration-dotted underline-offset-2 hover:text-route aria-checked:bg-warn-tint aria-checked:text-warn aria-checked:no-underline"
+        >
+          {source.kyc && <Icon name="check" className="size-3" />}
+          Knows who I am
+        </button>
+      </span>
+    </div>
   );
 }

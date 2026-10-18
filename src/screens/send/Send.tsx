@@ -54,6 +54,7 @@ function Compose({ snapshot, onBuilt }: { snapshot: WalletSnapshot; onBuilt: (bu
 
   const sources = useMemo(() => sourcesOf(snapshot), [snapshot]);
   const nameOf = useMemo(() => new Map(sources.flatMap((s) => s.coins.map((c) => [outpoint(c), s.name]))), [sources]);
+  const kycOf = useMemo(() => new Set(sources.filter((s) => s.kyc).flatMap((s) => s.coins.map(outpoint))), [sources]);
   const own = useMemo(() => new Set([...snapshot.addresses.receive, ...snapshot.addresses.change].map((a) => a.address)), [snapshot]);
   const rate = rateOf(fee, histogram);
   // An unfinished address still has to cost its output's bytes, so it stands in as one of the wallet's own type.
@@ -69,7 +70,10 @@ function Compose({ snapshot, onBuilt }: { snapshot: WalletSnapshot; onBuilt: (bu
   };
   const chosen = snapshot.coins.filter((c) => selected.has(outpoint(c)));
   const result = spend(chosen, payment);
-  const report = assessPrivacy(result, payment, snapshot.groups, { label: (c) => nameOf.get(outpoint(c)) });
+  const report = assessPrivacy(result, payment, snapshot.groups, {
+    label: (c) => nameOf.get(outpoint(c)),
+    kyc: (c) => kycOf.has(outpoint(c)),
+  });
   const linked = report.sources.length;
   const foreign = chosen.filter((c) => c.status === "foreign-unconfirmed");
   const stop = blocker(drafts, checks.map((c) => !c || "script" in c), result);

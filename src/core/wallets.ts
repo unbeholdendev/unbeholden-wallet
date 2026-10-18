@@ -69,10 +69,10 @@ export async function renameWallet(vault: Vault, id: string, name: string): Prom
   await vault.put(`wallet/${id}`, { ...(await getWallet(vault, id)), name });
 }
 
-/** Removes the wallet with its cached chain data, labels and frozen coins. */
+/** Removes the wallet with its cached chain data, labels, frozen and KYC marks. */
 export async function deleteWallet(vault: Vault, id: string): Promise<void> {
   const cache = await vault.keys(`cache/${id}/`);
-  await vault.delete(`wallet/${id}`, `labels/${id}`, `frozen/${id}`, ...cache);
+  await vault.delete(`wallet/${id}`, `labels/${id}`, `frozen/${id}`, `kyc/${id}`, ...cache);
 }
 
 export async function getSettings(vault: Vault): Promise<Settings> {

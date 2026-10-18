@@ -41,7 +41,7 @@ function walletTx(inputValue: number, change: number, fee = 282): WalletTx {
 }
 
 function coin(txid: string, vout: number, value: number, at: AddressInfo, status: WalletCoin["status"]): WalletCoin {
-  return { txid, vout, value, script: script(at.address), address: at.address, chain: at.chain, index: at.index, height: status === "confirmed" ? 100 : null, status, frozen: false, label: null };
+  return { txid, vout, value, script: script(at.address), address: at.address, chain: at.chain, index: at.index, height: status === "confirmed" ? 100 : null, status, frozen: false, label: null, kyc: false };
 }
 
 describe("fee bump", () => {

@@ -139,6 +139,10 @@ describe("the send screen", () => {
     expect(summary().getByText("Change back to you").parentElement!.textContent).toContain("m/84h/1h/0h/1/0");
     expect(map.getByText("Links 2 sources")).toBeTruthy();
     expect(map.getByText(/permanently linking them: Kraken withdrawal and Bisq trade/)).toBeTruthy();
+    expect(map.queryByText(/an exchange that knows who you are/)).toBeNull();
+
+    await user.click(within((await coin(/Kraken withdrawal/)).parentElement!).getByRole("switch", { name: "Knows who I am" }));
+    expect(await map.findByText(/^Kraken withdrawal came from an exchange that knows who you are/)).toBeTruthy();
   });
 
   it("never picks a frozen coin or one with an unconfirmed parent, and asks before spending someone else's unconfirmed payment", async () => {
