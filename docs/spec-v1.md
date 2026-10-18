@@ -207,10 +207,10 @@ the user's own node.
 
 ### Signing transport
 
-- Animated QR uses UR (`ur:crypto-psbt`). Descriptors scan as `ur:crypto-output`, `ur:crypto-account`, `ur:output-descriptor` or `ur:account-descriptor`, or as plain text. BBQr is out of scope for v1.
+- Animated QR uses UR (`ur:crypto-psbt`). Descriptors scan as `ur:crypto-output`, `ur:crypto-account`, `ur:output-descriptor` or `ur:account-descriptor`, or as plain text. BBQr (Coldcard Q) is offered as an alternative export format and read back automatically, including its Zlib mode.
 - PSBT file export and import ship in the same release as the QR flow and are the supported fallback.
 - The scanner uses `getUserMedia` with a QR decoder over the video stream, handles out-of-order UR fragments, and shows captured-parts progress. Animation speed and QR density are user-adjustable.
-- A returned PSBT is validated against the transaction that was built before broadcast is offered: outputs, amounts and fee must match, and signatures must be complete.
+- A returned PSBT, or a transaction the signer finished, is validated against the transaction that was built before broadcast is offered: outputs, amounts and fee must match, and signatures must be complete.
 
 ### Trust model
 
@@ -292,7 +292,6 @@ Explicitly excluded from v1. None of these get an issue opened until v1 ships.
 - Wallet statistics and analytics of any kind. Deferred without a chosen form.
 - Message signing and verification.
 - Anything Lightning.
-- BBQr.
 - Multiple accounts per descriptor.
 - Legacy `pkh` and wrapped `sh(wpkh)` script types.
 - Esplora or any HTTP backend implementation. The interface accommodates one;

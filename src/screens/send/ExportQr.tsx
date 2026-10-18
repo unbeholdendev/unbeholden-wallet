@@ -1,25 +1,32 @@
 import { useEffect, useMemo, useState } from "react";
+import { bbqrParts } from "../../transport/bbqr";
 import { psbtFile } from "../../transport/files";
 import { qrPath } from "../../transport/qr";
 import { psbtUrEncoder } from "../../transport/ur";
 import { Segmented } from "../../ui/kit";
 
-// CBOR bytes per QR part: a SeedSigner reads the low setting reliably, a phone camera the high one.
+// PSBT bytes per QR part: a SeedSigner reads the low setting reliably, a phone camera the high one.
 const DENSITY = { low: 80, medium: 160, high: 320 };
 type Density = keyof typeof DENSITY;
+type Format = "ur" | "bbqr";
+type Prefs = { fps: number; density: Density; format: Format };
 const SPEEDS = [2, 4, 6, 8];
 const PREFS = "qr-export";
 
-function loadPrefs(): { fps: number; density: Density } {
+function loadPrefs(): Prefs {
   try {
     const saved = JSON.parse(localStorage.getItem(PREFS) ?? "{}");
-    return { fps: SPEEDS.includes(saved.fps) ? saved.fps : 4, density: saved.density in DENSITY ? saved.density : "medium" };
+    return {
+      fps: SPEEDS.includes(saved.fps) ? saved.fps : 4,
+      density: saved.density in DENSITY ? saved.density : "medium",
+      format: saved.format === "bbqr" ? "bbqr" : "ur",
+    };
   } catch {
-    return { fps: 4, density: "medium" };
+    return { fps: 4, density: "medium", format: "ur" };
   }
 }
 
-function savePrefs(prefs: { fps: number; density: Density }) {
+function savePrefs(prefs: Prefs) {
   try {
     localStorage.setItem(PREFS, JSON.stringify(prefs));
   } catch {
@@ -27,13 +34,20 @@ function savePrefs(prefs: { fps: number; density: Density }) {
   }
 }
 
+function encoderFor(psbt: Uint8Array, format: Format, bytes: number) {
+  if (format === "ur") return psbtUrEncoder(psbt, bytes);
+  const parts = bbqrParts(psbt, "P", bytes);
+  let i = 0;
+  return { seqLen: parts.length, nextPart: () => parts[i++ % parts.length]! };
+}
+
 export function ExportQr({ psbt }: { psbt: Uint8Array }) {
   const [prefs, setPrefs] = useState(loadPrefs);
   const counts = useMemo(
-    () => Object.fromEntries(Object.entries(DENSITY).map(([k, n]) => [k, psbtUrEncoder(psbt, n).seqLen])) as Record<Density, number>,
-    [psbt],
+    () => Object.fromEntries(Object.entries(DENSITY).map(([k, n]) => [k, encoderFor(psbt, prefs.format, n).seqLen])) as Record<Density, number>,
+    [psbt, prefs.format],
   );
-  const encoder = useMemo(() => psbtUrEncoder(psbt, DENSITY[prefs.density]), [psbt, prefs.density]);
+  const encoder = useMemo(() => encoderFor(psbt, prefs.format, DENSITY[prefs.density]), [psbt, prefs.format, prefs.density]);
   const [part, setPart] = useState(() => encoder.nextPart());
   useEffect(() => {
     setPart(encoder.nextPart());
@@ -47,7 +61,7 @@ export function ExportQr({ psbt }: { psbt: Uint8Array }) {
     savePrefs(next);
   };
   const seq = Number(/\/(\d+)-\d+\//.exec(part)?.[1] ?? 1);
-  const at = ((seq - 1) % encoder.seqLen) + 1;
+  const at = part.startsWith("B$") ? parseInt(part.slice(6, 8), 36) + 1 : ((seq - 1) % encoder.seqLen) + 1;
   const qr = useMemo(() => qrPath(part.toUpperCase()), [part]);
 
   return (
@@ -60,7 +74,7 @@ export function ExportQr({ psbt }: { psbt: Uint8Array }) {
       <div className="grid gap-1">
         <h2 className="text-md font-semibold">Show this to your signer</h2>
         <p className="m-0 max-w-[60ch] text-sm text-ink-3">
-          On a SeedSigner choose Scan, then hold this screen steady in front of its camera. The code cycles through every part; the signer collects them in any order.
+          On a SeedSigner choose Scan, then hold this screen steady in front of its camera. The code cycles through every part; the signer collects them in any order. A Coldcard Q reads BBQr: choose it under Signer can't read it.
         </p>
       </div>
       <div className="grid gap-1.5">
@@ -87,6 +101,11 @@ export function ExportQr({ psbt }: { psbt: Uint8Array }) {
       <details className="grid rounded-control border border-rule p-3">
         <summary className="cursor-pointer list-none text-sm font-medium text-route [&::-webkit-details-marker]:hidden">Signer can't read it?</summary>
         <div className="mt-3 grid gap-3.5">
+          <div className="grid gap-1.5">
+            <span className="text-sm font-medium text-ink-2">Format</span>
+            <Segmented label="Format" value={prefs.format} onChange={(format) => change({ format })} options={[{ value: "ur", label: "UR" }, { value: "bbqr", label: "BBQr" }]} />
+            <p className="m-0 text-sm text-ink-3">Most signers read UR. A Coldcard Q reads BBQr.</p>
+          </div>
           <div className="grid gap-1.5">
             <span className="text-sm font-medium text-ink-2">Speed, frames per second</span>
             <Segmented label="Speed, frames per second" value={String(prefs.fps)} onChange={(v) => change({ fps: Number(v) })} options={SPEEDS.map((f) => ({ value: String(f), label: f }))} />
