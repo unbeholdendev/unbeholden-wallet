@@ -24,7 +24,7 @@ import {
   type WalletRecord,
 } from "../core/wallets";
 
-export type Settings = CoreSettings & { idleMinutes?: number };
+export type Settings = CoreSettings & { idleMinutes?: number; walletId?: string };
 
 export type Persistence = Awaited<ReturnType<typeof requestPersistence>>;
 
@@ -78,7 +78,9 @@ export function useVault() {
 
 async function load(vault: Store): Promise<Open> {
   const wallets = await listWallets(vault);
-  return { vault, draft: !(vault instanceof Vault), settings: await getSettings(vault), wallets, walletId: wallets[0]?.id ?? null };
+  const settings: Settings = await getSettings(vault);
+  const walletId = (wallets.find((w) => w.id === settings.walletId) ?? wallets[0])?.id ?? null;
+  return { vault, draft: !(vault instanceof Vault), settings, wallets, walletId };
 }
 
 export function VaultProvider({ kdf = DEFAULT_KDF, children }: { kdf?: KdfParams; children: ReactNode }) {
@@ -150,7 +152,9 @@ export function VaultProvider({ kdf = DEFAULT_KDF, children }: { kdf?: KdfParams
       addWallet: async (wallet) => {
         if (state.phase !== "open") throw new Error("The vault is locked");
         const record = await createWallet(state.vault, wallet);
-        setState({ ...state, wallets: [...state.wallets, record], walletId: record.id });
+        const settings = { ...state.settings, walletId: record.id };
+        await saveSettings(state.vault, settings);
+        setState({ ...state, settings, wallets: [...state.wallets, record], walletId: record.id });
         return record;
       },
       renameWallet: async (id, name) => {
@@ -164,7 +168,12 @@ export function VaultProvider({ kdf = DEFAULT_KDF, children }: { kdf?: KdfParams
         const wallets = state.wallets.filter((w) => w.id !== id);
         setState({ ...state, wallets, walletId: state.walletId === id ? (wallets[0]?.id ?? null) : state.walletId });
       },
-      selectWallet: (id) => state.phase === "open" && setState({ ...state, walletId: id }),
+      selectWallet: (id) => {
+        if (state.phase !== "open") return;
+        const settings = { ...state.settings, walletId: id };
+        setState({ ...state, settings, walletId: id });
+        saveSettings(state.vault, settings).catch(() => {});
+      },
     }),
     [state, persistence, kdf, open, lock, vault],
   );

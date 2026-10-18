@@ -38,6 +38,15 @@ describe("descriptorFromExtendedKey", () => {
     ).toBe("tr");
   });
 
+  it("takes the script type from a key origin's purpose", () => {
+    const wpkh = descriptorFromExtendedKey(`[d34db33f/84'/0'/0']${BIP84_XPUB}`, "mainnet");
+    expect(wpkh).toMatchObject({ scriptType: "wpkh", origin: { fingerprint: "d34db33f" }, path: [[0, 1], "*"] });
+    expect(formatDescriptor(descriptorFromExtendedKey(`[D34DB33F/86h/0h/0h]${BIP86_XPUB}`, "mainnet"))).toMatch(
+      /^tr\(\[d34db33f\/86h\/0h\/0h\]xpub\w+\/<0;1>\/\*\)#/,
+    );
+    expect(() => descriptorFromExtendedKey(`[d34db33f/44'/0'/0']${BIP84_XPUB}`, "mainnet")).toThrow(/wpkh \(84h\) or tr \(86h\)/);
+  });
+
   it("rejects a script type that contradicts the prefix", () => {
     expect(() =>
       descriptorFromExtendedKey(BIP84_ZPUB, "mainnet", "tr"),
@@ -120,6 +129,10 @@ describe("parseDescriptor", () => {
     expect(() =>
       parseDescriptor(`tr(${BIP86_XPUB}/0/*,pk(${BIP86_XPUB}))`, "mainnet"),
     ).toThrow(/script tree|script path/i);
+  });
+
+  it("reads a key with no path below it as its receive and change chains", () => {
+    expect(parseDescriptor(`wpkh([d34db33f/84h/0h/0h]${BIP84_XPUB})`, "mainnet").path).toEqual([[0, 1], "*"]);
   });
 
   it("rejects a descriptor with no wildcard", () => {
