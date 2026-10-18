@@ -13,6 +13,7 @@ const screens = [
   ["tx", "#/tx/"],
   ["receive", "#/receive"],
   ["coins", "#/coins"],
+  ["coin", "#/coin/"],
   ["addresses", "#/addresses"],
   ["settings", "#/settings"],
 ] as const;
@@ -25,6 +26,7 @@ for (const width of [390, 1280])
       await open(page);
       for (const [name, hash] of screens) {
         if (name === "tx") await page.getByRole("link", { name: "Rent, October" }).click();
+        else if (name === "coin") await page.getByRole("link", { name: /0\.01 048 560/ }).click();
         else await page.evaluate((h) => (location.hash = h), hash);
         await expect(page.locator("h1").first()).toBeAttached();
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);

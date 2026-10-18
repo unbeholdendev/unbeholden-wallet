@@ -76,6 +76,9 @@ function CoinRow({ coin, source, tip, rate, on, onToggle }: { coin: WalletCoin; 
         )}
         <span className="whitespace-nowrap @min-[900px]:hidden">{when}</span>
         <span className="whitespace-nowrap">{groupSats(cost)} sats to spend</span>
+        <a href={`#/coin/${outpoint(coin)}`} aria-label={`History of ${lead}${rest} BTC`} className="relative z-[1] text-route underline decoration-1 underline-offset-3">
+          History
+        </a>
         {s && (
           <Chip tone={s.tone}>
             {s.icon && <Icon name={s.icon} className="size-3.5" />}

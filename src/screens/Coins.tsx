@@ -74,7 +74,7 @@ function CoinRow({ coin, source, snapshot, picking, rate }: { coin: WalletCoin; 
           onChange={() => picking.toggle(coin)}
           className="size-4 flex-none accent-route"
         />
-        <a href={`#/tx/${coin.txid}`} className={`text-md font-medium no-underline hover:underline ${coin.frozen ? "opacity-60" : "text-ink"}`}>
+        <a href={`#/coin/${outpoint(coin)}`} className={`text-md font-medium no-underline hover:underline ${coin.frozen ? "opacity-60" : "text-ink"}`}>
           <Amount sats={coin.value} />
         </a>
       </span>

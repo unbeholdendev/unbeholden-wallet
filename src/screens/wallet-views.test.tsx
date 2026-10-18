@@ -133,6 +133,21 @@ describe("wallet views on the demo history", () => {
     expect(location.hash).toBe(`#/bump/${DEMO_TXIDS.rent}`);
   });
 
+  it("traces a coin back to where its value came in, and names the coins it is already linked with", async () => {
+    const user = await openApp("#/coins");
+    await user.click(await screen.findByRole("link", { name: /0\.01 048 560/ }));
+    expect(location.hash).toBe(`#/coin/${DEMO_TXIDS.rent}:1`);
+    const trail = within(await screen.findByRole("region", { name: "How it got here" }));
+    expect(trail.getAllByRole("link").map((a) => a.textContent)).toEqual(["Rent, October", "Northwind payroll, August"]);
+    expect(trail.getByText("Paid in from outside")).toBeTruthy();
+    const source = within(screen.getByRole("region", { name: "Source" }));
+    expect(source.getByText(/Already linked on-chain with another coin/)).toBeTruthy();
+    expect(source.getByRole("link", { name: /0\.02 500 000/ })).toBeTruthy();
+
+    await user.click(source.getByRole("switch", { name: "Knows who I am" }));
+    expect(await trail.findByText("Knows who you are")).toBeTruthy();
+  });
+
   it("never offers an address that has been paid, and moves on once it is", async () => {
     await openApp("#/receive");
     const shown = () => screen.getByTestId("receive-address").textContent!;

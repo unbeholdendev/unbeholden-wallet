@@ -33,8 +33,8 @@ function walletTx(inputValue: number, change: number, fee = 282): WalletTx {
     vsize: 141,
     inputs: [{ txid: "bb".repeat(32), vout: 0, value: inputValue, address: own.address, mine: own }],
     outputs: [
-      { vout: 0, script: script(PAYEE), value: 50_000, address: PAYEE, mine: null, label: null },
-      { vout: 1, script: script(back.address), value: change, address: back.address, mine: back, label: null },
+      { vout: 0, script: script(PAYEE), value: 50_000, address: PAYEE, mine: null, label: null, kyc: false },
+      { vout: 1, script: script(back.address), value: change, address: back.address, mine: back, label: null, kyc: false },
     ],
     label: null,
   };
@@ -85,7 +85,7 @@ describe("fee bump", () => {
 
   it("refuses a payment it cannot recreate", () => {
     const tx = walletTx(100_000, 49_718);
-    tx.outputs.push({ vout: 2, script: "6a00", value: 0, address: null, mine: null, label: null });
+    tx.outputs.push({ vout: 2, script: "6a00", value: 0, address: null, mine: null, label: null, kyc: false });
     const plan = planBump(tx, [coin(tx.txid, 1, 49_718, mine(1, 0), "own-change")], 10, wallet);
     expect(plan.problem).toEqual({ kind: "unsupported-output" });
   });
