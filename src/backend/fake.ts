@@ -12,6 +12,7 @@ import {
   type Unsubscribe,
   type WalletBackend,
 } from "./backend";
+import { esploraBackend } from "./esplora";
 
 /** A chain to serve: raw transactions grouped into blocks. */
 export type Fixture = {
@@ -267,4 +268,97 @@ export function fakeBackend(fixture: Partial<Fixture> = {}): FakeBackend {
   };
 
   return backend;
+}
+
+/**
+ * The same fake chain behind the Esplora HTTP API, reached through a fake
+ * `fetch`, so a test can run against either backend.
+ * https://github.com/Blockstream/esplora/blob/master/API.md
+ */
+export function fakeEsplora(fake: FakeBackend, poll?: number): FakeBackend {
+  const heights = new Map<string, number>();
+  const blockHash = (header: Uint8Array) => hex.encode(sha256x2(header).reverse());
+  const named = (header: Uint8Array, height: number) => {
+    const hash = blockHash(header);
+    heights.set(hash, height);
+    return hash;
+  };
+  const reply = (body: unknown, status = 200) =>
+    new Response(typeof body === "string" ? body : JSON.stringify(body), { status });
+
+  async function history(esploraHash: string) {
+    const [entries] = await fake.history([hex.encode(hex.decode(esploraHash).reverse())]);
+    const json = await Promise.all(
+      [...entries!].reverse().map(async ({ txid, height }) => {
+        const tx = Transaction.fromRaw((await fake.transactions([txid]))[0]!, PARSE);
+        const vin = Array.from({ length: tx.inputsLength }, (_, i) => ({ txid: hex.encode(tx.getInput(i).txid!) }));
+        return { txid, status: height === null ? { confirmed: false } : { confirmed: true, block_height: height }, vin };
+      }),
+    );
+    return { mempool: json.filter((tx) => !tx.status.confirmed), chain: json.filter((tx) => tx.status.confirmed) };
+  }
+
+  async function serve(path: string, init?: RequestInit): Promise<Response> {
+    await fake.connect();
+    let match: RegExpMatchArray | null;
+    if (path === "/blocks/tip/hash") {
+      const tip = await fake.chainTip();
+      return reply(named(tip.header, tip.height));
+    }
+    if ((match = path.match(/^\/block-height\/(\d+)$/))) {
+      const height = Number(match[1]);
+      const header = await fake.blockHeaders([height]).catch(() => null);
+      return header ? reply(named(header[0]!, height)) : reply("Block not found", 404);
+    }
+    if ((match = path.match(/^\/block\/(\w+)(\/header)?$/))) {
+      const height = heights.get(match[1]!);
+      const [header] = height === undefined ? [] : await fake.blockHeaders([height]).catch(() => []);
+      if (!header || blockHash(header) !== match[1]) return reply("Block not found", 404);
+      return reply(match[2] ? hex.encode(header) : { id: match[1], height });
+    }
+    if ((match = path.match(/^\/scripthash\/(\w+)$/))) {
+      const { mempool, chain } = await history(match[1]!);
+      return reply({ chain_stats: { tx_count: chain.length }, mempool_stats: { tx_count: mempool.length } });
+    }
+    if ((match = path.match(/^\/scripthash\/(\w+)\/txs$/))) {
+      const { mempool, chain } = await history(match[1]!);
+      return reply([...mempool.slice(0, 50), ...chain.slice(0, 25)]);
+    }
+    if ((match = path.match(/^\/scripthash\/(\w+)\/txs\/chain\/(\w+)$/))) {
+      const { chain } = await history(match[1]!);
+      const after = chain.findIndex((tx) => tx.txid === match![2]) + 1;
+      return reply(chain.slice(after, after + 25));
+    }
+    if ((match = path.match(/^\/tx\/(\w+)\/hex$/))) {
+      const found = await fake.transactions([match[1]!]).catch(() => null);
+      return found ? reply(hex.encode(found[0]!)) : reply("Transaction not found", 404);
+    }
+    if ((match = path.match(/^\/tx\/(\w+)\/status$/))) {
+      const found = await fake.transactions([match[1]!]).catch(() => null);
+      if (!found) return reply("Transaction not found", 404);
+      const [entries] = await fake.history([scriptHash(Transaction.fromRaw(found[0]!, PARSE).getOutput(0).script!)]);
+      const height = entries!.find((entry) => entry.txid === match![1])!.height;
+      return reply(height === null ? { confirmed: false } : { confirmed: true, block_height: height });
+    }
+    if (path === "/mempool") {
+      return reply({ fee_histogram: (await fake.feeHistogram()).map(({ feeRate, vsize }) => [feeRate, vsize]) });
+    }
+    if (path === "/tx" && init?.method === "POST") {
+      try {
+        return reply(await fake.broadcast(hex.decode(String(init.body))));
+      } catch (error) {
+        if (error instanceof BroadcastError) return reply(error.message, 400);
+        throw error;
+      }
+    }
+    return reply("Not found", 404);
+  }
+
+  const base = "https://esplora.example/api";
+  return {
+    ...esploraBackend(base, { poll, fetch: (url, init) => serve(url.slice(base.length), init) }),
+    addBlock: fake.addBlock,
+    reorg: fake.reorg,
+    addToMempool: fake.addToMempool,
+  };
 }

@@ -46,7 +46,7 @@ the user's own node.
 
 ### Onboarding and wallet setup
 
-1. As a node runner, I want to enter my Electrum server's `wss://` address, so that the wallet talks only to infrastructure I control.
+1. As a node runner, I want to enter my Electrum server's `wss://` address, so that the wallet talks only to infrastructure I control. Or my own Esplora API's `https://` address, polled for new blocks since it cannot push.
 2. As a node runner, I want the wallet to remember my server address between sessions, so that I do not retype it every time.
 3. As a node runner, I want to see clearly whether I am connected, connecting, or disconnected, so that I can trust what I am looking at.
 4. As a node runner whose connection failed, I want to be told precisely why (certificate rejected, connection refused, timed out, responded but is not an Electrum server), so that I can fix the actual problem.
@@ -296,8 +296,6 @@ Explicitly excluded from v1. None of these get an issue opened until v1 ships.
 - Anything Lightning.
 - Multiple accounts per descriptor.
 - Legacy `pkh` and wrapped `sh(wpkh)` script types.
-- Esplora or any HTTP backend implementation. The interface accommodates one;
-  v1 does not ship one.
 - Any server operated by the project: no default Electrum endpoint, no bundled
   server list, no proxy, no demo mode.
 - Mandatory on-device address verification.

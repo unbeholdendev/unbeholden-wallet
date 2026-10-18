@@ -18,14 +18,17 @@ export type FeeBucket = { feeRate: number; vsize: number };
 
 /**
  * The outcomes the connection screen has to tell apart. `mixed-content` is a
- * `ws://` server asked for from an `https:` page, which the browser refuses
- * without trying.
+ * `ws://` or `http://` server asked for from an `https:` page, which the
+ * browser refuses without trying. `cors` is an HTTP server that answered but
+ * did not let this page read the answer.
  */
 export type ConnectionFailure =
   | "certificate-rejected"
   | "refused"
   | "timeout"
   | "not-electrum"
+  | "not-esplora"
+  | "cors"
   | "mixed-content";
 
 export class ConnectionError extends Error {

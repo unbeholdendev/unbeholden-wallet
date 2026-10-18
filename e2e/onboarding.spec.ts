@@ -8,7 +8,7 @@ for (const { width, height } of [
     await page.setViewportSize({ width, height });
     await page.goto("/");
 
-    const server = page.getByLabel("Electrum server address");
+    const server = page.getByLabel("Server address");
     await server.fill("ws://127.0.0.1:1");
     await page.getByRole("button", { name: "Connect" }).click();
 

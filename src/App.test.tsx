@@ -79,7 +79,7 @@ afterEach(async () => {
 describe("onboarding", () => {
   it("holds server and wallet in memory, shows the balance, and writes nothing until the passphrase", async () => {
     const user = renderApp();
-    await user.type(await screen.findByLabelText("Electrum server address"), SERVER);
+    await user.type(await screen.findByLabelText("Server address"), SERVER);
     await user.click(screen.getByRole("button", { name: "Connect" }));
     await user.click(await screen.findByLabelText("Descriptor or extended public key"));
     await user.paste(BIP84_ZPUB);
@@ -125,7 +125,7 @@ describe("onboarding", () => {
   it("takes the network from the key and the server's genesis block, and warns when they disagree", async () => {
     render(<App kdf={CHEAP} factory={() => ({ ...fakeBackend(), blockHeaders: async () => [REGTEST_GENESIS] })} />);
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText("Electrum server address"), SERVER);
+    await user.type(await screen.findByLabelText("Server address"), SERVER);
     await user.click(screen.getByRole("button", { name: "Connect" }));
     await user.click(await screen.findByLabelText("Descriptor or extended public key"));
     await user.paste(BIP84_ZPUB);
@@ -155,7 +155,7 @@ describe("onboarding", () => {
 
     await user.clear(screen.getByLabelText("Passphrase"));
     await unlock(user);
-    expect(await screen.findByRole("heading", { name: "Connect to your Electrum server" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Connect to your server" })).toBeTruthy();
   });
 
   const guidance: [ConnectionFailure, RegExp][] = [
@@ -163,7 +163,9 @@ describe("onboarding", () => {
     ["refused", /Nothing at node\.example\.ts\.net:50004 accepted the connection/],
     ["timeout", /node\.example\.ts\.net:50004 did not answer within 10 seconds/],
     ["not-electrum", /Something answered, but it is not an Electrum server/],
-    ["mixed-content", /This page cannot open a plain ws:\/\/ connection/],
+    ["mixed-content", /This page cannot open a plain ws:\/\/ or http:\/\/ connection/],
+    ["not-esplora", /Something answered, but it is not an Esplora API/],
+    ["cors", /Your server answered, but did not let this app read it/],
   ];
 
   it.each(guidance)("explains a %s failure in its own words", async (failure, title) => {

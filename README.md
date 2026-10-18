@@ -1,7 +1,7 @@
 # Bitcoin browser wallet
 
 A watch-only Bitcoin wallet that runs in a browser tab. It talks only to your
-own Electrum server, holds no keys, builds PSBTs, and hands them to an
+own server, Electrum over WebSocket or an Esplora API, holds no keys, builds PSBTs, and hands them to an
 air-gapped signer over animated QR or a file.
 
 Supports `wpkh` and `tr` single-signature wallets on mainnet, signet and
@@ -20,10 +20,17 @@ Read this before trusting a hosted copy with real money.
   background but only runs when you choose to reload into it, or after every
   tab of the app has been closed. The running version is always shown.
 - **It does protect you from leaking to third parties.** The app makes no
-  requests to anyone except the Electrum server you enter. There is no
-  default server, no analytics, no CDN and no remote fonts. A strict
-  Content Security Policy blocks every other kind of request, but it cannot
-  name your server in advance, so it allows a WebSocket to any host.
+  requests to anyone except the server you enter. There is no default
+  server, no analytics, no CDN and no remote fonts. A strict Content
+  Security Policy blocks every other kind of request, but it cannot name
+  your server in advance, so it allows a WebSocket or an HTTP request to
+  any host. That the app only ever asks the one server is a property of its
+  code, not something the policy enforces.
+
+An Esplora server cannot push news, so the app asks it for a new block every
+30 seconds; a payment still in the mempool shows at the next block or when
+you refresh. Your Esplora must send `Access-Control-Allow-Origin` naming this
+app's origin (electrs: `--cors <origin>`), or the browser hides its answers.
 - **It does protect your history at rest.** Wallet data in the browser is
   encrypted with a key derived from your passphrase (Argon2id, AES-GCM).
 - **Your signer protects your keys.** The app never sees them. Check the
