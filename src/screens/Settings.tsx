@@ -13,6 +13,7 @@ import { Icon } from "../ui/icons";
 import { useWalletSession, useWalletSnapshot } from "../app/session";
 import { historyCsv } from "../core/view";
 import { useToast } from "../ui/toast";
+import { download, ExportBackup, RestoreBackup } from "./Backup";
 import { DestroyVault } from "./DestroyVault";
 import { MIN_LENGTH, PassphraseInput, Strength, strength } from "./passphrase";
 
@@ -83,13 +84,7 @@ function Labels() {
   const [report, setReport] = useState<string | null>(null);
   const name = wallets.find((w) => w.id === walletId)?.name ?? "wallet";
 
-  const save = (body: string, type: string, suffix: string) => {
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(new Blob([body], { type }));
-    link.download = `${name.replace(/[^\w-]+/g, "-")}-${suffix}`;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
-  };
+  const save = (body: string, type: string, suffix: string) => download(body, type, `${name.replace(/[^\w-]+/g, "-")}-${suffix}`);
   const importLabels = async (file: File | undefined) => {
     if (!file || !session) return;
     const { imported, skipped } = await session.importLabels(await file.text());
@@ -289,6 +284,12 @@ export function Settings() {
         </Panel>
         <Panel title="Passphrase">
           <ChangePassphrase />
+        </Panel>
+        <Panel title="Backup">
+          <ExportBackup />
+        </Panel>
+        <Panel title="Restore from a backup">
+          <RestoreBackup />
         </Panel>
         <Panel title="Delete the vault">
           <p className="m-0 text-sm text-ink-2">

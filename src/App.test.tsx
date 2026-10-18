@@ -5,8 +5,8 @@ import { App } from "./App";
 import type { ConnectionFailure } from "./backend/backend";
 import { fakeBackend } from "./backend/fake";
 import { hex } from "@scure/base";
-import { createWallet, listWallets, walletDescriptor } from "./core/wallets";
-import { createVault, destroyVault, unlockVault, Vault, vaultExists, type KdfParams } from "./vault/vault";
+import { backupRecords, createWallet, listWallets, walletDescriptor } from "./core/wallets";
+import { createVault, destroyVault, memoryStore, openBackup, sealBackup, unlockVault, Vault, vaultExists, type KdfParams } from "./vault/vault";
 import { formatDescriptor } from "./wallet/descriptor";
 import { asVersion, BIP84_ZPUB, BIP86_XPUB, VERSION } from "./wallet/vectors";
 import { UrDecoder, UrEncoder } from "./transport/ur";
@@ -325,5 +325,103 @@ describe("settings", () => {
     const wallets = await listWallets(reopened);
     reopened.lock();
     expect(wallets.map((w) => w.name)).toEqual(["Daily"]);
+  }, 30_000);
+});
+
+describe("backup", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("carries wallets, labels and settings to a new browser, without the cached history", async () => {
+    const vault = await createVault(PASSPHRASE, CHEAP);
+    await vault.put("settings", { server: SERVER, idleMinutes: 5 });
+    const wallet = await createWallet(vault, { name: "Spending", descriptor: BIP84_ZPUB, network: "mainnet" });
+    await vault.put(`labels/${wallet.id}`, { "tx:aa": "Rent" });
+    await vault.put(`frozen/${wallet.id}`, ["aa:0"]);
+    await vault.put(`cache/${wallet.id}/old`, { tip: 1 });
+    vault.lock();
+    let file: Blob | undefined;
+    vi.spyOn(URL, "createObjectURL").mockImplementation((blob) => ((file = blob as Blob), "blob:backup"));
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    location.hash = "#/settings";
+    let user = renderApp();
+    await unlock(user);
+
+    await user.type(await screen.findByLabelText("Vault passphrase, to confirm"), "incorrect horse");
+    await user.click(screen.getByRole("button", { name: "Download backup" }));
+    expect(await screen.findByText("That is not the vault passphrase.")).toBeTruthy();
+    expect(file).toBeUndefined();
+    await user.clear(screen.getByLabelText("Vault passphrase, to confirm"));
+    await user.type(screen.getByLabelText("Vault passphrase, to confirm"), PASSPHRASE);
+    await user.click(screen.getByRole("button", { name: "Download backup" }));
+    await waitFor(() => expect(file).toBeDefined());
+    const text = await file!.text();
+    expect(text).not.toContain("Rent");
+    const kept = [`frozen/${wallet.id}`, `labels/${wallet.id}`, "settings", `wallet/${wallet.id}`];
+    expect(Object.keys(await openBackup(text, PASSPHRASE)).sort()).toEqual(kept.sort());
+
+    cleanup();
+    await destroyVault();
+    location.hash = "";
+    user = renderApp();
+    await user.upload(await screen.findByLabelText("Choose backup file"), new File([text], "wallet-backup.json"));
+    await user.type(screen.getByLabelText("Passphrase of the backup"), "incorrect horse");
+    await user.click(screen.getByRole("button", { name: "Restore" }));
+    expect(await screen.findByText("The passphrase is not right for this backup.")).toBeTruthy();
+    await user.clear(screen.getByLabelText("Passphrase of the backup"));
+    await user.type(screen.getByLabelText("Passphrase of the backup"), PASSPHRASE);
+    await user.click(screen.getByRole("button", { name: "Restore" }));
+    await waitFor(() => expect(document.querySelector("header summary")?.textContent).toMatch(/^Spending/));
+
+    const restored = await unlockVault(PASSPHRASE);
+    const [copy] = await listWallets(restored);
+    expect(copy).toMatchObject({ name: "Spending", descriptor: BIP84_ZPUB, network: "mainnet" });
+    expect(await restored.get(`labels/${copy!.id}`)).toEqual({ "tx:aa": "Rent" });
+    expect(await restored.get(`frozen/${copy!.id}`)).toEqual(["aa:0"]);
+    expect(await restored.get("settings")).toMatchObject({ server: SERVER, idleMinutes: 5 });
+    restored.lock();
+  }, 30_000);
+
+  it("adds to the vault in Settings, replaces nothing, and refuses a changed file", async () => {
+    const other = memoryStore();
+    const spending = await createWallet(other, { name: "Spending", descriptor: BIP84_ZPUB, network: "mainnet" });
+    await other.put(`labels/${spending.id}`, { "tx:aa": "From the backup", "tx:bb": "Coffee" });
+    await createWallet(other, { name: "Savings", descriptor: BIP86_XPUB, network: "mainnet", scriptType: "tr" });
+    await other.put("settings", { server: "wss://other.example:50004" });
+    const backup = await sealBackup("another passphrase", await backupRecords(other), CHEAP);
+
+    const vault = await createVault(PASSPHRASE, CHEAP);
+    await vault.put("settings", { server: SERVER });
+    const daily = await createWallet(vault, { name: "Daily", descriptor: BIP84_ZPUB, network: "mainnet" });
+    await vault.put(`labels/${daily.id}`, { "tx:aa": "Rent" });
+    vault.lock();
+    location.hash = "#/settings";
+    const user = renderApp();
+    await unlock(user);
+
+    const parsed = JSON.parse(backup);
+    const flipped = parsed.data.data.replace(/.$/, (c: string) => (c === "0" ? "1" : "0"));
+    const tampered = JSON.stringify({ ...parsed, data: { ...parsed.data, data: flipped } });
+    await user.upload(await screen.findByLabelText("Choose backup file"), new File([tampered], "wallet-backup.json"));
+    await user.type(screen.getByLabelText("Passphrase of the backup"), "another passphrase");
+    await user.click(screen.getByRole("button", { name: "Restore" }));
+    expect(await screen.findByText(/This backup has been changed or damaged since it was made/)).toBeTruthy();
+
+    await user.upload(screen.getByLabelText("wallet-backup.json"), new File([backup], "wallet-backup.json"));
+    await user.click(screen.getByRole("button", { name: "Restore" }));
+    expect(
+      await screen.findByText(
+        "Added Savings. Already here, so skipped: Spending. 1 label added. 1 label differed from the backup; kept the ones here.",
+        {},
+        { timeout: 15_000 },
+      ),
+    ).toBeTruthy();
+    expect(screen.getByText("2 in this vault")).toBeTruthy();
+    await waitFor(() => expect(screen.getByRole<HTMLButtonElement>("button", { name: "Export labels" }).disabled).toBe(false));
+
+    const reopened = await unlockVault(PASSPHRASE);
+    expect((await listWallets(reopened)).map((w) => w.name).sort()).toEqual(["Daily", "Savings"]);
+    expect(await reopened.get(`labels/${daily.id}`)).toEqual({ "tx:aa": "Rent", "tx:bb": "Coffee" });
+    expect(await reopened.get("settings")).toMatchObject({ server: SERVER });
+    reopened.lock();
   }, 30_000);
 });
