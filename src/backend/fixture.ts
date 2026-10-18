@@ -92,7 +92,9 @@ export async function seedDemoVault(passphrase: string, kdf: KdfParams, server: 
   const vault = await createVault(passphrase, kdf);
   await saveSettings(vault, { server });
   const wallet = await createWallet(vault, { name: "Spending", descriptor: DEMO_DESCRIPTOR, network: "mainnet" });
-  const session = await openWallet(vault, wallet.id, demoBackend());
+  const backend = demoBackend();
+  await backend.connect();
+  const session = await openWallet(vault, wallet.id, backend);
   await session.settled();
   await session.importLabels(DEMO_LABELS);
   session.close();

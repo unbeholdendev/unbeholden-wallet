@@ -16,7 +16,13 @@ const tabs: { id: Tab; label: string; icon: IconName }[] = [
   { id: "coins", label: "Coins", icon: "coins" },
 ];
 
-const scriptType = (w: WalletRecord) => walletDescriptor(w).scriptType;
+const scriptType = (w: WalletRecord) => {
+  try {
+    return walletDescriptor(w).scriptType;
+  } catch {
+    return null;
+  }
+};
 
 function NetworkBadge({ wallet }: { wallet: WalletRecord }) {
   if (wallet.network === "mainnet") return null;

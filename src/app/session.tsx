@@ -4,12 +4,13 @@ import { openWallet, type WalletSession, type WalletSnapshot } from "../core/wal
 import { walletDescriptor } from "../core/wallets";
 import type { SendDraft } from "../screens/send/Send";
 import type { Store } from "../vault/vault";
-import { useBackendFactory } from "./connection";
+import { useConnection } from "./connection";
 import { useVault } from "./vault";
 
 const SessionContext = createContext<WalletSession | null>(null);
 const DraftContext = createContext<[SendDraft | null, Dispatch<SetStateAction<SendDraft | null>>]>([null, () => {}]);
 const SkipContext = createContext(new Map<string, string>());
+const FailedContext = createContext<{ message: string; retry(): void } | null>(null);
 
 type Saved = Omit<SendDraft, "built"> & { built: Omit<NonNullable<SendDraft["built"]>, "psbt" | "signed"> & { psbt: string; signed?: string } };
 
@@ -29,15 +30,20 @@ async function loadSend(vault: Store, walletId: string): Promise<SendDraft | nul
 }
 
 /**
- * Opens the selected wallet on its own backend to the saved server, and closes
+ * Opens the selected wallet, syncs it while the connection is up, and closes
  * it on a switch, a server change or a lock. Holds the selected wallet's
  * unfinished send, kept in the vault once its PSBT is built, and each
  * wallet's skipped receive address until the lock.
  */
 export function SessionProvider({ children }: { children: ReactNode }) {
   const { vault, walletId, settings } = useVault();
-  const factory = useBackendFactory();
+  const { backend, connection } = useConnection();
+  const live = connection.phase === "connected" ? backend : null;
+  const liveNow = useRef(live);
+  liveNow.current = live;
   const [session, setSession] = useState<WalletSession | null>(null);
+  const [failed, setFailed] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const skips = useRef(new Map<string, string>()).current;
   const draft = useState<SendDraft | null>(null);
   const setDraft = draft[1];
@@ -46,15 +52,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (!walletId || !settings.server) return;
     let open: WalletSession | null = null;
     let cancelled = false;
-    openWallet(vault, walletId, factory(settings.server)).then((opened) =>
-      cancelled ? opened.close() : setSession((open = opened)),
+    openWallet(vault, walletId, null).then(
+      (opened) => (cancelled ? opened.close() : (opened.use(liveNow.current), setSession((open = opened)))),
+      (error) => cancelled || setFailed(String((error as Error)?.message ?? error)),
     );
     return () => {
       cancelled = true;
       open?.close();
       setSession(null);
+      setFailed(null);
     };
-  }, [vault, walletId, settings.server, factory]);
+  }, [vault, walletId, settings.server, attempt]);
+
+  useEffect(() => {
+    session?.use(live);
+  }, [session, live]);
 
   const loaded = useRef<string | null>(null);
   useEffect(() => {
@@ -80,7 +92,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   return (
     <SessionContext.Provider value={session}>
       <DraftContext.Provider value={draft}>
-        <SkipContext.Provider value={skips}>{children}</SkipContext.Provider>
+        <SkipContext.Provider value={skips}>
+          <FailedContext.Provider value={failed === null ? null : { message: failed, retry: () => setAttempt((n) => n + 1) }}>
+            {children}
+          </FailedContext.Provider>
+        </SkipContext.Provider>
       </DraftContext.Provider>
     </SessionContext.Provider>
   );
@@ -88,6 +104,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
 /** The selected wallet's session, null while it opens. */
 export const useWalletSession = () => useContext(SessionContext);
+
+/** Why the selected wallet could not be opened, and a retry. */
+export const useOpenFailure = () => useContext(FailedContext);
 
 /** The selected wallet's unfinished send and its setter. */
 export const useSendDraft = () => useContext(DraftContext);

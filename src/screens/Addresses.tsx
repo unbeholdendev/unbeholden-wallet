@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useConnection } from "../app/connection";
 import { useWalletSession, useWalletSnapshot } from "../app/session";
 import type { AddressInfo } from "../core/wallet";
 import { Button, Chip, LinkButton, Segmented } from "../ui/kit";
@@ -35,6 +36,7 @@ export function Addresses() {
   const [chain, setChain] = useState<Chain>("receive");
   const [show, setShow] = useState<Show>("all");
   const [scanning, setScanning] = useState(false);
+  const { connection } = useConnection();
   if (!snapshot) return <Opening title="Addresses" />;
 
   const all = snapshot.addresses[chain];
@@ -100,7 +102,7 @@ export function Addresses() {
           along, for example to a service that generates its own, coins paid to them stay hidden until you scan further.
         </p>
         <p className="m-0 text-sm text-ink-2">It checks {DEEPER} more addresses on each chain with your server.</p>
-        <Button className="justify-self-start" icon="scan" disabled={scanning || snapshot.connection !== "connected"} onClick={scan}>
+        <Button className="justify-self-start" icon="scan" disabled={scanning || connection.phase !== "connected"} onClick={scan}>
           {scanning ? "Scanning" : "Scan further"}
         </Button>
       </section>

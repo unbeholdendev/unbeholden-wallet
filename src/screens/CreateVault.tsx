@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Heading, Page } from "../app/layout";
+import { useConnection } from "../app/connection";
 import { useWallet, useWalletSnapshot } from "../app/session";
 import { useVault } from "../app/vault";
 import { Amount } from "../ui/amount";
@@ -9,12 +10,13 @@ import { PassphraseInput, Strength, strength } from "./passphrase";
 function Found() {
   const { record } = useWallet();
   const snapshot = useWalletSnapshot();
+  const { phase } = useConnection().connection;
   const found = snapshot?.transactions.length ?? 0;
   const status =
-    !snapshot || snapshot.progress || snapshot.connection === "connecting"
-      ? "Still syncing with your server."
-      : snapshot.connection === "disconnected"
-        ? "Not connected to your server."
+    (phase !== "connected" && phase !== "connecting") || snapshot?.error
+      ? "Not connected to your server."
+      : !snapshot?.tip || snapshot.progress || phase === "connecting"
+        ? "Still syncing with your server."
         : `${found === 1 ? "1 transaction" : `${found} transactions`} found.`;
   return (
     <section aria-label="Balance" className="grid gap-1 rounded-panel border border-rule bg-sheet px-4 pt-5 pb-4">

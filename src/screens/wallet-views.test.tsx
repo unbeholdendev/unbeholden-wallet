@@ -1,12 +1,15 @@
 import { Address, OutScript, Transaction as Tx } from "@scure/btc-signer";
-import { cleanup, configure, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, configure, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../App";
-import type { FakeBackend } from "../backend/fake";
+import type { ConnectionStatus } from "../backend/electrum";
+import { fakeBackend, type FakeBackend } from "../backend/fake";
 import { demoBackend, DEMO_DESCRIPTOR, DEMO_TXIDS, seedDemoVault } from "../backend/fixture";
 import { createWallet, saveSettings } from "../core/wallets";
-import { createVault, destroyVault } from "../vault/vault";
+import { createVault, destroyVault, unlockVault } from "../vault/vault";
+import { deriveAddress } from "../wallet/derive";
+import { parseDescriptor } from "../wallet/descriptor";
 import { NETWORKS } from "../wallet/network";
 import { bip21 } from "./Receive";
 import { parseUri } from "./send/Recipients";
@@ -177,7 +180,7 @@ describe("wallet views on the demo history", () => {
 
   it("takes a frozen coin out of the spendable balance", async () => {
     const user = await openApp("#/coins");
-    expect(spendable()).toBe("0.30 626 773");
+    expect(spendable()).toContain("0.30 626 773");
     await user.click(screen.getByRole("button", { name: "Freeze 0.06 000 000 BTC" }));
     await waitFor(() => expect(spendable()).toBe("0.24 626 773"));
     expect(screen.getByRole("button", { name: "Unfreeze 0.06 000 000 BTC" })).toBeTruthy();
@@ -232,6 +235,64 @@ describe("a wallet with no history", () => {
     await openApp();
     expect(await screen.findByRole("heading", { name: "No transactions yet" })).toBeTruthy();
     expect(within(screen.getByRole("heading", { name: "No transactions yet" }).parentElement!).getByRole("link", { name: "Receive" })).toBeTruthy();
+  });
+});
+
+describe("the connection", () => {
+  async function unlockWith(factory: () => FakeBackend) {
+    location.hash = "#/home";
+    render(<App kdf={CHEAP} factory={factory} />);
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Passphrase"), PASSPHRASE);
+    await user.click(screen.getByRole("button", { name: "Unlock" }));
+    return user;
+  }
+
+  it("is one socket for the header and the wallet, and syncs again by itself when the server comes back", async () => {
+    const demo = demoBackend();
+    let report: (status: ConnectionStatus) => void = () => {};
+    let down = false;
+    const factory = vi.fn(() => ({
+      ...demo,
+      history: (hashes: string[]) => (down ? Promise.reject(new Error("The connection to the server was lost")) : demo.history(hashes)),
+      onStatus: (listener: typeof report) => ((report = listener), () => {}),
+    }));
+    await unlockWith(factory);
+    await screen.findByText(/Up to date at block 153.500/, undefined, { timeout: 15_000 });
+    expect(factory).toHaveBeenCalledTimes(1);
+
+    down = true;
+    act(() => report("retrying"));
+    const pay = new Tx({ allowUnknownInputs: true, allowUnknownOutputs: true, disableScriptCheck: true });
+    pay.addInput({ txid: DEMO_TXIDS.kraken, index: 1 });
+    const address = deriveAddress(parseDescriptor(DEMO_DESCRIPTOR, "mainnet"), "mainnet", 0, 7);
+    pay.addOutput({ script: OutScript.encode(Address(NETWORKS.mainnet).decode(address)), amount: 10_000n });
+    demo.addToMempool(pay.unsignedTx);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    down = false;
+    act(() => report("connected"));
+
+    await waitFor(() => expect(screen.getByRole("region", { name: "Balance" }).textContent).toContain("+0.00 310 000 waiting to confirm"));
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+  });
+
+  it("says why it could not connect and leads to what to do about it", async () => {
+    const user = await unlockWith(() => fakeBackend({ failure: "refused" }));
+    expect(await screen.findByText(/Not connected to node.example.ts.net:50004. Nothing there accepted the connection/)).toBeTruthy();
+    expect(spendable()).toContain("0.30 626 773");
+    await user.click(screen.getByRole("link", { name: "What to do" }));
+    expect(await screen.findByRole("heading", { name: "Nothing at node.example.ts.net:50004 accepted the connection" })).toBeTruthy();
+  });
+
+  it("says when the wallet cannot be opened, and offers a way on", async () => {
+    const vault = await unlockVault(PASSPHRASE);
+    const [key] = await vault.keys("wallet/");
+    await vault.put(key!, { ...(await vault.get<object>(key!)), descriptor: "wpkh(nonsense)" });
+    vault.lock();
+    await unlockWith(demoBackend);
+    expect(await screen.findByText(/This wallet could not be opened/)).toBeTruthy();
+    expect(within(screen.getByRole("main")).getByRole("link", { name: "Settings" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
   });
 });
 

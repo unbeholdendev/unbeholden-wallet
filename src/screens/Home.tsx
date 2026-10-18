@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useConnection } from "../app/connection";
 import { navigate } from "../app/route";
 import { useSendDraft, useWalletSession, useWalletSnapshot } from "../app/session";
 import { useVault } from "../app/vault";
@@ -9,6 +10,7 @@ import { confText, dateText, hostText, timeText, txFallback } from "../ui/format
 import { Icon } from "../ui/icons";
 import { Button, Chip, Empty, LinkButton, linkClass, Segmented } from "../ui/kit";
 import { outpoint } from "../wallet/coin";
+import { reasons } from "./Connect";
 import { Opening } from "./parts";
 import { parseAmount } from "./send/Recipients";
 
@@ -16,22 +18,33 @@ const stages = { history: "Checking addresses", transactions: "Fetching transact
 
 function SyncLine({ snapshot }: { snapshot: WalletSnapshot }) {
   const session = useWalletSession();
+  const { connection, connect } = useConnection();
   const { settings } = useVault();
   const server = settings.server ? hostText(settings.server) : "your server";
-  const { progress, connection, tip } = snapshot;
-  const [dot, text] = progress
-    ? ["bg-warn animate-pulse", `${stages[progress.stage]}, ${groupSats(progress.done)} of ${groupSats(progress.total)}.`]
-    : connection === "connecting"
-      ? ["bg-warn animate-pulse", `Connecting to ${server}.`]
-      : connection === "disconnected"
-        ? ["bg-bad", `Not connected to ${server}. ${snapshot.error ?? "Balances are as of the last sync."}`]
-        : ["bg-ok", tip ? `Up to date at block ${groupSats(tip.height)}. Watching ${server}.` : `Watching ${server}.`];
+  const { progress, error, tip } = snapshot;
+  const failed = connection.phase === "failed";
+  const [dot, text] = failed
+    ? ["bg-bad", `Not connected to ${server}. ${connection.failure ? reasons[connection.failure] : connection.message} Balances are as of the last sync.`]
+    : connection.phase === "retrying"
+      ? ["bg-warn animate-pulse", `Lost ${server}, trying again. Balances are as of the last sync.`]
+      : connection.phase !== "connected"
+        ? ["bg-warn animate-pulse", `Connecting to ${server}.`]
+        : progress
+          ? ["bg-warn animate-pulse", `${stages[progress.stage]}, ${groupSats(progress.done)} of ${groupSats(progress.total)}.`]
+          : error
+            ? ["bg-bad", `The last sync failed. ${error}`]
+            : ["bg-ok", tip ? `Up to date at block ${groupSats(tip.height)}. Watching ${server}.` : `Watching ${server}.`];
   return (
     <div role="status" className="flex items-center gap-2.5 border-t border-rule px-4 py-3 text-sm text-ink-2">
       <span aria-hidden="true" className={`size-2 flex-none rounded-full ${dot}`} />
       <span className="min-w-0 flex-1">{text}</span>
-      {connection === "disconnected" && (
-        <LinkButton className="text-sm" onClick={() => session?.refresh()}>
+      {failed && (
+        <a href="#/connect" className={`${linkClass} text-sm`}>
+          What to do
+        </a>
+      )}
+      {(failed || (connection.phase === "connected" && error && !progress)) && (
+        <LinkButton className="text-sm" onClick={() => (failed ? connect(connection.url) : session?.refresh())}>
           Try again
         </LinkButton>
       )}
@@ -272,7 +285,7 @@ export function Home() {
         </div>
       )}
       <Balance snapshot={snapshot} />
-      {fresh && snapshot.connection === "connected" && !snapshot.progress ? (
+      {fresh && snapshot.tip && !snapshot.progress ? (
         <Empty title="No transactions yet">
           <p className="m-0">
             Nothing has been paid to this wallet&rsquo;s addresses. To receive, share an unused address from{" "}
