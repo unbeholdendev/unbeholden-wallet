@@ -105,8 +105,6 @@ test("send, sign from a file, broadcast, then bump and sign the replacement thro
 
   await page.getByRole("region", { name: "Summary" }).getByRole("button", { name: "Review and sign" }).click();
   await expect(page.getByRole("heading", { name: "Check before you sign" })).toBeVisible();
-  await shoot(page, "sign-check");
-  await page.getByRole("button", { name: "Looks right, show to signer" }).click();
   await shoot(page, "sign-show");
   const signed = signPsbt(await savePsbt(page), BIP84);
   await page.getByRole("button", { name: "Signed it, scan it back" }).click();
@@ -127,7 +125,6 @@ test("send, sign from a file, broadcast, then bump and sign the replacement thro
   await page.getByLabel("Custom rate").fill("12");
   await shoot(page, "bump");
   await page.getByRole("button", { name: "Build the replacement" }).click();
-  await page.getByRole("button", { name: "Looks right, show to signer" }).click();
   const replacement = signPsbt(await savePsbt(page), BIP84);
 
   const encoder = psbtUrEncoder(replacement, 40);
