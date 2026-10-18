@@ -5,8 +5,8 @@ one magenta for routes and selection, and a pale territory tint for each
 source of coins. The map lends type, palette, density and one signature move.
 Navigation, controls and layout are ordinary web app ones.
 
-Prototype: `docs/design/variants/survey/index.html`. The other directions and
-why this one won: `docs/design/variants/README.md`.
+Prototype: `docs/design/variants/survey/index.html`. Chosen over two other
+directions, whitepaper and graphite, which git history keeps.
 
 ## Rationale
 
