@@ -1,10 +1,10 @@
-import { useMemo, useRef, useState, type ReactNode } from "react";
-import { useWallet, useWalletSnapshot } from "../../app/session";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useSendDraft, useWallet, useWalletSession, useWalletSnapshot } from "../../app/session";
 import { nextChange } from "../../core/view";
 import type { WalletCoin, WalletSnapshot } from "../../core/wallet";
 import { Amount, groupSats } from "../../ui/amount";
 import { Icon } from "../../ui/icons";
-import { Button, Chip, Notice } from "../../ui/kit";
+import { Button, Chip, LinkButton, Notice } from "../../ui/kit";
 import { Sheet } from "../../ui/sheet";
 import { sourcesOf } from "../../ui/sources";
 import { outpoint } from "../../wallet/coin";
@@ -31,6 +31,17 @@ function Flash({ value, children }: { value: number; children: ReactNode }) {
 
 export type Built = { psbt: Uint8Array; warnings: string[]; label: string; summary: [ReactNode, ReactNode][] };
 
+/** `picked` null lets the wallet choose coins for the amount; a tap fixes the choice. */
+export type SendDraft = { drafts: Draft[]; fee: FeeChoice; seed: string; picked: string[] | null; built: (Built & { inputs: string[] }) | null };
+
+export const blankDraft = (): SendDraft => ({
+  drafts: [{ key: 0, address: "", amount: "", max: false, label: "" }],
+  fee: { preset: "threeBlocks" },
+  seed: seed(),
+  picked: null,
+  built: null,
+});
+
 function blocker(drafts: Draft[], valid: boolean[], result: Spend): string | null {
   if (drafts.some((d) => !d.address.trim())) return "Enter who to pay";
   if (valid.includes(false)) return "Fix the address first";
@@ -42,11 +53,12 @@ function blocker(drafts: Draft[], valid: boolean[], result: Spend): string | nul
   return null;
 }
 
-function Compose({ snapshot, onBuilt }: { snapshot: WalletSnapshot; onBuilt: (built: Built) => void }) {
+function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnapshot; draft: SendDraft; update: (patch: Partial<SendDraft>) => void; onDiscard?: () => void }) {
   const { descriptor, network, scriptType } = useWallet();
-  const [drafts, setDrafts] = useState<Draft[]>([{ key: 0, address: "", amount: "", max: false, label: "" }]);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [fee, setFee] = useState<FeeChoice>({ preset: "threeBlocks" });
+  const { drafts, fee } = draft;
+  const setDrafts = (drafts: Draft[]) => update({ drafts });
+  const setFee = (fee: FeeChoice) => update({ fee });
+  const setSelected = (next: Set<string>) => update({ picked: [...next] });
   const [pending, setPending] = useState<WalletCoin | null>(null);
   const [error, setError] = useState<string | null>(null);
   const map = useRef<HTMLElement>(null);
@@ -68,6 +80,13 @@ function Compose({ snapshot, onBuilt }: { snapshot: WalletSnapshot; onBuilt: (bu
     feeRate: rate,
     scriptType,
   };
+  const typed = drafts.every((d) => !d.max && parseAmount(d.amount));
+  const paymentKey = JSON.stringify(payment);
+  const auto = useMemo(
+    () => (typed ? selectCoins(snapshot.coins, payment, draft.seed, snapshot.groups).coins.map(outpoint) : []),
+    [typed, paymentKey, snapshot, draft.seed],
+  );
+  const selected = new Set(draft.picked ?? auto);
   const chosen = snapshot.coins.filter((c) => selected.has(outpoint(c)));
   const result = spend(chosen, payment);
   const report = assessPrivacy(result, payment, snapshot.groups, {
@@ -78,12 +97,6 @@ function Compose({ snapshot, onBuilt }: { snapshot: WalletSnapshot; onBuilt: (bu
   const foreign = chosen.filter((c) => c.status === "foreign-unconfirmed");
   const stop = blocker(drafts, checks.map((c) => !c || "script" in c), result);
   const change = nextChange(snapshot);
-  const alternative =
-    linked > 1 && !drafts.some((d) => d.max)
-      ? sources
-          .map((s) => ({ s, pool: s.coins.filter((c) => selectable(c) && c.status !== "foreign-unconfirmed") }))
-          .find(({ pool }) => pool.length && !spend(pool, payment).problem)
-      : undefined;
 
   const toggle = (coin: WalletCoin) => {
     const key = outpoint(coin);
@@ -92,7 +105,6 @@ function Compose({ snapshot, onBuilt }: { snapshot: WalletSnapshot; onBuilt: (bu
     if (!next.delete(key)) next.add(key);
     setSelected(next);
   };
-  const pick = (coins: WalletCoin[]) => setSelected(new Set(selectCoins(coins, payment, seed()).coins.map(outpoint)));
 
   const review = () => {
     try {
@@ -104,10 +116,13 @@ function Compose({ snapshot, onBuilt }: { snapshot: WalletSnapshot; onBuilt: (bu
         change: result.change ? { chain: change.chain, index: change.index, value: result.change } : null,
       });
       setError(null);
-      onBuilt({
-        ...built,
-        label: drafts.map((d) => d.label.trim()).filter(Boolean).join(", "),
-        summary: [["Inputs", `${result.coins.length} coin${result.coins.length === 1 ? "" : "s"} from ${linked} source${linked === 1 ? "" : "s"}`]],
+      update({
+        built: {
+          ...built,
+          label: drafts.map((d) => d.label.trim()).filter(Boolean).join(", "),
+          summary: [["Inputs", `${result.coins.length} coin${result.coins.length === 1 ? "" : "s"} from ${linked} source${linked === 1 ? "" : "s"}`]],
+          inputs: result.coins.map(outpoint),
+        },
       });
     } catch (e) {
       setError((e as Error).message);
@@ -147,9 +162,9 @@ function Compose({ snapshot, onBuilt }: { snapshot: WalletSnapshot; onBuilt: (bu
               else open.forEach((k) => next.add(k));
               setSelected(next);
             }}
-            onPick={() => pick(snapshot.coins)}
-            onClear={() => setSelected(new Set())}
-            picking={!snapshot.coins.some(selectable)}
+            onPick={() => update({ picked: null })}
+            onClear={() => update({ picked: [] })}
+            picking={!draft.picked || !snapshot.coins.some(selectable)}
           />
         </div>
         <div className="grid min-w-0 content-start gap-4 @min-[900px]:sticky @min-[900px]:top-20 @min-[900px]:max-h-[calc(100dvh-96px)] @min-[900px]:overflow-y-auto">
@@ -164,7 +179,9 @@ function Compose({ snapshot, onBuilt }: { snapshot: WalletSnapshot; onBuilt: (bu
             <div className="grid gap-2.5 px-4 pb-4">
               <p className="m-0 max-w-[60ch]">
                 {linked === 0
-                  ? "Pick coins from the list, or let Pick for me choose."
+                  ? draft.picked
+                    ? "Pick coins from the list, or let Pick for me choose."
+                    : "Enter an amount and coins are picked for you, from one source where they can be. Tap a coin to choose yourself."
                   : linked === 1
                     ? `All selected coins come from ${nameOf.get(outpoint(chosen[0]!))}. They are already linked, so this adds nothing new.`
                     : report.warnings.find((w) => w.kind === "links-sources")!.message}
@@ -176,16 +193,6 @@ function Compose({ snapshot, onBuilt }: { snapshot: WalletSnapshot; onBuilt: (bu
                     {w.message}
                   </p>
                 ))}
-              {alternative && (
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-control bg-sunk px-3 py-2.5 text-sm">
-                  <span>
-                    Spend only {alternative.s.name} instead: <Amount sats={alternative.s.total} /> covers this payment.
-                  </span>
-                  <Button size="sm" onClick={() => pick(alternative.pool)}>
-                    Use those coins
-                  </Button>
-                </div>
-              )}
               {foreign.length > 0 && (
                 <Notice tone="warn">
                   {foreign.length === 1 ? "One selected coin is" : `${foreign.length} selected coins are`} an unconfirmed payment from someone else. They can still replace it, and then this transaction fails with it.
@@ -229,6 +236,7 @@ function Compose({ snapshot, onBuilt }: { snapshot: WalletSnapshot; onBuilt: (bu
             <div className="grid gap-2 px-4 pb-4">
               {error && <Notice tone="bad">{error}</Notice>}
               {primary("md")}
+              {onDiscard && <LinkButton onClick={onDiscard} className="justify-self-center">Discard this send</LinkButton>}
             </div>
           </section>
         </div>
@@ -270,14 +278,28 @@ function Compose({ snapshot, onBuilt }: { snapshot: WalletSnapshot; onBuilt: (bu
 
 export function Send() {
   const snapshot = useWalletSnapshot();
-  const [built, setBuilt] = useState<Built | null>(null);
+  const session = useWalletSession();
+  const [stored, store] = useSendDraft();
+  const [blank] = useState(blankDraft);
+  // Dropped on the way out rather than at broadcast, so the screen does not flash back to an empty form.
+  useEffect(
+    () => () => {
+      if (!session) return;
+      const unspent = new Set(session.getSnapshot().coins.map(outpoint));
+      store((d) => (d?.built?.inputs.some((k) => !unspent.has(k)) ? null : d));
+    },
+    [session, store],
+  );
   if (!snapshot) return <p className="m-0 text-ink-2">Opening this wallet.</p>;
+  const draft = stored ?? blank;
+  const update = (patch: Partial<SendDraft>) => store((d) => ({ ...(d ?? blank), ...patch }));
+  const built = draft.built;
   return (
     <>
       <div hidden={!!built}>
-        <Compose snapshot={snapshot} onBuilt={setBuilt} />
+        <Compose snapshot={snapshot} draft={draft} update={update} onDiscard={stored ? () => store(null) : undefined} />
       </div>
-      {built && <SignFlow built={built.psbt} title="Sign and send" warnings={built.warnings} summary={built.summary} label={built.label} onBack={() => setBuilt(null)} />}
+      {built && <SignFlow built={built.psbt} title="Sign and send" warnings={built.warnings} summary={built.summary} label={built.label} onBack={() => update({ built: null })} />}
     </>
   );
 }
