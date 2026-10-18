@@ -236,7 +236,7 @@ regtest), then tabs Home, Send, Receive, Coins, Addresses, with a 3 px
 right. Content sits on `paper` in `sheet` panels, 24 px gutter.
 
 - Home: balance panel left (confirmed large, unconfirmed and frozen beneath,
-  sync line), history panel right, a Sources key under the balance.
+  sync line), history panel right.
 - Send: two columns. Left about 60 %: Pay to, then the coin table grouped by
   source. Right: What this links (the map and the sentence), then the
   summary pinned to the bottom of the column with Review and sign.
