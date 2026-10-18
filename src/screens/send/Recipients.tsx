@@ -39,6 +39,14 @@ export function parseBtc(text: string): number | null {
   return sats <= MAX_SATS ? sats : null;
 }
 
+/** Sats from an amount as typed: BTC, or whole sats with a `sats` suffix. */
+export function parseAmount(text: string): number | null {
+  const m = /^(\d[\d\s]*)sats?$/i.exec(text.trim());
+  if (!m) return parseBtc(text);
+  const sats = Number(m[1]!.replace(/\s/g, ""));
+  return sats <= MAX_SATS ? sats : null;
+}
+
 export const btcText = (sats: number) => (sats / 1e8).toFixed(8).replace(/\.?0+$/, "");
 
 /** An address, or a BIP21 `bitcoin:` URI with its amount and label. */
@@ -72,6 +80,7 @@ export function Recipients({
   maxAmounts: number[];
 }) {
   const [scanning, setScanning] = useState<number | null>(null);
+  const [noting, setNoting] = useState(new Set<number>());
   const update = (i: number, patch: Partial<Draft>) =>
     onChange(drafts.map((d, j) => (j === i ? { ...d, ...patch } : patch.max ? { ...d, max: false } : d)));
 
@@ -79,9 +88,9 @@ export function Recipients({
     <Panel title="Pay to">
       {drafts.map((draft, i) => {
         const check = draft.address.trim() ? checkAddress(draft.address, network) : null;
-        const amount = parseBtc(draft.amount);
+        const amount = parseAmount(draft.amount);
         return (
-          <div key={draft.key} className={`grid gap-3 @min-[900px]:grid-cols-[minmax(0,2.4fr)_minmax(0,1.2fr)_minmax(0,1.2fr)] @min-[900px]:items-start ${i ? "border-t border-rule pt-3" : ""}`}>
+          <div key={draft.key} className={`grid gap-3 @min-[900px]:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] @min-[900px]:items-start ${i ? "border-t border-rule pt-3" : ""}`}>
             <Field
               label={drafts.length > 1 ? `Address ${i + 1}` : "Address"}
               error={check && "error" in check ? check.error : undefined}
@@ -105,12 +114,17 @@ export function Recipients({
                   <button type="button" aria-label="Scan an address" onClick={() => setScanning(i)} className="grid min-h-11 w-11 flex-none place-items-center rounded-control border border-rule-2 bg-sheet text-ink-2 hover:bg-sunk">
                     <Icon name="scan" />
                   </button>
+                  {drafts.length > 1 && (
+                    <button type="button" aria-label={`Remove recipient ${i + 1}`} onClick={() => { setNoting(new Set([...noting].filter((k) => k !== draft.key))); onChange(drafts.filter((_, j) => j !== i)); }} className="grid min-h-11 w-11 flex-none place-items-center rounded-control text-ink-2 hover:bg-sunk hover:text-bad">
+                      <Icon name="close" />
+                    </button>
+                  )}
                 </div>
               )}
             </Field>
             <Field
-              label="Amount, BTC"
-              error={!draft.max && draft.amount && amount === null ? "Write it as BTC, up to eight decimals." : undefined}
+              label="Amount, BTC or sats"
+              error={!draft.max && draft.amount && amount === null ? "Write it as BTC with up to eight decimals, or as sats, like 5000 sats." : undefined}
               hint={draft.max ? "Everything in the selected coins, less the fee" : undefined}
             >
               {(props) => (
@@ -136,18 +150,19 @@ export function Recipients({
                 </div>
               )}
             </Field>
-            <Field label="Label">
-              {(props) => (
-                <div className="flex gap-2">
-                  <input {...props} className={inputClass} value={draft.label} placeholder="Only you see this" onChange={(e) => update(i, { label: e.target.value })} />
-                  {drafts.length > 1 && (
-                    <button type="button" aria-label={`Remove recipient ${i + 1}`} onClick={() => onChange(drafts.filter((_, j) => j !== i))} className="grid min-h-11 w-11 flex-none place-items-center rounded-control text-ink-2 hover:bg-sunk hover:text-bad">
-                      <Icon name="close" />
-                    </button>
-                  )}
-                </div>
-              )}
-            </Field>
+            {draft.label || noting.has(draft.key) ? (
+              <div className="@min-[900px]:col-span-2">
+                <Field label="Note">
+                  {(props) => <input {...props} className={inputClass} value={draft.label} placeholder="Only you see this" autoFocus={!draft.label} onChange={(e) => { setNoting(new Set(noting).add(draft.key)); update(i, { label: e.target.value }); }} />}
+                </Field>
+              </div>
+            ) : (
+              check && "script" in check && (
+                <LinkButton className="justify-self-start text-sm" onClick={() => setNoting(new Set(noting).add(draft.key))}>
+                  Add a note
+                </LinkButton>
+              )
+            )}
           </div>
         );
       })}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseBtc, parseUri } from "./Recipients";
+import { parseAmount, parseBtc, parseUri } from "./Recipients";
 
 describe("parseBtc", () => {
   it.each([
@@ -15,6 +15,17 @@ describe("parseBtc", () => {
   it.each(["", ".", "0.000000001", "1,5", "-1", "1e3", "abc", "21000000.00000001"])("refuses %j", (text) =>
     expect(parseBtc(text)).toBeNull(),
   );
+});
+
+describe("parseAmount", () => {
+  it.each([
+    ["5000 sats", 5_000],
+    ["1 sat", 1],
+    ["50 000SATS", 50_000],
+    ["0.5", 50_000_000],
+  ])("reads %j as %i sats", (text, sats) => expect(parseAmount(text)).toBe(sats));
+
+  it.each(["sats", "1.5 sats", "-1 sats", "2100000000000001 sats"])("refuses %j", (text) => expect(parseAmount(text)).toBeNull());
 });
 
 // The examples in https://github.com/bitcoin/bips/blob/master/bip-0021.mediawiki#examples

@@ -14,7 +14,7 @@ import { selectCoins, spend, type Payment, type Spend } from "../../wallet/selec
 import { CoinList, selectable } from "./CoinList";
 import { FeePanel, rateOf, rateText, useFeeHistogram, type FeeChoice } from "./fees";
 import { PrivacyMap } from "./PrivacyMap";
-import { checkAddress, parseBtc, Recipients, type Draft } from "./Recipients";
+import { checkAddress, parseAmount, Recipients, type Draft } from "./Recipients";
 import { SignFlow } from "./Sign";
 
 const seed = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16)).join("");
@@ -34,7 +34,7 @@ export type Built = { psbt: Uint8Array; warnings: string[]; label: string; summa
 function blocker(drafts: Draft[], valid: boolean[], result: Spend): string | null {
   if (drafts.some((d) => !d.address.trim())) return "Enter who to pay";
   if (valid.includes(false)) return "Fix the address first";
-  if (drafts.some((d) => !d.max && !parseBtc(d.amount))) return "Enter an amount";
+  if (drafts.some((d) => !d.max && !parseAmount(d.amount))) return "Enter an amount";
   const p = result.problem;
   if (p?.kind === "no-coins") return "Select coins to pay from";
   if (p?.kind === "insufficient") return `Short by ${groupSats(p.missing)} sats`;
@@ -63,7 +63,7 @@ function Compose({ snapshot, onBuilt }: { snapshot: WalletSnapshot; onBuilt: (bu
   const payment: Payment = {
     recipients: drafts.map((d, i) => {
       const check = checks[i];
-      return { script: check && "script" in check ? check.script : placeholder, value: d.max ? "max" : (parseBtc(d.amount) ?? 0) };
+      return { script: check && "script" in check ? check.script : placeholder, value: d.max ? "max" : (parseAmount(d.amount) ?? 0) };
     }),
     feeRate: rate,
     scriptType,
@@ -134,6 +134,7 @@ function Compose({ snapshot, onBuilt }: { snapshot: WalletSnapshot; onBuilt: (bu
       <div className="grid gap-4 @min-[900px]:grid-cols-[minmax(0,1fr)_440px] @min-[900px]:items-start">
         <div className="grid min-w-0 gap-4">
           <Recipients drafts={drafts} onChange={setDrafts} network={network} own={own} maxAmounts={result.amounts} />
+          <FeePanel histogram={histogram} choice={fee} onChange={setFee} />
           <CoinList
             sources={sources}
             tip={snapshot.tip?.height ?? null}
@@ -192,7 +193,6 @@ function Compose({ snapshot, onBuilt }: { snapshot: WalletSnapshot; onBuilt: (bu
               )}
             </div>
           </section>
-          <FeePanel histogram={histogram} choice={fee} onChange={setFee} />
           <section aria-label="Summary" className="rounded-panel border border-rule bg-sheet @min-[900px]:sticky @min-[900px]:bottom-0 @min-[900px]:shadow-[0_-10px_20px_-14px_rgb(0_0_0/0.35)]">
             <div className="flex items-baseline justify-between gap-3 px-4 pt-4">
               <h2 className="text-md font-semibold">Summary</h2>
