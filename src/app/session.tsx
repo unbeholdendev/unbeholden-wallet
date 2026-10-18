@@ -1,19 +1,24 @@
-import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { openWallet, type WalletSession, type WalletSnapshot } from "../core/wallet";
 import { walletDescriptor } from "../core/wallets";
+import type { SendDraft } from "../screens/send/Send";
 import { useBackendFactory } from "./connection";
 import { useVault } from "./vault";
 
 const SessionContext = createContext<WalletSession | null>(null);
+const DraftContext = createContext<[SendDraft | null, Dispatch<SetStateAction<SendDraft | null>>]>([null, () => {}]);
 
 /**
  * Opens the selected wallet on its own backend to the saved server, and closes
- * it on a switch, a server change or a lock.
+ * it on a switch, a server change or a lock. Holds the unfinished send, in
+ * memory only, for as long.
  */
 export function SessionProvider({ children }: { children: ReactNode }) {
   const { vault, walletId, settings } = useVault();
   const factory = useBackendFactory();
   const [session, setSession] = useState<WalletSession | null>(null);
+  const draft = useState<SendDraft | null>(null);
+  const setDraft = draft[1];
 
   useEffect(() => {
     if (!walletId || !settings.server) return;
@@ -26,14 +31,22 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       open?.close();
       setSession(null);
+      setDraft(null);
     };
   }, [vault, walletId, settings.server, factory]);
 
-  return <SessionContext.Provider value={session}>{children}</SessionContext.Provider>;
+  return (
+    <SessionContext.Provider value={session}>
+      <DraftContext.Provider value={draft}>{children}</DraftContext.Provider>
+    </SessionContext.Provider>
+  );
 }
 
 /** The selected wallet's session, null while it opens. */
 export const useWalletSession = () => useContext(SessionContext);
+
+/** The unfinished send and its setter. Gone on a wallet switch or a lock. */
+export const useSendDraft = () => useContext(DraftContext);
 
 const none = () => () => {};
 
