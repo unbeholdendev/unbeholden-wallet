@@ -1,7 +1,9 @@
+import { hex } from "@scure/base";
 import { createContext, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { openWallet, type WalletSession, type WalletSnapshot } from "../core/wallet";
 import { walletDescriptor } from "../core/wallets";
 import type { SendDraft } from "../screens/send/Send";
+import type { Store } from "../vault/vault";
 import { useBackendFactory } from "./connection";
 import { useVault } from "./vault";
 
@@ -9,11 +11,28 @@ const SessionContext = createContext<WalletSession | null>(null);
 const DraftContext = createContext<[SendDraft | null, Dispatch<SetStateAction<SendDraft | null>>]>([null, () => {}]);
 const SkipContext = createContext(new Map<string, string>());
 
+type Saved = Omit<SendDraft, "built"> & { built: Omit<NonNullable<SendDraft["built"]>, "psbt" | "signed"> & { psbt: string; signed?: string } };
+
+/** Keeps a send with a built PSBT in the vault, so it outlasts a lock or a reload, and forgets one without. */
+async function saveSend(vault: Store, walletId: string, draft: SendDraft | null): Promise<void> {
+  const built = draft?.built;
+  if (!built) return vault.delete(`send/${walletId}`);
+  const signed = built.signed && hex.encode(built.signed);
+  await vault.put(`send/${walletId}`, { ...draft, built: { ...built, psbt: hex.encode(built.psbt), signed } });
+}
+
+async function loadSend(vault: Store, walletId: string): Promise<SendDraft | null> {
+  const saved = await vault.get<Saved>(`send/${walletId}`);
+  if (!saved) return null;
+  const { psbt, signed, ...built } = saved.built;
+  return { ...saved, built: { ...built, psbt: hex.decode(psbt), signed: signed ? hex.decode(signed) : undefined } };
+}
+
 /**
  * Opens the selected wallet on its own backend to the saved server, and closes
- * it on a switch, a server change or a lock. Holds the unfinished send, in
- * memory only, for as long, and each wallet's skipped receive address until
- * the lock.
+ * it on a switch, a server change or a lock. Holds the selected wallet's
+ * unfinished send, kept in the vault once its PSBT is built, and each
+ * wallet's skipped receive address until the lock.
  */
 export function SessionProvider({ children }: { children: ReactNode }) {
   const { vault, walletId, settings } = useVault();
@@ -34,9 +53,29 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       open?.close();
       setSession(null);
-      setDraft(null);
     };
   }, [vault, walletId, settings.server, factory]);
+
+  const loaded = useRef<string | null>(null);
+  useEffect(() => {
+    if (!walletId) return;
+    let cancelled = false;
+    loadSend(vault, walletId).then((saved) => {
+      if (cancelled) return;
+      loaded.current = walletId;
+      if (saved) setDraft(saved);
+    });
+    return () => {
+      cancelled = true;
+      loaded.current = null;
+      setDraft(null);
+    };
+  }, [vault, walletId]);
+
+  const built = draft[0]?.built;
+  useEffect(() => {
+    if (walletId && loaded.current === walletId) saveSend(vault, walletId, draft[0]).catch(() => {});
+  }, [built]);
 
   return (
     <SessionContext.Provider value={session}>
@@ -50,7 +89,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 /** The selected wallet's session, null while it opens. */
 export const useWalletSession = () => useContext(SessionContext);
 
-/** The unfinished send and its setter. Gone on a wallet switch or a lock. */
+/** The selected wallet's unfinished send and its setter. */
 export const useSendDraft = () => useContext(DraftContext);
 
 /** Receive's "Use a new address" position, by wallet id. Gone on a lock. */

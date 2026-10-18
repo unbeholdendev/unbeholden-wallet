@@ -252,7 +252,32 @@ export function finaliseSigned(
       "The signed transaction differs from the one built in its version, lock time or sequence numbers",
     );
   }
+  return finalise(theirs, ours);
+}
 
+/**
+ * Checks that a PSBT signed outside this wallet's own round trip spends only
+ * the given coins, as the server knows them, and is fully signed. Returns the
+ * raw transaction to broadcast. Throws with the reason it was refused.
+ */
+export function finaliseExternal(psbt: Uint8Array, coins: Coin[]): Uint8Array {
+  const tx = parsePsbt(psbt);
+  const owned = new Map(coins.map((c) => [outpoint(c), c]));
+  if (!tx.inputsLength) throw new Error("It spends no coins");
+  for (let i = 0; i < tx.inputsLength; i++) {
+    const input = tx.getInput(i);
+    const coin = owned.get(outpoint({ txid: hex.encode(input.txid!), vout: input.index! }));
+    if (!coin) throw new Error(`Input ${i + 1} is not one of this wallet's unspent coins`);
+    const utxo = input.witnessUtxo;
+    if (!utxo || hex.encode(utxo.script) !== coin.script || utxo.amount !== BigInt(coin.value)) {
+      throw new Error(`Input ${i + 1} describes its coin differently from your server`);
+    }
+  }
+  return finalise(tx, tx);
+}
+
+/** `ours` gives the input scripts, so the signer cannot choose which signature rules apply. */
+function finalise(theirs: Transaction, ours: Transaction): Uint8Array {
   for (let i = 0; i < theirs.inputsLength; i++) {
     try {
       if (!theirs.getInput(i).finalScriptWitness) theirs.finalizeIdx(i);
