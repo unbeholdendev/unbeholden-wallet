@@ -23,7 +23,7 @@ import { Button, LinkButton } from "./ui/kit";
 import { ToastProvider } from "./ui/toast";
 import type { KdfParams } from "./vault/vault";
 
-const TABS: string[] = ["home", "send", "receive", "coins", "addresses"] satisfies Tab[];
+const TABS: string[] = ["home", "send", "receive", "coins"] satisfies Tab[];
 
 function Unlocked({ route }: { route: string[] }) {
   const { settings, wallets, lock } = useVault();

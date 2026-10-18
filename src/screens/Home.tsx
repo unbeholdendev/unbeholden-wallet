@@ -40,29 +40,30 @@ function SyncLine({ snapshot }: { snapshot: WalletSnapshot }) {
 
 function Balance({ snapshot }: { snapshot: WalletSnapshot }) {
   const { confirmed, unconfirmed, frozen, spendable } = snapshot.balance;
-  const rows: [string, number, boolean?][] = [
-    ["Unconfirmed", unconfirmed, true],
-    ["Frozen, not spendable", frozen],
-    ["Spendable now", spendable],
-  ];
+  // Unconfirmed change of our own is already in spendable; what is left is other people's payments still waiting.
+  const waiting = confirmed + unconfirmed - spendable - frozen;
   return (
     <section aria-label="Balance" className="rounded-panel border border-rule bg-sheet">
       <div className="grid gap-1 px-4 pt-5 pb-4">
-        <span className="text-sm text-ink-2">Confirmed balance</span>
+        <span className="text-sm text-ink-2">Spendable now</span>
         <span className="text-2xl font-medium tracking-[-0.01em] @max-[380px]/app:text-[34px]">
-          <Amount sats={confirmed} unit />
+          <Amount sats={spendable} unit />
         </span>
+        {(waiting > 0 || frozen > 0) && (
+          <span className="flex flex-wrap gap-x-3 text-sm text-ink-2">
+            {waiting > 0 && (
+              <span>
+                <Amount sats={waiting} signed /> waiting to confirm
+              </span>
+            )}
+            {frozen > 0 && (
+              <span>
+                <Amount sats={frozen} /> frozen
+              </span>
+            )}
+          </span>
+        )}
       </div>
-      <dl className="m-0 grid gap-1.5 px-4 pb-4 text-sm">
-        {rows.map(([name, sats, signed]) => (
-          <div key={name} className="flex items-baseline justify-between gap-3 last:border-t last:border-rule last:pt-1.5">
-            <dt className="text-ink-2">{name}</dt>
-            <dd className="m-0 text-base">
-              <Amount sats={sats} signed={signed} />
-            </dd>
-          </div>
-        ))}
-      </dl>
       <SyncLine snapshot={snapshot} />
     </section>
   );
