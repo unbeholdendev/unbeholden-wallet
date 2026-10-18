@@ -7,14 +7,13 @@ import { Footer, InstallPrompt } from "./layout";
 import { walletDescriptor, type WalletRecord } from "../core/wallets";
 import { useVault } from "./vault";
 
-export type Tab = "home" | "send" | "receive" | "coins" | "addresses";
+export type Tab = "home" | "send" | "receive" | "coins";
 
 const tabs: { id: Tab; label: string; icon: IconName }[] = [
   { id: "home", label: "Home", icon: "home" },
   { id: "send", label: "Send", icon: "send" },
   { id: "receive", label: "Receive", icon: "recv" },
   { id: "coins", label: "Coins", icon: "coins" },
-  { id: "addresses", label: "Addresses", icon: "scan" },
 ];
 
 const scriptType = (w: WalletRecord) => walletDescriptor(w).scriptType;
@@ -61,7 +60,7 @@ function WalletSwitcher() {
           </button>
         ))}
         <hr className="my-1 border-rule" />
-        <a href="#/addresses" onClick={close} className="rounded-control px-2.5 py-2 text-ink hover:bg-sunk @min-[720px]/app:hidden">
+        <a href="#/addresses" onClick={close} className="rounded-control px-2.5 py-2 text-ink hover:bg-sunk">
           Addresses
         </a>
         <a href="#/import" onClick={close} className="flex items-center gap-2 rounded-control px-2.5 py-2 font-medium text-route hover:bg-sunk">
@@ -136,7 +135,7 @@ export function Shell({ tab, children }: { tab: Tab | null; children: ReactNode 
         <Footer />
       </main>
       <nav aria-label="Main" className="sticky bottom-0 z-10 grid grid-cols-4 border-t border-legend-rule bg-legend pb-[env(safe-area-inset-bottom)] text-legend-ink-2 @min-[720px]/app:hidden">
-        {tabs.slice(0, 4).map((t) => (
+        {tabs.map((t) => (
           <a
             key={t.id}
             href={`#/${t.id}`}

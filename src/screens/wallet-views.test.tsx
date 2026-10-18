@@ -8,6 +8,8 @@ import { demoBackend, DEMO_DESCRIPTOR, DEMO_TXIDS, seedDemoVault } from "../back
 import { createWallet, saveSettings } from "../core/wallets";
 import { createVault, destroyVault } from "../vault/vault";
 import { NETWORKS } from "../wallet/network";
+import { bip21 } from "./Receive";
+import { parseUri } from "./send/Recipients";
 
 configure({ asyncUtilTimeout: 8000 });
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 30_000 });
@@ -57,9 +59,9 @@ describe("wallet views on the demo history", () => {
   it("shows the balances and each payment's amount and direction, newest first", async () => {
     const user = await openApp();
     const balance = screen.getByRole("region", { name: "Balance" }).textContent;
-    expect(balance).toContain("0.29 599 613");
-    expect(balance).toContain("+0.01 348 560");
-    expect(balance).toContain("0.00 021 400");
+    expect(balance).toContain("Spendable now0.30 626 773");
+    expect(balance).toContain("+0.00 300 000 waiting to confirm");
+    expect(balance).toContain("0.00 021 400 frozen");
 
     expect(row("Rent, October")).toContain("−0.01 451 440");
     expect(row("Meridian Ltd invoice 118")).toContain("+0.00 300 000");
@@ -100,6 +102,14 @@ describe("wallet views on the demo history", () => {
     for (const b of backends) b.addToMempool(pay.unsignedTx);
     await waitFor(() => expect(screen.getByText("m/84h/0h/0h/0/8")).toBeTruthy());
     expect(shown()).not.toBe(first);
+  });
+
+  it("hands out a fresh address on request, still inside the watched window", async () => {
+    const user = await openApp("#/receive");
+    expect(screen.getByText("m/84h/0h/0h/0/7")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Use a new address" }));
+    expect(screen.getByText("m/84h/0h/0h/0/8")).toBeTruthy();
+    expect(screen.getByText("Unused address")).toBeTruthy();
   });
 
   it("takes a frozen coin out of the spendable balance", async () => {
@@ -159,5 +169,26 @@ describe("a wallet with no history", () => {
     await openApp();
     expect(await screen.findByRole("heading", { name: "No transactions yet" })).toBeTruthy();
     expect(within(screen.getByRole("heading", { name: "No transactions yet" }).parentElement!).getByRole("link", { name: "Receive" })).toBeTruthy();
+  });
+});
+
+describe("the receive request", () => {
+  // https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki (test vectors)
+  const address = "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4";
+
+  it("is the bare address unless an amount or label is asked for", () => {
+    expect(bip21(address, null, null)).toBe("BITCOIN:BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4");
+  });
+
+  it("carries an amount and label that read back the same", () => {
+    const uri = bip21(address, 2_030_000_000, "Luke-Jr: bike & lock");
+    expect(parseUri(uri)).toEqual({ address: address.toUpperCase(), amount: "20.3", label: "Luke-Jr: bike & lock" });
+  });
+
+  it("still gives SeedSigner the address to verify", () => {
+    const uri = bip21(address, 300_000, "Invoice: 118");
+    // https://github.com/SeedSigner/seedsigner/blob/dev/src/seedsigner/models/decode_qr.py (BitcoinAddressQrDecoder)
+    const found = /^((bc1q|tb1q|bcrt1q|bc1p|tb1p|bcrt1p|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,64})/i.exec(uri.split(":").at(-1)!);
+    expect(found?.[1]?.toLowerCase()).toBe(address);
   });
 });
