@@ -1,15 +1,20 @@
 import { useState } from "react";
 import { navigate } from "../app/route";
-import { useSendDraft, useWalletSession, useWalletSnapshot } from "../app/session";
+import { useSendDraft, useWallet, useWalletSession, useWalletSnapshot } from "../app/session";
+import { nextChange } from "../core/view";
 import type { WalletCoin, WalletSnapshot, WalletTx } from "../core/wallet";
-import { Amount, btcParts } from "../ui/amount";
+import { Amount, btcParts, groupSats } from "../ui/amount";
 import { ageText, confText, shortId } from "../ui/format";
 import { Icon } from "../ui/icons";
-import { Button, Chip, Empty, linkClass } from "../ui/kit";
+import { Button, Chip, Empty, linkClass, Panel } from "../ui/kit";
 import { SourceSwatch, sourcesOf, TINT, type Source } from "../ui/sources";
 import { outpoint } from "../wallet/coin";
+import type { ScriptType } from "../wallet/descriptor";
+import { feeTargets, MIN_FEE_RATE } from "../wallet/fees";
+import { spend, spendCost } from "../wallet/select";
 import { EditableLabel, Opening, SourceTitle } from "./parts";
 import { selectable } from "./send/CoinList";
+import { rateOf, rateText, useFeeHistogram } from "./send/fees";
 import { blankDraft } from "./send/Send";
 
 const statusChip = {
@@ -46,13 +51,15 @@ const sendable = (c: WalletCoin) => selectable(c) && c.status !== "foreign-uncon
 type Picking = { picked: Set<string>; toggle: (coin: WalletCoin) => void };
 
 /** One coin; given its source, the coin stands for the whole of a one-coin source. */
-function CoinRow({ coin, source, snapshot, picking }: { coin: WalletCoin; source?: Source; snapshot: WalletSnapshot; picking: Picking }) {
+function CoinRow({ coin, source, snapshot, picking, rate }: { coin: WalletCoin; source?: Source; snapshot: WalletSnapshot; picking: Picking; rate: number | null }) {
   const session = useWalletSession();
   const tx = lookup(snapshot).tx.get(coin.txid);
   const confirmations = tx?.confirmations ?? 0;
   const age = tx?.time && snapshot.tip ? ageText(snapshot.tip.time - tx.time) : null;
   const when = (confirmations < 6 || !age ? confText(confirmations) : age).toLowerCase();
   const path = lookup(snapshot).path.get(coin.address);
+  const cost = rate === null ? null : spendCost(coin, rate);
+  const uneconomic = cost !== null && cost >= coin.value;
   const { lead, rest } = btcParts(coin.value);
   return (
     <li
@@ -85,8 +92,9 @@ function CoinRow({ coin, source, snapshot, picking }: { coin: WalletCoin; source
           <span className="@min-[720px]:hidden">{when}</span>
           <span className="font-mono">{shortId(coin.address, 10, 6)}</span>
           {path && <span className="font-mono">{path}</span>}
+          {cost !== null && <span>{groupSats(cost)} sats to spend</span>}
         </span>
-        {(coin.frozen || statusChip[coin.status]) && (
+        {(coin.frozen || statusChip[coin.status] || uneconomic) && (
           <span className="flex flex-wrap gap-1.5">
             {coin.frozen && (
               <Chip>
@@ -95,6 +103,7 @@ function CoinRow({ coin, source, snapshot, picking }: { coin: WalletCoin; source
               </Chip>
             )}
             {statusChip[coin.status]}
+            {uneconomic && <Chip tone="warn">Uneconomic at {rateText(rate!)} sat/vB</Chip>}
           </span>
         )}
       </div>
@@ -111,8 +120,8 @@ function CoinRow({ coin, source, snapshot, picking }: { coin: WalletCoin; source
   );
 }
 
-function Group({ source, snapshot, picking }: { source: Source; snapshot: WalletSnapshot; picking: Picking }) {
-  if (source.coins.length === 1) return <CoinRow coin={source.coins[0]!} source={source} snapshot={snapshot} picking={picking} />;
+function Group({ source, snapshot, picking, rate }: { source: Source; snapshot: WalletSnapshot; picking: Picking; rate: number | null }) {
+  if (source.coins.length === 1) return <CoinRow coin={source.coins[0]!} source={source} snapshot={snapshot} picking={picking} rate={rate} />;
   return (
     <li className="border-t border-rule-2 first:border-t-0">
       <div className={`grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-2.5 px-4 py-2.5 ${TINT[source.tone]}`}>
@@ -126,18 +135,85 @@ function Group({ source, snapshot, picking }: { source: Source; snapshot: Wallet
       </div>
       <ul className="m-0 list-none p-0">
         {source.coins.map((c) => (
-          <CoinRow key={`${c.txid}:${c.vout}`} coin={c} snapshot={snapshot} picking={picking} />
+          <CoinRow key={`${c.txid}:${c.vout}`} coin={c} snapshot={snapshot} picking={picking} rate={rate} />
         ))}
       </ul>
     </li>
   );
 }
 
+// An example of a busy day, the fee chart's top contour; the copy says it is not a forecast.
+const BUSY_RATE = 50;
+
+/**
+ * Per source, its coins that a busy day's fee would take 1% or more of, and
+ * what joining them now at `rate` saves over spending them one by one then.
+ */
+function joinPlans(sources: Source[], rate: number, scriptType: ScriptType) {
+  return sources.flatMap((source) => {
+    const coins = source.coins.filter((c) => sendable(c) && spendCost(c, BUSY_RATE) * 100 >= c.value);
+    if (coins.length < 2) return [];
+    const joined = spend(coins, { recipients: [{ script: coins[0]!.script, value: "max" }], feeRate: rate, scriptType });
+    const later = spendCost(coins[0]!, BUSY_RATE);
+    const apart = coins.length * later;
+    const saving = apart - joined.fee - later;
+    return joined.problem || saving <= 0 ? [] : [{ source, coins, fee: joined.fee, later, apart, saving }];
+  });
+}
+
+function Join({ snapshot, sources, rate }: { snapshot: WalletSnapshot; sources: Source[]; rate: number }) {
+  const { scriptType } = useWallet();
+  const [draft, store] = useSendDraft();
+  const plans = joinPlans(sources, rate, scriptType);
+  if (!plans.length) return null;
+  const busy = !!draft && (!!draft.built || draft.drafts.some((d) => d.address.trim()));
+  const join = ({ source, coins }: (typeof plans)[number]) => {
+    const to = nextChange(snapshot).address;
+    store(() => ({ ...blankDraft(), drafts: [{ key: 0, address: to, amount: "", max: true, label: `Joined coins from ${source.name}` }], fee: { preset: "sixBlocks" }, picked: coins.map(outpoint) }));
+    navigate("/send");
+  };
+  return (
+    <Panel title="Fees are low: join small coins" className="@container">
+      <p className="m-0 max-w-[64ch] text-ink-2">
+        Everything waiting in your node&rsquo;s mempool fits in the next six blocks, so {rateText(rate)} sat/vB should confirm within
+        about an hour. Joining a source&rsquo;s small coins into one now costs less than spending them one by one if fees rise to{" "}
+        {BUSY_RATE} sat/vB, as they have on busy days. That is an example, not a forecast. Coins are only joined within one source,
+        so nothing new is linked.
+      </p>
+      <ul className="m-0 grid list-none gap-2 p-0">
+        {plans.map((plan) => (
+          <li key={plan.source.id} className={`grid gap-2 rounded-control px-3 py-2.5 @min-[560px]:grid-cols-[minmax(0,1fr)_auto] @min-[560px]:items-center ${TINT[plan.source.tone]}`}>
+            <div className="grid min-w-0 gap-1">
+              <span className="flex min-w-0 items-center gap-2.5 font-semibold">
+                <SourceSwatch source={plan.source} />
+                <span className="truncate">{plan.source.name}</span>
+              </span>
+              <span className="text-sm text-ink-2">
+                {plan.coins.length} coins, <Amount sats={plan.coins.reduce((a, c) => a + c.value, 0)} />. Spent one by one at {BUSY_RATE} sat/vB:{" "}
+                {groupSats(plan.apart)} sats. Joined now: {groupSats(plan.fee)} sats, then {groupSats(plan.later)} sats to spend the one coin.{" "}
+                <b className="font-semibold text-ink">Saves {groupSats(plan.saving)} sats.</b>
+              </span>
+            </div>
+            <Button size="sm" disabled={busy} onClick={() => join(plan)} className="justify-self-start">
+              Join these {plan.coins.length} coins
+            </Button>
+          </li>
+        ))}
+      </ul>
+      {busy && <p className="m-0 text-sm text-ink-3">Finish or discard the send in progress first.</p>}
+    </Panel>
+  );
+}
+
 export function Coins() {
   const snapshot = useWalletSnapshot();
-  const [, store] = useSendDraft();
+  const [draft, store] = useSendDraft();
   const [picked, setPicked] = useState<Set<string>>(new Set());
+  const histogram = useFeeHistogram();
   if (!snapshot) return <Opening title="Coins" />;
+  const sources = sourcesOf(snapshot);
+  const rate = histogram && rateOf(draft?.fee ?? { preset: "threeBlocks" }, histogram);
+  const low = histogram && feeTargets(histogram).sixBlocks === MIN_FEE_RATE;
   const { coins, balance } = snapshot;
   const toggle = (coin: WalletCoin) => {
     const next = new Set(picked);
@@ -165,6 +241,7 @@ export function Coins() {
           picked automatically.
         </p>
       </div>
+      {low && <Join snapshot={snapshot} sources={sources} rate={rateOf({ preset: "sixBlocks" }, histogram)} />}
       {coins.length ? (
         <section className="@container rounded-panel border border-rule bg-sheet">
           <dl className="m-0 grid grid-cols-3 gap-3 p-4">
@@ -177,14 +254,19 @@ export function Coins() {
               </div>
             ))}
           </dl>
+          {rate !== null && (
+            <p className="m-0 px-4 pb-3 text-xs text-ink-3">
+              Costs to spend are at {rateText(rate)} sat/vB, {draft ? "the fee rate of your send in progress" : "the rate to confirm within 30 minutes"}.
+            </p>
+          )}
           <div className="hidden grid-cols-[140px_84px_minmax(0,1fr)_auto] gap-x-3 border-t border-rule px-4 py-2 text-xs font-semibold tracking-[0.04em] text-ink-3 uppercase @min-[720px]:grid">
             <span className="text-right">Value</span>
             <span className="text-right">Age</span>
             <span>Label</span>
           </div>
           <ul className="m-0 list-none border-t border-rule-2 p-0">
-            {sourcesOf(snapshot).map((s) => (
-              <Group key={s.id} source={s} snapshot={snapshot} picking={{ picked, toggle }} />
+            {sources.map((s) => (
+              <Group key={s.id} source={s} snapshot={snapshot} picking={{ picked, toggle }} rate={rate} />
             ))}
           </ul>
         </section>
