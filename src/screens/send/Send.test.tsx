@@ -1,5 +1,5 @@
 import { Transaction } from "@scure/btc-signer";
-import { cleanup, configure, render, screen, within } from "@testing-library/react";
+import { act, cleanup, configure, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { address, BIP84, LARGE, script, signPsbt } from "../../../scripts/regtest/fixture";
@@ -78,6 +78,7 @@ async function payTo(user: ReturnType<typeof userEvent.setup>, to: string, btc: 
 let created: string | null = null;
 async function builtPsbt(user: ReturnType<typeof userEvent.setup>): Promise<Uint8Array> {
   await payTo(user, PAYEE, "0.001");
+  await user.click(screen.getByRole("button", { name: "Clear" }));
   await user.click(await coin(/Kraken withdrawal/));
   await user.click(screen.getByRole("button", { name: "Review and sign" }));
   let blob: Blob | null = null;
@@ -124,6 +125,7 @@ describe("the send screen", () => {
     const user = await start("#/send");
     await payTo(user, PAYEE, "0.001");
     const map = within(screen.getByRole("region", { name: "What this links" }));
+    await user.click(screen.getByRole("button", { name: "Clear" }));
     expect(map.getByText("Nothing selected")).toBeTruthy();
 
     // At 10 sat/vB, wpkh throughout: 42 WU overhead, 272 per input, 124 per
@@ -148,7 +150,6 @@ describe("the send screen", () => {
   it("never picks a frozen coin or one with an unconfirmed parent, and asks before spending someone else's unconfirmed payment", async () => {
     const user = await start("#/send");
     await payTo(user, PAYEE, "0.0095");
-    await user.click(screen.getByRole("button", { name: "Pick for me" }));
 
     expect((await coin(/Kraken withdrawal/)).getAttribute("aria-checked")).toBe("true");
     expect((await coin(/Bisq trade/)).getAttribute("aria-checked")).toBe("true");
@@ -168,6 +169,74 @@ describe("the send screen", () => {
     expect(foreignCoin.getAttribute("aria-checked")).toBe("false");
     await user.click(screen.getByRole("button", { name: "Spend it anyway" }));
     expect(foreignCoin.getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("picks coins from one source once an amount is typed, until a tap takes over", async () => {
+    const user = await start("#/send");
+    await payTo(user, PAYEE, "0.004");
+    const map = within(screen.getByRole("region", { name: "What this links" }));
+    expect((await coin(/Kraken withdrawal/)).getAttribute("aria-checked")).toBe("true");
+    expect((await coin(/Bisq trade/)).getAttribute("aria-checked")).toBe("false");
+    expect(map.getByText("No new links")).toBeTruthy();
+
+    await user.click(await coin(/Bisq trade/));
+    expect(map.getByText("Links 2 sources")).toBeTruthy();
+    await user.clear(screen.getByLabelText("Amount, BTC or sats"));
+    await user.type(screen.getByLabelText("Amount, BTC or sats"), "0.001");
+    expect(map.getByText("Links 2 sources")).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Pick for me" }));
+    expect(map.getByText("No new links")).toBeTruthy();
+  });
+
+  it("keeps an unfinished send, built PSBT and all, across other screens until discarded", async () => {
+    const user = await start("#/send");
+    await payTo(user, PAYEE, "0.001");
+    await user.click(screen.getByRole("button", { name: "Review and sign" }));
+    expect(await screen.findByRole("img", { name: /^QR code/ })).toBeTruthy();
+
+    location.hash = "#/coins";
+    expect(await screen.findByRole("heading", { name: "Coins" })).toBeTruthy();
+    location.hash = "#/send";
+    expect(await screen.findByRole("img", { name: /^QR code/ })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Back to coins" }));
+    expect((screen.getByLabelText("Address") as HTMLInputElement).value).toBe(PAYEE);
+    expect((screen.getByLabelText("Amount, BTC or sats") as HTMLInputElement).value).toBe("0.001");
+
+    await user.click(screen.getByRole("button", { name: "Discard this send" }));
+    expect((screen.getByLabelText("Address") as HTMLInputElement).value).toBe("");
+  });
+
+  it("does not lock for idleness while the signing QR is showing", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const user = await start("#/send");
+      await payTo(user, PAYEE, "0.001");
+      await user.click(screen.getByRole("button", { name: "Review and sign" }));
+      await screen.findByRole("img", { name: /^QR code/ });
+      const idle = () => {
+        vi.setSystemTime(Date.now() + 16 * 60_000);
+        document.dispatchEvent(new Event("visibilitychange"));
+      };
+      await act(idle);
+      expect(screen.getByRole("img", { name: /^QR code/ })).toBeTruthy();
+      location.hash = "#/home";
+      await waitFor(() => expect(screen.queryByRole("img", { name: /^QR code/ })).toBeNull());
+      await act(idle);
+      expect(await screen.findByLabelText("Passphrase")).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("sends the coins chosen on the Coins screen", async () => {
+    const user = await start("#/coins");
+    await user.click(await screen.findByRole("checkbox", { name: /^Send 0\.00 300 000 BTC/ }));
+    await user.click(screen.getByRole("button", { name: "Send these" }));
+    expect((await coin(/Bisq trade/)).getAttribute("aria-checked")).toBe("true");
+    expect((await coin(/Kraken withdrawal/)).getAttribute("aria-checked")).toBe("false");
+    await payTo(user, PAYEE, "0.004");
+    expect((await coin(/Kraken withdrawal/)).getAttribute("aria-checked")).toBe("false");
   });
 
   it("refuses a wrong-network address and a malformed one, each in its own words", async () => {
@@ -245,6 +314,7 @@ describe("signing and broadcasting", () => {
     expect(await screen.findByText(txid)).toBeTruthy();
     location.hash = "#/send";
     expect(await coin(/Your change, unconfirmed/)).toBeTruthy();
+    expect((screen.getByLabelText("Address") as HTMLInputElement).value).toBe("");
   });
 });
 

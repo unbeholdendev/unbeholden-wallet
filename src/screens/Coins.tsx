@@ -1,11 +1,16 @@
-import { useWalletSession, useWalletSnapshot } from "../app/session";
+import { useState } from "react";
+import { navigate } from "../app/route";
+import { useSendDraft, useWalletSession, useWalletSnapshot } from "../app/session";
 import type { WalletCoin, WalletSnapshot, WalletTx } from "../core/wallet";
 import { Amount, btcParts } from "../ui/amount";
 import { ageText, confText, shortId } from "../ui/format";
 import { Icon } from "../ui/icons";
 import { Button, Chip, Empty, linkClass } from "../ui/kit";
 import { SourceSwatch, sourcesOf, TINT, type Source } from "../ui/sources";
+import { outpoint } from "../wallet/coin";
 import { EditableLabel, Opening, SourceTitle } from "./parts";
+import { selectable } from "./send/CoinList";
+import { blankDraft } from "./send/Send";
 
 const statusChip = {
   confirmed: null,
@@ -36,8 +41,12 @@ function lookup(snapshot: WalletSnapshot) {
   return found;
 }
 
+const sendable = (c: WalletCoin) => selectable(c) && c.status !== "foreign-unconfirmed";
+
+type Picking = { picked: Set<string>; toggle: (coin: WalletCoin) => void };
+
 /** One coin; given its source, the coin stands for the whole of a one-coin source. */
-function CoinRow({ coin, source, snapshot }: { coin: WalletCoin; source?: Source; snapshot: WalletSnapshot }) {
+function CoinRow({ coin, source, snapshot, picking }: { coin: WalletCoin; source?: Source; snapshot: WalletSnapshot; picking: Picking }) {
   const session = useWalletSession();
   const tx = lookup(snapshot).tx.get(coin.txid);
   const confirmations = tx?.confirmations ?? 0;
@@ -49,9 +58,19 @@ function CoinRow({ coin, source, snapshot }: { coin: WalletCoin; source?: Source
     <li
       className={`grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 border-t px-4 py-3 @min-[720px]:grid-cols-[140px_84px_minmax(0,1fr)_auto] @min-[720px]:items-center ${source ? "border-rule-2 first:border-t-0" : "border-rule"} ${coin.frozen ? "bg-[repeating-linear-gradient(135deg,transparent_0_6px,color-mix(in_srgb,var(--rule)_45%,transparent)_6px_7px)]" : source ? TINT[source.tone] : "bg-sheet"}`}
     >
-      <a href={`#/tx/${coin.txid}`} className={`text-md font-medium no-underline hover:underline @min-[720px]:text-right ${coin.frozen ? "opacity-60" : "text-ink"}`}>
-        <Amount sats={coin.value} />
-      </a>
+      <span className="flex items-center gap-2.5 @min-[720px]:justify-between">
+        <input
+          type="checkbox"
+          aria-label={`Send ${lead}${rest} BTC`}
+          checked={picking.picked.has(outpoint(coin))}
+          disabled={!sendable(coin)}
+          onChange={() => picking.toggle(coin)}
+          className="size-4 flex-none accent-route"
+        />
+        <a href={`#/tx/${coin.txid}`} className={`text-md font-medium no-underline hover:underline ${coin.frozen ? "opacity-60" : "text-ink"}`}>
+          <Amount sats={coin.value} />
+        </a>
+      </span>
       <span className="hidden text-right text-sm text-ink-2 @min-[720px]:block">{when}</span>
       <div className="col-span-2 row-start-2 grid min-w-0 gap-1 @min-[720px]:col-span-1 @min-[720px]:col-start-3 @min-[720px]:row-start-1">
         {source ? (
@@ -92,8 +111,8 @@ function CoinRow({ coin, source, snapshot }: { coin: WalletCoin; source?: Source
   );
 }
 
-function Group({ source, snapshot }: { source: Source; snapshot: WalletSnapshot }) {
-  if (source.coins.length === 1) return <CoinRow coin={source.coins[0]!} source={source} snapshot={snapshot} />;
+function Group({ source, snapshot, picking }: { source: Source; snapshot: WalletSnapshot; picking: Picking }) {
+  if (source.coins.length === 1) return <CoinRow coin={source.coins[0]!} source={source} snapshot={snapshot} picking={picking} />;
   return (
     <li className="border-t border-rule-2 first:border-t-0">
       <div className={`grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-2.5 px-4 py-2.5 ${TINT[source.tone]}`}>
@@ -107,7 +126,7 @@ function Group({ source, snapshot }: { source: Source; snapshot: WalletSnapshot 
       </div>
       <ul className="m-0 list-none p-0">
         {source.coins.map((c) => (
-          <CoinRow key={`${c.txid}:${c.vout}`} coin={c} snapshot={snapshot} />
+          <CoinRow key={`${c.txid}:${c.vout}`} coin={c} snapshot={snapshot} picking={picking} />
         ))}
       </ul>
     </li>
@@ -116,8 +135,20 @@ function Group({ source, snapshot }: { source: Source; snapshot: WalletSnapshot 
 
 export function Coins() {
   const snapshot = useWalletSnapshot();
+  const [, store] = useSendDraft();
+  const [picked, setPicked] = useState<Set<string>>(new Set());
   if (!snapshot) return <Opening title="Coins" />;
   const { coins, balance } = snapshot;
+  const toggle = (coin: WalletCoin) => {
+    const next = new Set(picked);
+    if (!next.delete(outpoint(coin))) next.add(outpoint(coin));
+    setPicked(next);
+  };
+  const sending = coins.filter((c) => sendable(c) && picked.has(outpoint(c)));
+  const send = () => {
+    store((d) => ({ ...(d ?? blankDraft()), picked: sending.map(outpoint), built: null }));
+    navigate("/send");
+  };
   const waiting = sum(coins.filter((c) => !c.frozen && (c.status === "foreign-unconfirmed" || c.status === "unconfirmed-parents")));
   const totals: [string, number][] = [
     ["Spendable now", balance.spendable],
@@ -153,7 +184,7 @@ export function Coins() {
           </div>
           <ul className="m-0 list-none border-t border-rule-2 p-0">
             {sourcesOf(snapshot).map((s) => (
-              <Group key={s.id} source={s} snapshot={snapshot} />
+              <Group key={s.id} source={s} snapshot={snapshot} picking={{ picked, toggle }} />
             ))}
           </ul>
         </section>
@@ -166,6 +197,21 @@ export function Coins() {
             </a>
           </p>
         </Empty>
+      )}
+      {sending.length > 0 && (
+        <div className="sticky bottom-[calc(64px+env(safe-area-inset-bottom))] z-[2] flex flex-wrap items-center justify-between gap-3 rounded-panel border border-rule-2 bg-sheet p-3 pl-4 shadow-float @min-[720px]/app:bottom-4">
+          <span className="text-sm">
+            <b className="font-semibold">{sending.length} coin{sending.length === 1 ? "" : "s"}</b>, <Amount sats={sum(sending)} />
+          </span>
+          <span className="flex gap-2">
+            <Button size="sm" onClick={() => setPicked(new Set())}>
+              Clear
+            </Button>
+            <Button size="sm" variant="primary" onClick={send}>
+              Send these
+            </Button>
+          </span>
+        </div>
       )}
     </div>
   );

@@ -232,15 +232,20 @@ function singleRandomDraw(
 }
 
 /**
- * Picks coins for a payment: a changeless set by branch and bound if there is
- * one, otherwise a seeded random draw. A `"max"` recipient takes every
- * eligible coin. Frozen coins and coins with unconfirmed parents are never
- * picked; unconfirmed payments from others only when allowed.
+ * Picks coins for a payment, privacy first: from one source if any can pay,
+ * the cheapest of those, then the one with least change; otherwise from the
+ * fewest sources, largest first.
+ * Within those, a changeless set by branch and bound if there is one,
+ * otherwise a seeded random draw. A `"max"` recipient takes every eligible
+ * coin. Frozen coins and coins with unconfirmed parents are never picked;
+ * unconfirmed payments from others only when allowed. `groups` maps an
+ * outpoint to its source; a coin not in it is a source of its own.
  */
 export function selectCoins(
   coins: Coin[],
   payment: Payment,
   seed: string,
+  groups: Map<string, string> = new Map(),
   allowForeignUnconfirmed = false,
 ): Spend {
   const { recipients, feeRate, scriptType } = payment;
@@ -256,8 +261,7 @@ export function selectCoins(
       effective: coin.value - (inputWeight(coin) / 4) * feeRate,
     }))
     .filter((c) => c.effective > 0);
-  const everything = pool.map((c) => c.coin);
-  if (recipients.some((r) => r.value === "max")) return spend(everything, payment);
+  if (recipients.some((r) => r.value === "max")) return spend(pool.map((c) => c.coin), payment);
 
   const changeOutput = outputWeight(CHANGE_SCRIPT_BYTES[scriptType]) / 4;
   const changeFee = changeOutput * feeRate;
@@ -269,9 +273,30 @@ export function selectCoins(
   const target =
     sum(recipients.map((r) => r.value as number)) + (rest + 1) * feeRate + 1;
 
-  const chosen =
-    branchAndBound(pool, target, costOfChange) ??
-    singleRandomDraw(pool, target, changeFee, seed) ??
-    everything;
-  return spend(chosen, payment);
+  const pick = (from: Candidate[]) =>
+    spend(
+      branchAndBound(from, target, costOfChange) ??
+        singleRandomDraw(from, target, changeFee, seed) ??
+        from.map((c) => c.coin),
+      payment,
+    );
+
+  const bySource = new Map<string, Candidate[]>();
+  for (const c of pool) {
+    const id = groups.get(outpoint(c.coin)) ?? outpoint(c.coin);
+    bySource.set(id, [...(bySource.get(id) ?? []), c]);
+  }
+  const sources = [...bySource.values()];
+  const single = sources
+    .map(pick)
+    .filter((s) => !s.problem)
+    .sort((a, b) => a.fee - b.fee || a.change - b.change)[0];
+  if (single) return single;
+  const worth = (s: Candidate[]) => sum(s.map((c) => c.effective));
+  sources.sort((a, b) => worth(b) - worth(a));
+  for (let n = 2; n < sources.length; n++) {
+    const found = pick(sources.slice(0, n).flat());
+    if (!found.problem) return found;
+  }
+  return pick(pool);
 }

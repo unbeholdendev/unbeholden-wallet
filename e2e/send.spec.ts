@@ -96,7 +96,6 @@ test("send, sign from a file, broadcast, then bump and sign the replacement thro
   await expect(page.getByRole("checkbox", { name: /Waits on an unconfirmed parent/ }).first()).toHaveAttribute("aria-disabled", "true");
   await page.getByRole("textbox", { name: "Address" }).fill(await rpc("getnewaddress"));
   await page.getByLabel("Amount, BTC").fill("0.6");
-  await page.getByRole("button", { name: "Pick for me" }).click();
   await expect(page.getByRole("region", { name: "Summary" }).getByRole("button", { name: "Review and sign" })).toBeEnabled();
   await expect(page.getByText("Regtest bench added")).toBeHidden({ timeout: 6_000 });
   await shoot(page, "send");

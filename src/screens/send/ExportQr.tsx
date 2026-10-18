@@ -52,7 +52,7 @@ export function ExportQr({ psbt }: { psbt: Uint8Array }) {
 
   return (
     <>
-      <div className="mx-auto aspect-square w-full max-w-[calc(100svh-2rem)] rounded-control bg-qr p-1.5 shadow-[0_0_0_1px_var(--rule-2)] @min-[900px]:row-span-5">
+      <div data-keep-unlocked className="mx-auto aspect-square w-full max-w-[calc(100svh-2rem)] rounded-control bg-qr p-1.5 shadow-[0_0_0_1px_var(--rule-2)] @min-[900px]:row-span-5">
         <svg viewBox={`0 0 ${qr.size} ${qr.size}`} shapeRendering="crispEdges" role="img" aria-label={`QR code, part ${at} of ${encoder.seqLen}`} className="block size-full">
           <path d={qr.d} className="fill-qr-ink" />
         </svg>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Coin, CoinStatus } from "./coin";
+import { outpoint, type Coin, type CoinStatus } from "./coin";
 import { selectCoins, spend, type Payment } from "./select";
 
 const wpkh = (n: number) => "0014" + n.toString(16).padStart(40, "0");
@@ -33,6 +33,7 @@ const pay = (value: number | "max", feeRate = 10): Payment => ({
   scriptType: "wpkh",
 });
 
+const oneSource = (coins: Coin[]) => new Map(coins.map((c) => [outpoint(c), "one"]));
 const values = (coins: Coin[]) => coins.map((c) => c.value).sort((a, b) => a - b);
 
 // Sizes from the calculator's own checks against mainnet transactions:
@@ -101,22 +102,22 @@ describe("selectCoins", () => {
   it("finds a changeless solution where one exists", () => {
     const coins = [20_000, 30_000, 50_000, 70_000, 200_000].map((v) => coin(v));
     // At 2 sat/vB, 30k and 50k pay 79,642 with 358 sats of fee and no change.
-    const result = selectCoins(coins, pay(79_642, 2), "seed");
+    const result = selectCoins(coins, pay(79_642, 2), "seed", oneSource(coins));
     expect(values(result.coins)).toEqual([30_000, 50_000]);
     expect(result).toMatchObject({ change: 0, fee: 358, problem: null });
   });
 
   it("falls back to a random draw with change, the same for the same seed", () => {
     const coins = [300_000, 400_000, 500_000, 600_000, 700_000].map((v) => coin(v));
-    const first = selectCoins(coins, pay(250_000), "seed");
+    const first = selectCoins(coins, pay(250_000), "seed", oneSource(coins));
     expect(first.change).toBeGreaterThan(0);
     expect(first.problem).toBeNull();
-    expect(selectCoins([...coins].reverse(), pay(250_000), "seed").coins).toEqual(
+    expect(selectCoins([...coins].reverse(), pay(250_000), "seed", oneSource(coins)).coins).toEqual(
       first.coins,
     );
     const draws = new Set(
       ["a", "b", "c", "d", "e", "f"].map((seed) =>
-        values(selectCoins(coins, pay(250_000), seed).coins).join(),
+        values(selectCoins(coins, pay(250_000), seed, oneSource(coins)).coins).join(),
       ),
     );
     expect(draws.size).toBeGreaterThan(1);
@@ -137,7 +138,7 @@ describe("selectCoins", () => {
       kind: "no-coins",
     });
     expect(selectCoins([foreign, change], pay(10_000), "seed").coins).toEqual([change]);
-    expect(selectCoins([foreign], pay(10_000), "seed", true).coins).toEqual([foreign]);
+    expect(selectCoins([foreign], pay(10_000), "seed", new Map(), true).coins).toEqual([foreign]);
   });
 
   it("sweeps every eligible coin to a max recipient", () => {
@@ -145,6 +146,30 @@ describe("selectCoins", () => {
     const result = selectCoins(coins, pay("max"), "seed");
     expect(values(result.coins)).toEqual([40_000, 60_000]);
     expect(result.amounts).toEqual([98_220]);
+  });
+
+  it("pays from one source before a cheaper set that links two", () => {
+    const coins = [20_000, 30_000, 50_000, 200_000].map((v) => coin(v));
+    expect(values(selectCoins(coins, pay(79_642, 2), "seed").coins)).toEqual([200_000]);
+  });
+
+  it("takes the cheapest of the sources that can pay alone", () => {
+    const pair = [coin(60_000), coin(60_000)];
+    const lone = coin(150_000);
+    const result = selectCoins([...pair, lone], pay(100_000), "seed", oneSource(pair));
+    expect(result.coins).toEqual([lone]);
+  });
+
+  it("between sources that cost the same, leaves the least change", () => {
+    const coins = [146_000, 60_000].map((v) => coin(v));
+    expect(values(selectCoins(coins, pay(50_000), "seed").coins)).toEqual([60_000]);
+  });
+
+  it("links as few sources as it can when none pays alone", () => {
+    const coins = [20_000, 30_000, 90_000, 100_000].map((v) => coin(v));
+    const result = selectCoins(coins, pay(150_000), "seed");
+    expect(values(result.coins)).toEqual([90_000, 100_000]);
+    expect(result.problem).toBeNull();
   });
 
   it("reports a shortfall across everything it could spend", () => {
