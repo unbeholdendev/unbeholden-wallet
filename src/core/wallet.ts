@@ -107,8 +107,8 @@ export type WalletSession = {
   refresh(): Promise<void>;
   /** Resolves once no sync is running. */
   settled(): Promise<void>;
-  /** Checks `count` more addresses on each chain, beyond the gap limit. */
-  scanDeeper(count?: number): Promise<void>;
+  /** Checks `count` more addresses on each chain, keeps them only up to the gap past any found used, and returns how many were found used. */
+  scanDeeper(count?: number): Promise<number>;
   /** An empty or null label removes it. */
   setLabel(type: LabelType, ref: string, label: string | null): Promise<void>;
   setFrozen(coin: { txid: string; vout: number }, frozen: boolean): Promise<void>;
@@ -612,10 +612,17 @@ export async function openWallet(
       while (loop) await loop;
     },
     async scanDeeper(count = 100) {
-      for (const hash of extend(Math.max(...cache.addresses.map((l) => l.length)) + count)) {
-        dirty.add(hash);
-      }
+      const lengths = cache.addresses.map((l) => l.length);
+      const used = () => allHashes().filter((h) => cache.histories[h]).length;
+      const before = used();
+      for (const hash of extend(Math.max(...lengths) + count)) dirty.add(hash);
       await request();
+      cache.addresses.forEach((list, chain) => {
+        list.length = Math.min(list.length, Math.max(lengths[chain]!, lastUsed(chain) + 1 + gapLimit));
+      });
+      await persist();
+      rebuild();
+      return used() - before;
     },
     async setLabel(type, ref, label) {
       if (label) labels[`${type}:${ref}`] = label;

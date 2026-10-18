@@ -180,9 +180,13 @@ describe("scanning", () => {
     const session = await open(backend);
     expect(session.getSnapshot().balance.confirmed).toBe(89_000);
 
-    await session.scanDeeper(100);
+    expect(await session.scanDeeper(100)).toBe(1);
     expect(session.getSnapshot().balance.confirmed).toBe(96_000);
     expect(session.getSnapshot().nextReceive.index).toBe(61);
+    expect(session.getSnapshot().addresses.receive).toHaveLength(81);
+
+    expect(await session.scanDeeper(100)).toBe(0);
+    expect(session.getSnapshot().addresses.receive).toHaveLength(81);
   });
 
   it("fetches only what changed on a second load", async () => {

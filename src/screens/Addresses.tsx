@@ -44,9 +44,9 @@ export function Addresses() {
   const reused = [...snapshot.addresses.receive, ...snapshot.addresses.change].filter((a) => a.reused).length;
   const scan = async () => {
     setScanning(true);
-    await session?.scanDeeper(DEEPER);
+    const found = (await session?.scanDeeper(DEEPER)) ?? 0;
     setScanning(false);
-    toast(`Checked ${DEEPER} more addresses on each chain`);
+    toast(found ? `Found ${found === 1 ? "1 used address" : `${found} used addresses`} further on` : `Nothing in the next ${DEEPER} addresses on each chain`);
   };
 
   return (
@@ -88,7 +88,7 @@ export function Addresses() {
         {!list.length && <p className="m-0 border-t border-rule px-4 py-6 text-ink-3">No {show} addresses on this chain yet.</p>}
         {all.length > end && (
           <p className="m-0 border-t border-rule px-4 py-3 text-sm text-ink-3">
-            {all.length - end} more unused addresses after these are watched for payments.{" "}
+            {all.length - end} more unused addresses after these.{" "}
             <LinkButton onClick={() => setShow("unused")}>Show unused</LinkButton>
           </p>
         )}
