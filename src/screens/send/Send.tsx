@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useConnection } from "../../app/connection";
 import { useSendDraft, useWallet, useWalletSession, useWalletSnapshot } from "../../app/session";
 import { nextChange } from "../../core/view";
 import type { WalletCoin, WalletSnapshot } from "../../core/wallet";
@@ -286,7 +287,8 @@ export function Send() {
   const session = useWalletSession();
   const [stored, store] = useSendDraft();
   const [blank] = useState(blankDraft);
-  const synced = snapshot?.connection === "connected" && !snapshot.progress;
+  const { phase } = useConnection().connection;
+  const synced = phase === "connected" && !!snapshot && !snapshot.progress && !snapshot.error;
   // Checked once synced and on the way out, not on every change, so a broadcast does not flash the screen back to an empty form.
   useEffect(() => {
     if (!session) return;

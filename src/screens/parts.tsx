@@ -1,8 +1,8 @@
 import { useRef, useState } from "react";
-import { useWalletSession } from "../app/session";
+import { useOpenFailure, useWalletSession } from "../app/session";
 import type { LabelType } from "../core/wallet";
 import { Icon } from "../ui/icons";
-import { Button, inputClass } from "../ui/kit";
+import { Button, inputClass, linkClass, Notice } from "../ui/kit";
 import type { Source } from "../ui/sources";
 import { useToast } from "../ui/toast";
 import { outpoint } from "../wallet/coin";
@@ -79,10 +79,25 @@ export function GroupedAddress({ address, className = "" }: { address: string; c
 
 /** Stands in for a wallet screen while the session opens. */
 export function Opening({ title }: { title: string }) {
+  const failed = useOpenFailure();
   return (
     <div className="grid content-start gap-2">
       <h1 className="m-0 text-xl font-semibold">{title}</h1>
-      <p className="m-0 text-ink-3">Opening the wallet.</p>
+      {failed ? (
+        <>
+          <Notice tone="bad">
+            This wallet could not be opened. {failed.message}
+          </Notice>
+          <p className="m-0 text-ink-2">
+            Try again. If it still fails, remove the wallet in <a href="#/settings" className={linkClass}>Settings</a> and add it again.
+          </p>
+          <Button className="justify-self-start" icon="retry" onClick={failed.retry}>
+            Try again
+          </Button>
+        </>
+      ) : (
+        <p className="m-0 text-ink-3">Opening the wallet.</p>
+      )}
     </div>
   );
 }
