@@ -1,12 +1,27 @@
 import { useRef, useState } from "react";
+import { hex } from "@scure/base";
+import { BbqrDecoder } from "../../transport/bbqr";
 import { readPsbt } from "../../transport/files";
 import { psbtFromUr, psbtUrDecoder } from "../../transport/ur";
 import { Icon } from "../../ui/icons";
 import { Button, buttonClass, inputClass, Notice } from "../../ui/kit";
 import { QrScanner } from "../../ui/QrScanner";
 
-export function ScanBack({ onSigned, error }: { onSigned: (psbt: Uint8Array) => void; error: string | null }) {
+/** A PSBT, or a finished transaction in hex as a Coldcard Q shows one. */
+function readSigned(text: string): Uint8Array {
+  try {
+    return readPsbt(text);
+  } catch (e) {
+    const compact = text.replace(/\s+/g, "");
+    if (/^([0-9a-f]{2})+$/i.test(compact)) return hex.decode(compact.toLowerCase());
+    throw e;
+  }
+}
+
+/** `onSigned` gets a PSBT, or a finished transaction when the signer sent one. */
+export function ScanBack({ onSigned, error }: { onSigned: (signed: Uint8Array) => void; error: string | null }) {
   const decoder = useRef(psbtUrDecoder());
+  const bbqr = useRef(new BbqrDecoder());
   const [progress, setProgress] = useState({ parts: [] as number[], expected: 0 });
   const [scanError, setScanError] = useState<string | null>(null);
   const [pasted, setPasted] = useState("");
@@ -14,14 +29,25 @@ export function ScanBack({ onSigned, error }: { onSigned: (psbt: Uint8Array) => 
 
   const restart = () => {
     decoder.current = psbtUrDecoder();
+    bbqr.current = new BbqrDecoder();
     setProgress({ parts: [], expected: 0 });
   };
 
   const onResult = (text: string) => {
     const d = decoder.current;
+    const b = bbqr.current;
+    if (b.receive(text)) {
+      setScanError(null);
+      setProgress({ parts: b.parts, expected: b.expected });
+      if (!b.done) return;
+      restart();
+      if (b.type !== "P" && b.type !== "T") return setScanError("This code holds neither a PSBT nor a transaction.");
+      b.result().then(onSigned, () => setScanError("This code could not be read. Starting the scan again."));
+      return;
+    }
     if (!/^ur:/i.test(text.trim())) {
       try {
-        onSigned(readPsbt(text));
+        onSigned(readSigned(text));
       } catch {}
       return;
     }
@@ -42,7 +68,7 @@ export function ScanBack({ onSigned, error }: { onSigned: (psbt: Uint8Array) => 
   const read = (input: Uint8Array | string) => {
     try {
       setReadError(null);
-      onSigned(readPsbt(input));
+      onSigned(typeof input === "string" ? readSigned(input) : readPsbt(input));
     } catch (e) {
       setReadError((e as Error).message);
     }

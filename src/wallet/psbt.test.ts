@@ -205,6 +205,22 @@ describe.each(wallets)("a $name wallet", (wallet) => {
     expect(estimate).toBeLessThanOrEqual(tx.vsize + tx.inputsLength);
   });
 
+  it("finalises a transaction the signer finished itself", () => {
+    const { psbt } = build();
+    const tx = Transaction.fromPSBT(signed(psbt, wallet.root));
+    tx.finalize();
+    expect(hex.encode(finaliseSigned(psbt, tx.extract()))).toBe(hex.encode(tx.extract()));
+  });
+
+  it("refuses a finished transaction that is not the one built", () => {
+    const { psbt } = build();
+    const tx = Transaction.fromPSBT(signed(psbt, wallet.root));
+    tx.finalize();
+    const other = Transaction.fromRaw(tx.extract());
+    other.updateOutput(0, { amount: 1_000n }, true);
+    expect(() => finaliseSigned(psbt, other.toBytes(true, true))).toThrow("The signed transaction is not the one built");
+  });
+
   it("refuses a returned PSBT with a changed output amount", () => {
     const { psbt } = build();
     const tx = Transaction.fromPSBT(signed(psbt, wallet.root));

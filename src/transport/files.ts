@@ -1,12 +1,6 @@
 import { base64, hex } from "@scure/base";
-import { parsePsbt } from "../wallet/psbt";
+import { hasMagic, parsePsbt } from "../wallet/psbt";
 import { psbtFromUr, psbtUrDecoder } from "./ur";
-
-// BIP174: every PSBT starts with "psbt" and 0xff.
-// https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
-const MAGIC = Uint8Array.of(0x70, 0x73, 0x62, 0x74, 0xff);
-
-const hasMagic = (bytes: Uint8Array) => MAGIC.every((b, i) => bytes[i] === b);
 
 function decodeText(text: string): Uint8Array {
   const trimmed = text.trim();

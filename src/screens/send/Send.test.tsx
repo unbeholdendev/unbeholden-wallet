@@ -6,6 +6,7 @@ import { address, BIP84, LARGE, script, signPsbt } from "../../../scripts/regtes
 import { App } from "../../App";
 import { fakeBackend, type FakeBackend, type Fixture } from "../../backend/fake";
 import { createWallet, saveSettings } from "../../core/wallets";
+import { bbqrParts } from "../../transport/bbqr";
 import { psbtUrEncoder } from "../../transport/ur";
 import { groupSats } from "../../ui/amount";
 import { createVault, destroyVault } from "../../vault/vault";
@@ -344,6 +345,27 @@ describe("signing and broadcasting", () => {
     camera.frames.push(frame(wrong.toPSBT()));
     await waitFor(() => expect(camera.frames).toHaveLength(0));
     camera.frames.push(frame(signPsbt(built, BIP84)));
+    expect(await screen.findByText("Signed and checked")).toBeTruthy();
+  });
+
+  it("shows BBQr for a Coldcard Q and takes back the transaction it finished, part by part", async () => {
+    fakeCamera();
+    const user = await start("#/send");
+    const built = await builtPsbt(user);
+    await user.click(screen.getByRole("button", { name: "Back to the code" }));
+    await user.click(screen.getByText("Signer can't read it?"));
+    await user.click(screen.getByRole("button", { name: "BBQr" }));
+    expect(screen.getByRole("img", { name: `QR code, part 1 of ${bbqrParts(built, "P", 160).length}` })).toBeTruthy();
+    expect(JSON.parse(localStorage.getItem("qr-export")!).format).toBe("bbqr");
+    localStorage.removeItem("qr-export");
+
+    await user.click(screen.getByRole("button", { name: "Signed it, scan it back" }));
+    const finished = Transaction.fromPSBT(signPsbt(built, BIP84));
+    finished.finalize();
+    const parts = bbqrParts(finished.extract(), "T", 80);
+    camera.frames.push(parts[1]!);
+    expect(await screen.findByText((_, el) => el?.tagName === "SPAN" && el.textContent === `1 of ${parts.length} parts captured`)).toBeTruthy();
+    camera.frames.push(...parts);
     expect(await screen.findByText("Signed and checked")).toBeTruthy();
   });
 

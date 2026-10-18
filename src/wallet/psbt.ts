@@ -196,19 +196,25 @@ export function parsePsbt(psbt: Uint8Array): Transaction {
   }
 }
 
+// BIP174: every PSBT starts with "psbt" and 0xff.
+// https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
+const MAGIC = Uint8Array.of(0x70, 0x73, 0x62, 0x74, 0xff);
+
+export const hasMagic = (bytes: Uint8Array) => MAGIC.every((b, i) => bytes[i] === b);
+
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 /**
- * Checks that a PSBT back from the signer is the transaction that was built,
- * fully signed, and returns the raw transaction to broadcast. Throws with the
- * reason it was refused.
+ * Checks that a PSBT or finished transaction back from the signer is the
+ * transaction that was built, fully signed, and returns the raw transaction to
+ * broadcast. Throws with the reason it was refused.
  */
 export function finaliseSigned(
   built: Uint8Array,
   returned: Uint8Array,
 ): Uint8Array {
   const ours = parsePsbt(built);
-  const theirs = parsePsbt(returned);
+  const theirs = hasMagic(returned) ? parsePsbt(returned) : withWitnesses(ours, returned);
 
   if (theirs.inputsLength !== ours.inputsLength) {
     throw new Error(
@@ -274,6 +280,23 @@ export function finaliseExternal(psbt: Uint8Array, coins: Coin[]): Uint8Array {
     }
   }
   return finalise(tx, tx);
+}
+
+/** A transaction the signer finished itself, as the PSBT built with its witnesses. */
+function withWitnesses(ours: Transaction, raw: Uint8Array): Transaction {
+  let tx: Transaction;
+  try {
+    tx = Transaction.fromRaw(raw, { allowUnknownOutputs: true });
+  } catch {
+    throw new Error("This is neither a PSBT nor a transaction");
+  }
+  if (!equalBytes(tx.unsignedTx, ours.unsignedTx)) throw new Error("The signed transaction is not the one built");
+  const theirs = ours.clone();
+  for (let i = 0; i < tx.inputsLength; i++) {
+    const witness = tx.getInput(i).finalScriptWitness;
+    if (witness?.length) theirs.updateInput(i, { finalScriptWitness: witness }, true);
+  }
+  return theirs;
 }
 
 /** `ours` gives the input scripts, so the signer cannot choose which signature rules apply. */
