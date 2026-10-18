@@ -5,7 +5,10 @@ import { APP_VERSION } from "../pwa/register";
 import { VaultChanged, WrongPassphrase } from "../vault/vault";
 import { Button, buttonClass, Field, inputClass, LinkButton, linkClass, Notice, Panel, Segmented } from "../ui/kit";
 import { Sheet } from "../ui/sheet";
-import type { WalletRecord } from "../core/wallets";
+import { walletDescriptor, type WalletRecord } from "../core/wallets";
+import { qrPath } from "../transport/qr";
+import { formatDescriptor } from "../wallet/descriptor";
+import { DescriptorBackup } from "./ImportWallet";
 import { Icon } from "../ui/icons";
 import { useWalletSession, useWalletSnapshot } from "../app/session";
 import { historyCsv } from "../core/view";
@@ -144,6 +147,9 @@ function Wallets() {
   const [editing, setEditing] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [removing, setRemoving] = useState<WalletRecord | null>(null);
+  const [showing, setShowing] = useState<WalletRecord | null>(null);
+  const descriptor = showing && formatDescriptor(walletDescriptor(showing));
+  const qr = descriptor && qrPath(descriptor, "medium");
 
   const rename = async (event: FormEvent) => {
     event.preventDefault();
@@ -187,6 +193,9 @@ function Wallets() {
               >
                 Rename
               </LinkButton>
+              <LinkButton aria-label={`Descriptor of ${w.name}`} onClick={() => setShowing(w)}>
+                Descriptor
+              </LinkButton>
               <LinkButton aria-label={`Remove ${w.name}`} onClick={() => setRemoving(w)}>
                 Remove
               </LinkButton>
@@ -197,6 +206,19 @@ function Wallets() {
       <a className={linkClass} href="#/import">
         Add a wallet
       </a>
+      <Sheet open={!!showing} onClose={() => setShowing(null)} title={`Descriptor of ${showing?.name ?? "this wallet"}`}>
+        {showing && descriptor && qr && (
+          <>
+            <div className="grid justify-items-center rounded-panel border border-rule bg-qr p-4">
+              <svg viewBox={`0 0 ${qr.size} ${qr.size}`} role="img" aria-label={`QR code of the descriptor of ${showing.name}`} shapeRendering="crispEdges" className="aspect-square w-full max-w-[360px]">
+                <path d={qr.d} className="fill-qr-ink" />
+              </svg>
+            </div>
+            <DescriptorBackup name={showing.name} network={showing.network} descriptor={descriptor} />
+            <p className="m-0 text-sm text-ink-3">It holds no keys: someone who sees it can see your balance and history, and cannot spend.</p>
+          </>
+        )}
+      </Sheet>
       <Sheet open={!!removing} onClose={() => setRemoving(null)} title={`Remove ${removing?.name ?? "this wallet"}`}>
         <div className="grid gap-3 text-ink-2">
           <p className="m-0">

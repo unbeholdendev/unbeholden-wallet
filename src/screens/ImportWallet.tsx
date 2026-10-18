@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { Heading, isIos } from "../app/layout";
 import { navigate } from "../app/route";
 import { useConnection } from "../app/connection";
@@ -11,6 +11,7 @@ import { useToast } from "../ui/toast";
 import { walletDescriptor, type WalletRecord } from "../core/wallets";
 import { formatDescriptor, type ScriptType } from "../wallet/descriptor";
 import { normaliseExtendedKey } from "../wallet/extended-key";
+import { descriptorsFromUr, descriptorUrDecoder } from "../transport/ur";
 import type { Network } from "../wallet/network";
 
 type Reading = { descriptor?: string; fingerprint?: string; needsType?: boolean; error?: string };
@@ -27,7 +28,7 @@ function interpret(text: string, network: Network, scriptType: ScriptType | null
   const input = text.trim();
   if (!input) return {};
   try {
-    const needsType = !input.includes("(") && normaliseExtendedKey(input, network).scriptType === null;
+    const needsType = !/[([]/.test(input) && normaliseExtendedKey(input, network).scriptType === null;
     if (needsType && !scriptType) return { needsType };
     const descriptor = walletDescriptor({ descriptor: input, network, scriptType });
     return { needsType, descriptor: formatDescriptor(descriptor), fingerprint: descriptor.origin?.fingerprint };
@@ -44,6 +45,41 @@ function DescriptorText({ children }: { children: string }) {
   );
 }
 
+/** The descriptor with its copy and download buttons. */
+export function DescriptorBackup({ name, network, descriptor, onSaved }: { name: string; network: Network; descriptor: string; onSaved?: () => void }) {
+  const toast = useToast();
+
+  const copy = async () => {
+    await navigator.clipboard.writeText(descriptor);
+    onSaved?.();
+    toast("Descriptor copied");
+  };
+
+  const download = () => {
+    const body = `${name}\n${network}\n\n${descriptor}\n`;
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([body], { type: "text/plain" }));
+    link.download = `${name.replace(/[^\w-]+/g, "-")}-descriptor.txt`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    onSaved?.();
+  };
+
+  return (
+    <>
+      <DescriptorText>{descriptor}</DescriptorText>
+      <div className="flex flex-wrap gap-2">
+        <Button icon="copy" onClick={copy}>
+          Copy
+        </Button>
+        <Button icon="file" onClick={download}>
+          Download as a text file
+        </Button>
+      </div>
+    </>
+  );
+}
+
 export function ImportWallet() {
   const { wallets, addWallet } = useVault();
   const { connection } = useConnection();
@@ -54,6 +90,10 @@ export function ImportWallet() {
   const [scanning, setScanning] = useState(false);
   const [step, setStep] = useState<"key" | "backup">("key");
   const [saved, setSaved] = useState(false);
+  const decoder = useRef(descriptorUrDecoder());
+  const [progress, setProgress] = useState({ captured: 0, expected: 0 });
+  const [choices, setChoices] = useState<string[]>([]);
+  const [scanError, setScanError] = useState<string | null>(null);
 
   const server = connection.phase === "connected" || connection.phase === "retrying" ? connection.network : null;
   const network = keyNetwork(text, server ?? wallets.find((w) => w.network !== "mainnet")?.network ?? null);
@@ -67,20 +107,38 @@ export function ImportWallet() {
     if (reading.descriptor && !duplicate) setStep("backup");
   };
 
-  const copy = async () => {
-    await navigator.clipboard.writeText(reading.descriptor!);
-    setSaved(true);
-    toast("Descriptor copied");
+  const closeScan = () => {
+    setScanning(false);
+    decoder.current = descriptorUrDecoder();
+    setProgress({ captured: 0, expected: 0 });
+    setChoices([]);
+    setScanError(null);
   };
 
-  const download = () => {
-    const body = `${name}\n${network}\n\n${reading.descriptor}\n`;
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(new Blob([body], { type: "text/plain" }));
-    link.download = `${name.replace(/[^\w-]+/g, "-")}-descriptor.txt`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-    setSaved(true);
+  const take = (descriptor: string) => {
+    setText(descriptor);
+    closeScan();
+  };
+
+  const scanned = (result: string) => {
+    const d = decoder.current;
+    if (!/^ur:/i.test(result.trim())) return take(result);
+    const restart = (error: Error) => {
+      decoder.current = descriptorUrDecoder();
+      setScanError(`${error.message}. Starting the scan again.`);
+    };
+    if (!d.receive(result)) return d.error && restart(d.error);
+    setScanError(null);
+    setProgress(d.progress);
+    if (!d.result) return;
+    try {
+      const found = descriptorsFromUr(d.result);
+      const supported = found.filter((f) => /^(wpkh|tr)\(/.test(f));
+      if (supported.length > 1) setChoices(supported);
+      else take(supported[0] ?? found[0]!);
+    } catch (error) {
+      restart(error as Error);
+    }
   };
 
   const finish = async () => {
@@ -96,15 +154,7 @@ export function ImportWallet() {
           This line is the only thing whose loss matters. Balances, history and labels can all be rebuilt from it; without
           it, this browser is the only place that knows which addresses are yours.
         </Heading>
-        <DescriptorText>{reading.descriptor!}</DescriptorText>
-        <div className="flex flex-wrap gap-2">
-          <Button icon="copy" onClick={copy}>
-            Copy
-          </Button>
-          <Button icon="file" onClick={download}>
-            Download as a text file
-          </Button>
-        </div>
+        <DescriptorBackup name={name} network={network} descriptor={reading.descriptor!} onSaved={() => setSaved(true)} />
         <div className="grid gap-2 text-ink-2 [&_p]:m-0 [&_p]:max-w-[62ch]">
           <p>
             Keep it with your signer's backup, or anywhere you keep things for years. It holds no keys: someone who finds
@@ -214,16 +264,32 @@ export function ImportWallet() {
           Continue to backup <Icon name="chev" className="size-[18px] -rotate-90" />
         </Button>
       </div>
-      <Sheet open={scanning} onClose={() => setScanning(false)} title="Scan the descriptor">
-        {scanning && (
-          <QrScanner
-            onResult={(result) => {
-              setText(result);
-              setScanning(false);
-            }}
-          />
+      <Sheet open={scanning} onClose={closeScan} title="Scan the descriptor">
+        {choices.length ? (
+          <div className="grid gap-3">
+            <p className="m-0 text-ink-2">
+              Your signer sent this account for more than one script type. Choose the one your wallet uses: addresses
+              starting bc1q are wpkh, bc1p are tr.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {choices.map((choice) => (
+                <Button key={choice} onClick={() => take(choice)}>
+                  {choice.startsWith("tr(") ? "Taproot, tr" : "Native SegWit, wpkh"}
+                </Button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <>
+            {scanning && <QrScanner onResult={scanned} />}
+            <p className="m-0 text-sm text-ink-3" aria-live="polite">
+              {progress.expected > 1
+                ? `${progress.captured} of ${progress.expected} parts captured. Keep the code in view while it loops.`
+                : "Hold the QR code your signer shows inside the frame."}
+            </p>
+            {scanError && <Notice tone="bad">{scanError}</Notice>}
+          </>
         )}
-        <p className="m-0 text-sm text-ink-3">Hold the QR code your signer shows inside the frame.</p>
       </Sheet>
     </form>
   );

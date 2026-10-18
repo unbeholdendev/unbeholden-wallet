@@ -169,7 +169,7 @@ the user's own node.
 
 - `@scure/btc-signer` and `@scure/bip32` as the primary libraries: audited, minimal transitive dependencies, native taproot, PSBT support. `bitcoinjs-lib` may be used where it already solves a specific problem well rather than reimplementing it.
 - Descriptor support is limited to `wpkh` and `tr`. A small BIP380 parser is written in-project for that subset rather than pulling in a general descriptor library.
-- Extended public keys are accepted and normalised to descriptors. SLIP-132 prefixes (`zpub`, `vpub`, `ypub` and testnet equivalents) determine the script type automatically. A bare `xpub` requires the user to choose once. The inferred descriptor is always shown back to the user.
+- Extended public keys are accepted and normalised to descriptors. SLIP-132 prefixes (`zpub`, `vpub`, `ypub` and testnet equivalents) determine the script type automatically. A `[fingerprint/path]` key origin takes its script type from the BIP44 purpose (84h, 86h). A bare `xpub` requires the user to choose once. The inferred descriptor is always shown back to the user.
 - Network parameters (mainnet, signet, regtest) are a configuration value threaded through derivation, address encoding and validation, never a module-level constant.
 
 ### Backend interface
@@ -184,7 +184,7 @@ the user's own node.
 
 - One encrypted vault per browser origin, holding multiple wallets, unlocked by a single passphrase. Argon2id for key derivation, AES-GCM for encryption, IndexedDB for storage.
 - The vault holds descriptors, wallet metadata, labels, frozen-coin flags, cached transactions and cached address history.
-- Cached chain data is treated as a cache, not as a record of truth. The descriptor is the only thing whose loss matters, so descriptor backup is part of onboarding rather than a settings page.
+- Cached chain data is treated as a cache, not as a record of truth. The descriptor is the only thing whose loss matters, so descriptor backup is part of onboarding, and each wallet's descriptor stays in Settings to copy, download or show as a QR.
 - `navigator.storage.persist()` is requested where supported. On iOS the app relies on home-screen installation to avoid seven-day storage eviction, and says so explicitly rather than burying it.
 
 ### Syncing
@@ -207,7 +207,7 @@ the user's own node.
 
 ### Signing transport
 
-- Animated QR uses UR (`ur:crypto-psbt`). BBQr is out of scope for v1.
+- Animated QR uses UR (`ur:crypto-psbt`). Descriptors scan as `ur:crypto-output`, `ur:crypto-account`, `ur:output-descriptor` or `ur:account-descriptor`, or as plain text. BBQr is out of scope for v1.
 - PSBT file export and import ship in the same release as the QR flow and are the supported fallback.
 - The scanner uses `getUserMedia` with a QR decoder over the video stream, handles out-of-order UR fragments, and shows captured-parts progress. Animation speed and QR density are user-adjustable.
 - A returned PSBT is validated against the transaction that was built before broadcast is offered: outputs, amounts and fee must match, and signatures must be complete.

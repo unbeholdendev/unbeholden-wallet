@@ -1,4 +1,4 @@
-import { cleanup, configure, render, screen } from "@testing-library/react";
+import { act, cleanup, configure, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
@@ -9,6 +9,20 @@ import { createWallet, listWallets, walletDescriptor } from "./core/wallets";
 import { createVault, destroyVault, unlockVault, Vault, vaultExists, type KdfParams } from "./vault/vault";
 import { formatDescriptor } from "./wallet/descriptor";
 import { asVersion, BIP84_ZPUB, BIP86_XPUB, VERSION } from "./wallet/vectors";
+import { UrDecoder, UrEncoder } from "./transport/ur";
+
+const camera = vi.hoisted(() => ({ scan: null as ((text: string) => void) | null }));
+vi.mock("./ui/QrScanner", () => ({
+  QrScanner: ({ onResult }: { onResult: (text: string) => void }) => {
+    camera.scan = onResult;
+    return null;
+  },
+}));
+
+// https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2020-010-output-desc.md
+const PKH_OUTPUT = "ur:crypto-output/taadmutaadeyoyaxhdclaoswaalbmwfpwekijndyfefzjtmdrtketphhktmngrlkwsfnospypsasrhhhjonnvwtsqzwljy";
+// https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2020-015-account.md
+const CRYPTO_ACCOUNT = "ur:crypto-account/oeadcyemrewytyaolttaadeetaadmutaaddloxaxhdclaxwmfmdeiamecsdsemgtvsjzcncygrkowtrontzschgezokstswkkscfmklrtauteyaahdcxiehfonurdppfyntapejpproypegrdawkgmaewejlsfdtsrfybdehcaflmtrlbdhpamtaaddyoeadlncsdwykaeykaeykaocyemrewytyaycynlytsnyltaadeetaadmhtaadmwtaaddloxaxhdclaostvelfemdyynwydwyaievosrgmambklovabdgypdglldvespsthysadamhpmjeinaahdcxntdllnaaeykoytdacygegwhgjsiyonpywmcmrpwphsvodsrerozsbyaxluzcoxdpamtaaddyoeadlncsehykaeykaeykaocyemrewytyaycypdbskeuytaadeetaadmwtaaddloxaxhdclaxzcfxeegdrpmogrgwkbzctlttweadkiengrwlhtprremouoluutqdpfbncedkynfhaahdcxjpwevdeogthttkmeswzcolcpsaahcfnshkhtehytclmnteatmoteadtlwynnftloamtaaddyoeadlncsghykaeykaeykaocyemrewytyaycybthlvytstaadeetaadmhtaadnytaaddloxaxhdclaxhhsnhdrpftdwuocntilydibehnecmovdfekpjkclcslasbhkpawsaddmcmmnahnyaahdcxlotedtndfymyltclhlmtpfsadscnhtztaolbnnkistaedegwfmmedreetnwmcycnamtaaddyoeadlfcsdpykaocyemrewytyaycyemrewytytaadeetaadmhtaadmetaadnytaaddloxaxhdclaxdwkswmztpytnswtsecnblfbayajkdldeclqzzolrsnhljedsgminetytbnahatbyaahdcxkkguwsvyimjkvwteytwztyswvendtpmncpasfrrylprnhtkblndrgrmkoyjtbkrpamtaaddyoeadlocsdyykaeykaeykadykaocyemrewytyaycyhkrpnddrtaadeetaadmetaadnytaaddloxaxhdclaohnhffmvsbndslrfgclpfjejyatbdpebacnzokotofxntaoemvskpaowmryfnotfgaahdcxdlnbvecentssfsssgylnhkrstoytecrdlyadrekirfaybglahltalsrfcaeerobwamtaaddyoeadlocsdyykaeykaeykaoykaocyemrewytyaycyhkrpnddrtaadeetaadnltaaddloxaxhdclaorkrhkeytwsoykorletwstbwycagtbsotmeptjkesgwrfcmveskvdmngujzttgtdpaahdcxgrfgmuvyylmwcxjtttechplslgoegagaptdniatidmhdmebdwfryfsnsdkcplyvaamtaaddyoeadlncshfykaeykaeykaocyemrewytyaycytostatbngmdavolk";
 
 // The whole suite runs in parallel, and an unlock can take more than the default second.
 configure({ asyncUtilTimeout: 5000 });
@@ -105,7 +119,7 @@ describe("onboarding", () => {
     const settings = await vault.get("settings");
     vault.lock();
     expect(wallet).toMatchObject({ name: "Wallet 1", network: "mainnet" });
-    expect(settings).toEqual({ server: SERVER });
+    expect(settings).toEqual({ server: SERVER, walletId: wallet!.id });
   }, 30_000);
 
   it("takes the network from the key and the server's genesis block, and warns when they disagree", async () => {
@@ -205,7 +219,84 @@ describe("onboarding", () => {
   });
 });
 
+describe("scanning a descriptor", () => {
+  it("collects an account in animated parts and asks which script type", async () => {
+    await existingVault({ server: SERVER });
+    const user = renderApp();
+    await unlock(user);
+    await user.click(await screen.findByRole("button", { name: "Scan a QR code" }));
+
+    const decoder = new UrDecoder();
+    decoder.receive(CRYPTO_ACCOUNT);
+    const encoder = new UrEncoder(decoder.result!, 200);
+    const parts = Array.from({ length: encoder.seqLen }, () => encoder.nextPart().toUpperCase());
+    act(() => camera.scan!(parts[1]!));
+    expect(screen.getByText(`1 of ${parts.length} parts captured. Keep the code in view while it loops.`)).toBeTruthy();
+    act(() => parts.forEach((part) => camera.scan!(part)));
+
+    await user.click(screen.getByRole("button", { name: "Taproot, tr" }));
+    expect(screen.getByText(/^tr\(\[37b5eed4\/86h\/0h\/0h\]xpub\w+\/<0;1>\/\*\)#/)).toBeTruthy();
+    expect(screen.getByLabelText("Name").getAttribute("placeholder")).toBe("37b5eed4");
+  });
+
+  it("refuses a script type the wallet does not support", async () => {
+    await existingVault({ server: SERVER });
+    const user = renderApp();
+    await unlock(user);
+    await user.click(await screen.findByRole("button", { name: "Scan a QR code" }));
+    act(() => camera.scan!(PKH_OUTPUT));
+    expect(await screen.findByText("This wallet supports only wpkh and tr descriptors.")).toBeTruthy();
+  });
+});
+
 describe("settings", () => {
+  it("opens the wallet last used", async () => {
+    const vault = await createVault(PASSPHRASE, CHEAP);
+    await vault.put("settings", { server: SERVER });
+    await createWallet(vault, { name: "Spending", descriptor: BIP84_ZPUB, network: "mainnet" });
+    const savings = await createWallet(vault, { name: "Savings", descriptor: BIP86_XPUB, network: "mainnet", scriptType: "tr" });
+    vault.lock();
+    location.hash = "#/settings";
+    let user = renderApp();
+    await unlock(user);
+    const summary = () => waitFor(() => document.querySelector("header summary") ?? Promise.reject(new Error("No wallet switcher")));
+    expect((await summary()).textContent).toMatch(/^Spending/);
+
+    await user.click(await summary());
+    await user.click(screen.getByRole("button", { name: /^Savings/ }));
+    await waitFor(async () => {
+      const reopened = await unlockVault(PASSPHRASE);
+      const settings = await reopened.get<{ walletId?: string }>("settings");
+      reopened.lock();
+      expect(settings?.walletId).toBe(savings.id);
+    });
+
+    cleanup();
+    user = renderApp();
+    await unlock(user);
+    expect((await summary()).textContent).toMatch(/^Savings/);
+    await waitFor(() => expect(screen.getByRole<HTMLButtonElement>("button", { name: "Export labels" }).disabled).toBe(false));
+  }, 30_000);
+
+  it("shows a wallet's descriptor to copy, download or scan", async () => {
+    const vault = await createVault(PASSPHRASE, CHEAP);
+    await vault.put("settings", { server: SERVER });
+    const wallet = await createWallet(vault, { name: "Spending", descriptor: BIP84_ZPUB, network: "mainnet" });
+    vault.lock();
+    location.hash = "#/settings";
+    const user = renderApp();
+    await unlock(user);
+
+    await user.click(await screen.findByRole("button", { name: "Descriptor of Spending" }));
+    const descriptor = formatDescriptor(walletDescriptor(wallet));
+    expect(screen.getByText(descriptor)).toBeTruthy();
+    expect(screen.getByRole("img", { name: "QR code of the descriptor of Spending" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Download as a text file" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Copy" }));
+    expect(await navigator.clipboard.readText()).toBe(descriptor);
+    await waitFor(() => expect(screen.getByRole<HTMLButtonElement>("button", { name: "Export labels", hidden: true }).disabled).toBe(false));
+  }, 30_000);
+
   it("renames a wallet, and removes one only once confirmed", async () => {
     const vault = await createVault(PASSPHRASE, CHEAP);
     await vault.put("settings", { server: SERVER });

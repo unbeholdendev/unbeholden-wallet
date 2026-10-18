@@ -25,6 +25,10 @@ export type Descriptor = {
 // https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
 export const HARDENED = 0x80000000;
 
+// https://github.com/bitcoin/bips/blob/master/bip-0084.mediawiki
+// https://github.com/bitcoin/bips/blob/master/bip-0086.mediawiki
+const BIP44_PURPOSES: Record<number, ScriptType> = { 84: "wpkh", 86: "tr" };
+
 function parseIndex(text: string, allowHardened: boolean): number {
   const hardened = text.endsWith("h") || text.endsWith("'");
   const digits = hardened ? text.slice(0, -1) : text;
@@ -114,13 +118,14 @@ export function parseDescriptor(text: string, network: Network): Descriptor {
     scriptType,
     origin,
     key: normaliseExtendedKey(key, network).key,
-    path: parsePath(steps),
+    path: steps.length ? parsePath(steps) : [[0, 1], "*"],
   };
 }
 
 /**
  * Builds the descriptor implied by a bare extended public key, covering the
- * receive and change chains. SLIP-132 prefixes carry a script type; a bare
+ * receive and change chains. SLIP-132 prefixes carry a script type, and so
+ * does the BIP44 purpose of a `[fingerprint/path]` origin before it; a bare
  * `xpub` or `tpub` does not, so the caller must supply one.
  */
 export function descriptorFromExtendedKey(
@@ -128,6 +133,15 @@ export function descriptorFromExtendedKey(
   network: Network,
   scriptType?: ScriptType,
 ): Descriptor {
+  const origin = /^\[([^\]]*)\](.*)$/.exec(text.trim());
+  if (origin) {
+    const parsed = parseOrigin(origin[1]!);
+    const purpose = BIP44_PURPOSES[parsed.path[0]! - HARDENED];
+    if (!purpose) {
+      throw new Error("This key's path is not a wpkh (84h) or tr (86h) account, the only kinds this wallet supports");
+    }
+    return { ...descriptorFromExtendedKey(origin[2]!, network, purpose), origin: parsed };
+  }
   const normalised = normaliseExtendedKey(text, network);
   if (
     normalised.scriptType &&

@@ -6,6 +6,10 @@ import {
   type FountainPart,
   type Progress,
 } from "./fountain";
+import { hex } from "@scure/base";
+import { HDKey } from "@scure/bip32";
+import { HARDENED } from "../wallet/descriptor";
+import { BIP32_VERSIONS } from "../wallet/extended-key";
 
 // https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2020-012-bytewords.md
 const BYTEWORDS = `
@@ -54,12 +58,24 @@ export function bytewordsDecode(text: string): Uint8Array {
   return body;
 }
 
-// Just the CBOR the UR envelope and crypto-psbt use: unsigned integers, byte
-// strings and one array, each with a length that fits 32 bits.
+// Just the CBOR the UR envelope, crypto-psbt and the descriptor types use,
+// with every length and integer fitting 32 bits.
 // https://www.rfc-editor.org/rfc/rfc8949#section-3
 const UINT = 0;
 const BYTES = 2;
+const TEXT = 3;
 const ARRAY = 4;
+const MAP = 5;
+const TAG = 6;
+
+class Tagged {
+  constructor(
+    readonly tag: number,
+    readonly value: Cbor,
+  ) {}
+}
+
+type Cbor = number | boolean | string | Uint8Array | Cbor[] | Map<Cbor, Cbor> | Tagged;
 
 function cborHead(major: number, n: number): number[] {
   const m = major << 5;
@@ -92,10 +108,28 @@ class CborReader {
     return n;
   }
 
-  bytes(): Uint8Array {
-    const length = this.head(BYTES);
+  private take(length: number): Uint8Array {
     if (this.at + length > this.data.length) throw new Error("Unexpected CBOR");
     return this.data.slice(this.at, (this.at += length));
+  }
+
+  bytes(): Uint8Array {
+    return this.take(this.head(BYTES));
+  }
+
+  item(): Cbor {
+    const first = this.data[this.at];
+    // CBOR's false and true.
+    if (first === 0xf4 || first === 0xf5) return this.data[this.at++] === 0xf5;
+    const major = (first ?? 0) >> 5;
+    const n = this.head(major);
+    if (major === UINT) return n;
+    if (major === BYTES) return this.take(n);
+    if (major === TEXT) return new TextDecoder("utf-8", { fatal: true }).decode(this.take(n));
+    if (major === ARRAY) return Array.from({ length: n }, () => this.item());
+    if (major === MAP) return new Map(Array.from({ length: n }, () => [this.item(), this.item()]));
+    if (major === TAG) return new Tagged(n, this.item());
+    throw new Error("Unexpected CBOR");
   }
 
   end() {
@@ -247,4 +281,112 @@ export function psbtFromUr(ur: Ur): Uint8Array {
   const psbt = reader.bytes();
   reader.end();
   return psbt;
+}
+
+// The UR types, and the CBOR tags inside them, from BCR-2020-010 and -015 and
+// their successors BCR-2023-010 and -019, with keys from BCR-2020-007:
+// https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2020-010-output-desc.md
+// https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2020-015-account.md
+// https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2023-010-output-descriptor.md
+// https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2023-019-account-descriptor.md
+// https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2020-007-hdkey.md
+const DESCRIPTOR_TYPES = ["crypto-output", "output-descriptor", "crypto-account", "account-descriptor"];
+const SCRIPTS = new Map([
+  [400, "sh"],
+  [401, "wsh"],
+  [402, "pk"],
+  [403, "pkh"],
+  [404, "wpkh"],
+  [405, "combo"],
+  [409, "tr"],
+  [410, "cosigner"],
+]);
+const OUTPUT = [308, 40308];
+const ACCOUNT = [311, 40311];
+const HDKEY = [303, 40303];
+const ECKEY = [306, 40306];
+const KEYPATH = [304, 40304];
+const COININFO = [305, 40305];
+
+export const descriptorUrDecoder = () => new UrDecoder(DESCRIPTOR_TYPES);
+
+const strip = (item: Cbor, tags: number[]) => (item instanceof Tagged && tags.includes(item.tag) ? item.value : item);
+
+function field(map: Cbor | undefined, key: number): Cbor | undefined {
+  if (!(map instanceof Map)) throw new Error("Unexpected CBOR");
+  return map.get(key);
+}
+
+const step = (index: Cbor | undefined, hardened: Cbor | undefined) => `${index}${hardened === true ? "'" : ""}`;
+
+function keypath(item: Cbor | undefined) {
+  if (item === undefined) return null;
+  const path = strip(item, KEYPATH);
+  const components = field(path, 1);
+  if (!Array.isArray(components)) throw new Error("Unexpected CBOR");
+  const steps: string[] = [];
+  for (let i = 0; i < components.length; i++) {
+    const c = components[i]!;
+    if (Array.isArray(c) && c.length === 4) steps.push(`<${step(c[0], c[1])};${step(c[2], c[3])}>`);
+    else if (Array.isArray(c) && c.length === 0) steps.push(step("*", components[++i]));
+    else if (typeof c === "number") steps.push(step(c, components[++i]));
+    else throw new Error("This key path holds a range of children, which this wallet does not read");
+  }
+  return { steps, fingerprint: field(path, 2) as number | undefined, depth: field(path, 3) as number | undefined };
+}
+
+function keyText(item: Cbor | undefined, master: number | undefined): string {
+  if (!(item instanceof Tagged)) throw new Error("Unexpected CBOR");
+  if (field(item.value, 1) === true || field(item.value, 2) === true) {
+    throw new Error("This holds a private key. Export the public key instead");
+  }
+  const data = field(item.value, 3);
+  if (!(data instanceof Uint8Array)) throw new Error("Unexpected CBOR");
+  if (ECKEY.includes(item.tag)) return hex.encode(data);
+  if (!HDKEY.includes(item.tag)) throw new Error("This descriptor holds a kind of key this wallet does not read");
+
+  const origin = keypath(field(item.value, 6));
+  const children = keypath(field(item.value, 7));
+  const coin = field(item.value, 5);
+  const testnet = coin !== undefined && field(strip(coin, COININFO), 2) === 1;
+  const steps = origin?.steps ?? [];
+  const last = steps.at(-1);
+  const fingerprint = origin?.fingerprint ?? master;
+  const key = new HDKey({
+    versions: BIP32_VERSIONS[testnet ? "signet" : "mainnet"],
+    depth: origin?.depth ?? steps.length,
+    index: last ? parseInt(last) + (last.endsWith("'") ? HARDENED : 0) : 0,
+    parentFingerprint: (field(item.value, 8) as number | undefined) ?? (steps.length === 1 ? fingerprint : 0),
+    chainCode: field(item.value, 4) as Uint8Array | undefined,
+    publicKey: data,
+  }).publicExtendedKey;
+  const from = fingerprint === undefined ? "" : `[${[fingerprint.toString(16).padStart(8, "0"), ...steps].join("/")}]`;
+  return `${from}${key}${children ? children.steps.map((s) => `/${s}`).join("") : ""}`;
+}
+
+function outputText(item: Cbor, master: number | undefined): string {
+  const body = strip(item, OUTPUT);
+  if (body instanceof Map) {
+    const source = body.get(1);
+    const keys = body.get(2) ?? [];
+    if (typeof source !== "string" || !Array.isArray(keys)) throw new Error("Unexpected CBOR");
+    return source.replace(/@(\d+)/g, (_, n) => keyText(keys[Number(n)], master));
+  }
+  const script = body instanceof Tagged && SCRIPTS.get(body.tag);
+  return script ? `${script}(${outputText((body as Tagged).value, master)})` : keyText(body, master);
+}
+
+/**
+ * The descriptors in a decoded output or account UR, as text. An account
+ * holds one for each script type its signer offers.
+ */
+export function descriptorsFromUr(ur: Ur): string[] {
+  const reader = new CborReader(ur.cbor);
+  const item = reader.item();
+  reader.end();
+  if (!ur.type.includes("account")) return [outputText(item, undefined)];
+  const account = strip(item, ACCOUNT);
+  const outputs = field(account, 2);
+  if (!Array.isArray(outputs)) throw new Error("Unexpected CBOR");
+  return outputs.map((output) => outputText(output, field(account, 1) as number | undefined));
 }
