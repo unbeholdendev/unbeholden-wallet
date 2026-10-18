@@ -304,10 +304,14 @@ describe("signing and broadcasting", () => {
     expect((await screen.findByText(reason)).textContent).toBe(reason);
   });
 
-  it("broadcasts, shows the transaction at once, and its change is spendable", async () => {
+  it("keeps the signed transaction across other screens, broadcasts, and its change is spendable", async () => {
     const user = await start("#/send");
     const signed = signPsbt(await builtPsbt(user), BIP84);
     await upload(user, signed);
+    expect(await screen.findByText("Signed and checked")).toBeTruthy();
+    location.hash = "#/coins";
+    expect(await screen.findByRole("heading", { name: "Coins" })).toBeTruthy();
+    location.hash = "#/send";
     expect(await screen.findByText("Signed and checked")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Broadcast through your server" }));
     const txid = Transaction.fromPSBT(signed).id;

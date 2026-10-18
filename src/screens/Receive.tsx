@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useWalletSnapshot } from "../app/session";
+import { useReceiveSkips, useWallet, useWalletSnapshot } from "../app/session";
 import { qrPath } from "../transport/qr";
 import { Field, inputClass, LinkButton, linkClass } from "../ui/kit";
 import { CopyButton, EditableLabel, GroupedAddress, Opening } from "./parts";
@@ -17,7 +17,9 @@ export function bip21(address: string, sats: number | null, label: string | null
 
 export function Receive() {
   const snapshot = useWalletSnapshot();
-  const [from, setFrom] = useState("");
+  const skips = useReceiveSkips();
+  const { id } = useWallet().record;
+  const [from, setFrom] = useState(() => skips.get(id) ?? "");
   const [amount, setAmount] = useState("");
   const [withLabel, setWithLabel] = useState(false);
   if (!snapshot) return <Opening title="Receive" />;
@@ -54,7 +56,10 @@ export function Receive() {
           </p>
           <span className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <CopyButton text={next.address} what="Address" />
-            {after && <LinkButton onClick={() => setFrom(after.address)}>Use a new address</LinkButton>}
+            {after && <LinkButton onClick={() => {
+                  skips.set(id, after.address);
+                  setFrom(after.address);
+                }}>Use a new address</LinkButton>}
           </span>
         </div>
         <div className="grid gap-1 border-t border-rule pt-3">

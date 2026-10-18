@@ -104,12 +104,16 @@ describe("wallet views on the demo history", () => {
     expect(shown()).not.toBe(first);
   });
 
-  it("hands out a fresh address on request, still inside the watched window", async () => {
+  it("hands out a fresh address on request, still inside the watched window, and remembers it", async () => {
     const user = await openApp("#/receive");
     expect(screen.getByText("m/84h/0h/0h/0/7")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Use a new address" }));
     expect(screen.getByText("m/84h/0h/0h/0/8")).toBeTruthy();
     expect(screen.getByText("Unused address")).toBeTruthy();
+    location.hash = "#/coins";
+    await screen.findByRole("heading", { name: "Coins" });
+    location.hash = "#/receive";
+    expect(await screen.findByText("m/84h/0h/0h/0/8")).toBeTruthy();
   });
 
   it("takes a frozen coin out of the spendable balance", async () => {

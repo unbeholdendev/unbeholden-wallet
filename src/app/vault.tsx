@@ -124,7 +124,13 @@ export function VaultProvider({ kdf = DEFAULT_KDF, children }: { kdf?: KdfParams
       create: async (passphrase) => {
         if (state.phase !== "open" || !state.draft) throw new Error("A vault already exists in this browser");
         const created = await createVault(passphrase, kdf);
-        for (const key of await state.vault.keys()) await created.put(key, await state.vault.get(key));
+        try {
+          for (const key of await state.vault.keys()) await created.put(key, await state.vault.get(key));
+        } catch (error) {
+          created.lock();
+          await destroyVault().catch(() => {});
+          throw error;
+        }
         await open(created);
       },
       unlock: async (passphrase) => open(await unlockVault(passphrase)),
