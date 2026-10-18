@@ -7,7 +7,8 @@ import { Button, buttonClass, Field, inputClass, LinkButton, linkClass, Notice, 
 import { Sheet } from "../ui/sheet";
 import type { WalletRecord } from "../core/wallets";
 import { Icon } from "../ui/icons";
-import { useWalletSession } from "../app/session";
+import { useWalletSession, useWalletSnapshot } from "../app/session";
+import { historyCsv } from "../core/view";
 import { useToast } from "../ui/toast";
 import { DestroyVault } from "./DestroyVault";
 import { MIN_LENGTH, PassphraseInput, Strength, strength } from "./passphrase";
@@ -74,15 +75,17 @@ function ChangePassphrase() {
 
 function Labels() {
   const session = useWalletSession();
+  const snapshot = useWalletSnapshot();
   const { wallets, walletId } = useVault();
   const [report, setReport] = useState<string | null>(null);
   const name = wallets.find((w) => w.id === walletId)?.name ?? "wallet";
 
-  const exportLabels = () => {
+  const save = (body: string, type: string, suffix: string) => {
     const link = document.createElement("a");
-    link.href = URL.createObjectURL(new Blob([session!.exportLabels()], { type: "application/jsonl" }));
-    link.download = `${name.replace(/[^\w-]+/g, "-")}-labels.jsonl`;
+    link.href = URL.createObjectURL(new Blob([body], { type }));
+    link.download = `${name.replace(/[^\w-]+/g, "-")}-${suffix}`;
     link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
   };
   const importLabels = async (file: File | undefined) => {
     if (!file || !session) return;
@@ -94,13 +97,13 @@ function Labels() {
   };
 
   return (
-    <Panel title="Labels" aside={name}>
+    <Panel title="Labels and history" aside={name}>
       <p className="m-0 text-sm text-ink-2">
         Labels and frozen coins, as a BIP329 file that Sparrow and other wallets read. Importing adds to the labels here
         and replaces any for the same thing.
       </p>
       <div className="flex flex-wrap gap-2">
-        <Button icon="download" disabled={!session} onClick={exportLabels}>
+        <Button icon="download" disabled={!session} onClick={() => save(session!.exportLabels(), "application/jsonl", "labels.jsonl")}>
           Export labels
         </Button>
         <label className={`${buttonClass({})} cursor-pointer has-disabled:cursor-not-allowed`}>
@@ -119,6 +122,18 @@ function Labels() {
         </label>
       </div>
       {report && <Notice tone="ok">{report}</Notice>}
+      <p className="m-0 border-t border-rule pt-3 text-sm text-ink-2">
+        Every transaction as a spreadsheet: date, txid, direction, amount and fee in BTC and sats, confirmations and
+        label.
+      </p>
+      <Button
+        icon="download"
+        className="justify-self-start"
+        disabled={!snapshot}
+        onClick={() => save(historyCsv(snapshot!.transactions), "text/csv", "history.csv")}
+      >
+        Export history as CSV
+      </Button>
     </Panel>
   );
 }

@@ -1,5 +1,5 @@
 import { Address, OutScript, Transaction as Tx } from "@scure/btc-signer";
-import { cleanup, configure, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, configure, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../App";
@@ -43,6 +43,8 @@ const go = (hash: string) => {
 };
 
 const row = (label: string) => screen.getByRole("link", { name: label }).closest("li")!.textContent;
+const shownLabels = () =>
+  screen.getAllByRole("link").filter((a) => a.getAttribute("href")?.startsWith("#/tx/")).map((a) => a.textContent);
 const spendable = () => screen.getByText("Spendable now").nextElementSibling!.textContent;
 
 beforeEach(async () => {
@@ -78,6 +80,48 @@ describe("wallet views on the demo history", () => {
     await user.clear(screen.getByRole("searchbox"));
     await user.type(screen.getByRole("searchbox"), "0.0083");
     expect(screen.getByRole("link", { name: "Hardware shop, SeedSigner parts" })).toBeTruthy();
+
+    await user.clear(screen.getByRole("searchbox"));
+    await user.type(screen.getByRole("searchbox"), "withdrawals");
+    expect(shownLabels()).toEqual(["Hardware shop, SeedSigner parts"]);
+  });
+
+  it("filters the history by direction, confirmation, date and amount", async () => {
+    const user = await openApp();
+    await user.click(screen.getByRole("button", { name: "Filters" }));
+    await user.click(screen.getByRole("button", { name: "Sent" }));
+    expect(shownLabels()).toEqual(["Rent, October", "Hardware shop, SeedSigner parts"]);
+    await user.click(screen.getByRole("checkbox", { name: "Unconfirmed only" }));
+    expect(shownLabels()).toEqual(["Rent, October"]);
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+
+    // The demo's blocks put the hardware shop payment on 3 September 2026, its neighbours days either side.
+    fireEvent.change(screen.getByLabelText("From"), { target: { value: "2026-09-01" } });
+    fireEvent.change(screen.getByLabelText("To"), { target: { value: "2026-09-15" } });
+    expect(shownLabels()).toEqual(["Hardware shop, SeedSigner parts"]);
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+
+    await user.type(screen.getByLabelText("At least"), "0.06");
+    expect(shownLabels()).toEqual(["Ocean payout, August", "Kraken withdrawal, July"]);
+    await user.type(screen.getByLabelText("At most"), "6000000 sats");
+    expect(shownLabels()).toEqual(["Ocean payout, August"]);
+    expect(screen.getByRole("button", { name: "Filters (2)" })).toBeTruthy();
+  });
+
+  it("exports the history as CSV and lets the download go", async () => {
+    let exported: Blob | undefined;
+    vi.spyOn(URL, "createObjectURL").mockImplementation((blob) => ((exported = blob as Blob), "blob:history"));
+    const revoke = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    const user = await openApp("#/settings");
+    await user.click(screen.getByRole("button", { name: "Export history as CSV" }));
+    const lines = (await exported!.text()).trim().split("\r\n");
+    expect(lines[0]).toBe("date,txid,direction,net_btc,net_sats,fee_btc,fee_sats,confirmations,height,label");
+    expect(lines).toHaveLength(11);
+    expect(lines).toContainEqual(expect.stringMatching(new RegExp(`^[^,]*,${DEMO_TXIDS.rent},sent,-0.01451440,-1451440,0.00001440,1440,0,,"Rent, October"$`)));
+    expect(lines).toContainEqual(expect.stringMatching(new RegExp(`,${DEMO_TXIDS.tom},received,0.00650000,650000,,,3,153498,Sold bike to Tom$`)));
+    await waitFor(() => expect(revoke).toHaveBeenCalledWith("blob:history"));
+    vi.restoreAllMocks();
   });
 
   it("details a transaction and offers to speed up an unconfirmed payment", async () => {
