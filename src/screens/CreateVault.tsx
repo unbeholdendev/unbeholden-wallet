@@ -1,11 +1,34 @@
 import { useState, type FormEvent } from "react";
 import { Heading, Page } from "../app/layout";
-import { useVaultState } from "../app/vault";
+import { useWallet, useWalletSnapshot } from "../app/session";
+import { useVault } from "../app/vault";
+import { Amount } from "../ui/amount";
 import { Button, Field, inputClass, linkClass } from "../ui/kit";
 import { PassphraseInput, Strength, strength } from "./passphrase";
 
+function Found() {
+  const { record } = useWallet();
+  const snapshot = useWalletSnapshot();
+  const found = snapshot?.transactions.length ?? 0;
+  const status =
+    !snapshot || snapshot.progress || snapshot.connection === "connecting"
+      ? "Still syncing with your server."
+      : snapshot.connection === "disconnected"
+        ? "Not connected to your server."
+        : `${found === 1 ? "1 transaction" : `${found} transactions`} found.`;
+  return (
+    <section aria-label="Balance" className="grid gap-1 rounded-panel border border-rule bg-sheet px-4 pt-5 pb-4">
+      <span className="text-sm text-ink-2">{record.name}, confirmed balance</span>
+      <span className="text-2xl font-medium tracking-[-0.01em]">{snapshot ? <Amount sats={snapshot.balance.confirmed} unit /> : "Counting"}</span>
+      <span role="status" className="text-sm text-ink-3">
+        {status}
+      </span>
+    </section>
+  );
+}
+
 export function CreateVault() {
-  const { create } = useVaultState();
+  const { create } = useVault();
   const [passphrase, setPassphrase] = useState("");
   const [confirm, setConfirm] = useState("");
   const [tried, setTried] = useState(false);
@@ -32,11 +55,13 @@ export function CreateVault() {
 
   return (
     <Page>
-      <Heading title="Set a passphrase for this browser">
-        Your wallets, labels and history are kept here, encrypted with this passphrase. It never leaves the device.
+      <Heading title="Protect this wallet">
+        So far it lives only in this tab. Set a passphrase to keep it, with its labels and history, encrypted in this
+        browser. The passphrase never leaves the device.
       </Heading>
       <div className="grid items-start gap-8 @min-[900px]:grid-cols-[400px_minmax(0,1fr)] @min-[900px]:gap-12">
         <form onSubmit={submit} className="grid content-start gap-4" noValidate>
+          <Found />
           <Field label="Passphrase" hint={<Strength score={score} />} error={tried && tooShort ? "Use at least 10 characters." : undefined}>
             {(props) => (
               <PassphraseInput {...props} autoComplete="new-password" value={passphrase} onChange={setPassphrase} autoFocus />
@@ -49,18 +74,19 @@ export function CreateVault() {
           </Field>
           {error && <p className="m-0 text-sm text-bad">{error}</p>}
           <Button type="submit" variant="primary" wide disabled={busy}>
-            {busy ? "Encrypting, this takes a few seconds" : "Create vault"}
+            {busy ? "Encrypting, this takes a few seconds" : "Protect this wallet"}
           </Button>
         </form>
         <section className="grid content-start gap-3 rounded-panel border border-rule bg-sheet p-4 text-ink-2">
           <h2 className="m-0 text-md font-semibold text-ink">There is no reset</h2>
           <p className="m-0">
             Nobody can recover this passphrase, including the people who made this app. If you forget it, you delete the
-            vault and import your wallets again from their descriptors, which you will be asked to back up next.
+            vault and import your wallets again from their descriptors.
           </p>
           <p className="m-0">
             The vault holds no keys. Someone who opens it sees your balances and history, and cannot spend.
           </p>
+          <p className="m-0">Close this tab before you set it and nothing is kept.</p>
           <a className={linkClass} href="#/trust">
             What this app can and cannot protect you from
           </a>

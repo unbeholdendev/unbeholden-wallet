@@ -5,7 +5,7 @@ import { useVault } from "../app/vault";
 import { groupSats } from "../ui/amount";
 import { hostText } from "../ui/format";
 import { Icon } from "../ui/icons";
-import { Button, buttonClass, Field, inputClass, linkClass, Steps } from "../ui/kit";
+import { Button, buttonClass, Field, inputClass, linkClass, Notice, Steps } from "../ui/kit";
 
 const httpsForm = (url: string) => `https://${hostText(url)}/`;
 
@@ -247,7 +247,10 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
 }
 
 function Status({ connection }: { connection: Connection }) {
-  if (connection.phase === "connected" || connection.phase === "retrying")
+  const { wallets } = useVault();
+  if (connection.phase === "connected" || connection.phase === "retrying") {
+    const { network } = connection;
+    const astray = network ? wallets.filter((w) => w.network !== network) : [];
     return (
       <section className="grid gap-2 rounded-panel border border-rule bg-sheet p-4">
         <h2 className="m-0 flex items-center gap-2 text-md font-semibold">
@@ -259,9 +262,21 @@ function Status({ connection }: { connection: Connection }) {
           <dd className="m-0">{connection.software ?? "Not reported"}</dd>
           <dt className="text-ink-2">Chain tip</dt>
           <dd className="m-0">{connection.tip === null ? "Asking" : `Block ${groupSats(connection.tip)}`}</dd>
+          {network && (
+            <>
+              <dt className="text-ink-2">Network</dt>
+              <dd className="m-0 capitalize">{network}</dd>
+            </>
+          )}
         </dl>
+        {astray.map((w) => (
+          <Notice key={w.id} tone="warn">
+            This server is on {network}, but {w.name} is a {w.network} wallet. It will look empty here.
+          </Notice>
+        ))}
       </section>
     );
+  }
   return (
     <section className="grid gap-2 rounded-panel border border-rule bg-sheet p-4">
       <h2 className="m-0 text-md font-semibold">What happens when you connect</h2>

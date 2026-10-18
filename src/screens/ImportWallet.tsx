@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Heading, isIos } from "../app/layout";
 import { navigate } from "../app/route";
+import { useConnection } from "../app/connection";
 import { useVault } from "../app/vault";
 import { Icon } from "../ui/icons";
 import { Button, Field, inputClass, Notice, Segmented } from "../ui/kit";
@@ -12,10 +13,15 @@ import { formatDescriptor, type ScriptType } from "../wallet/descriptor";
 import { normaliseExtendedKey } from "../wallet/extended-key";
 import type { Network } from "../wallet/network";
 
-type Reading = { descriptor?: string; needsType?: boolean; error?: string };
+type Reading = { descriptor?: string; fingerprint?: string; needsType?: boolean; error?: string };
 
 const canonical = (wallet: Pick<WalletRecord, "descriptor" | "network" | "scriptType">) =>
   formatDescriptor(walletDescriptor(wallet));
+
+// xpub, ypub, zpub, Ypub and Zpub are the mainnet prefixes in SLIP-132. Signet and
+// regtest keys look alike, so the server's chain picks between them.
+const keyNetwork = (text: string, server: Network | null): Network =>
+  /(^|[(\]])[xyzYZ]pub/.test(text.trim()) ? "mainnet" : server === "regtest" ? "regtest" : "signet";
 
 function interpret(text: string, network: Network, scriptType: ScriptType | null): Reading {
   const input = text.trim();
@@ -23,17 +29,12 @@ function interpret(text: string, network: Network, scriptType: ScriptType | null
   try {
     const needsType = !input.includes("(") && normaliseExtendedKey(input, network).scriptType === null;
     if (needsType && !scriptType) return { needsType };
-    return { needsType, descriptor: canonical({ descriptor: input, network, scriptType }) };
+    const descriptor = walletDescriptor({ descriptor: input, network, scriptType });
+    return { needsType, descriptor: formatDescriptor(descriptor), fingerprint: descriptor.origin?.fingerprint };
   } catch (error) {
     return { error: `${(error as Error).message}.` };
   }
 }
-
-const networks: { value: Network; label: string }[] = [
-  { value: "mainnet", label: "Mainnet" },
-  { value: "signet", label: "Signet" },
-  { value: "regtest", label: "Regtest" },
-];
 
 function DescriptorText({ children }: { children: string }) {
   return (
@@ -45,46 +46,46 @@ function DescriptorText({ children }: { children: string }) {
 
 export function ImportWallet() {
   const { wallets, addWallet } = useVault();
+  const { connection } = useConnection();
   const toast = useToast();
   const [text, setText] = useState("");
-  const [network, setNetwork] = useState<Network>("mainnet");
   const [scriptType, setScriptType] = useState<ScriptType | null>(null);
-  const [name, setName] = useState("");
+  const [typedName, setTypedName] = useState("");
   const [scanning, setScanning] = useState(false);
   const [step, setStep] = useState<"key" | "backup">("key");
-  const [saved, setSaved] = useState<"copy" | "file" | null>(null);
-  const [confirmed, setConfirmed] = useState(false);
-  const [tried, setTried] = useState(false);
+  const [saved, setSaved] = useState(false);
 
+  const server = connection.phase === "connected" || connection.phase === "retrying" ? connection.network : null;
+  const network = keyNetwork(text, server ?? wallets.find((w) => w.network !== "mainnet")?.network ?? null);
   const reading = interpret(text, network, scriptType);
   const duplicate = wallets.find((w) => canonical(w) === reading.descriptor);
-  const nameError = tried && !name.trim() ? "Give it a name you will recognise." : undefined;
+  const fallbackName = reading.fingerprint ?? `Wallet ${wallets.length + 1}`;
+  const name = typedName.trim() || fallbackName;
 
   const next = (event: FormEvent) => {
     event.preventDefault();
-    setTried(true);
-    if (reading.descriptor && !duplicate && name.trim()) setStep("backup");
+    if (reading.descriptor && !duplicate) setStep("backup");
   };
 
   const copy = async () => {
     await navigator.clipboard.writeText(reading.descriptor!);
-    setSaved("copy");
+    setSaved(true);
     toast("Descriptor copied");
   };
 
   const download = () => {
-    const body = `${name.trim()}\n${network}\n\n${reading.descriptor}\n`;
+    const body = `${name}\n${network}\n\n${reading.descriptor}\n`;
     const link = document.createElement("a");
     link.href = URL.createObjectURL(new Blob([body], { type: "text/plain" }));
-    link.download = `${name.trim().replace(/[^\w-]+/g, "-") || "wallet"}-descriptor.txt`;
+    link.download = `${name.replace(/[^\w-]+/g, "-")}-descriptor.txt`;
     link.click();
     URL.revokeObjectURL(link.href);
-    setSaved("file");
+    setSaved(true);
   };
 
   const finish = async () => {
-    await addWallet({ name: name.trim(), descriptor: text.trim(), network, scriptType: reading.needsType ? scriptType! : undefined });
-    toast(`${name.trim()} added`);
+    await addWallet({ name, descriptor: text.trim(), network, scriptType: reading.needsType ? scriptType! : undefined });
+    toast(`${name} added`);
     navigate("/home");
   };
 
@@ -120,22 +121,14 @@ export function ImportWallet() {
             your Home Screen. Treat this browser as temporary storage and the saved descriptor as the real copy.
           </Notice>
         )}
-        <label className={`flex items-start gap-3 rounded-control border border-rule-2 bg-sheet px-3 py-3 ${saved ? "" : "opacity-60"}`}>
-          <input
-            type="checkbox"
-            className="mt-0.5 size-5 accent-route"
-            disabled={!saved}
-            checked={confirmed}
-            onChange={(e) => setConfirmed(e.target.checked)}
-          />
-          <span>
-            I have saved the descriptor somewhere other than this browser.
-            {!saved && <span className="block text-sm text-ink-3">Copy it or download it first.</span>}
-          </span>
-        </label>
+        {!saved && (
+          <Notice tone="warn">
+            You have not copied or downloaded it yet. If this browser's data is cleared, the wallet goes with it.
+          </Notice>
+        )}
         <div className="flex flex-wrap gap-2">
-          <Button variant="primary" disabled={!confirmed} onClick={finish}>
-            Finish
+          <Button variant={saved ? "primary" : "default"} onClick={finish}>
+            {saved ? "Finish" : "Finish without a backup"}
           </Button>
           <Button onClick={() => setStep("key")}>Back</Button>
         </div>
@@ -172,10 +165,12 @@ export function ImportWallet() {
         <Button icon="camera" className="justify-self-start" onClick={() => setScanning(true)}>
           Scan a QR code
         </Button>
-        <div className="grid gap-1.5">
-          <span className="text-sm font-medium text-ink-2">Network</span>
-          <Segmented label="Network" options={networks} value={network} onChange={setNetwork} />
-        </div>
+        {reading.descriptor && server && server !== network && (
+          <Notice tone="warn">
+            This is a {network === "mainnet" ? "mainnet" : "test network"} key, but your server is on {server}. The wallet
+            will look empty until you connect to a {network === "mainnet" ? "mainnet" : "test network"} server.
+          </Notice>
+        )}
         {reading.needsType && (
           <div className="grid gap-1.5">
             <span className="text-sm font-medium text-ink-2">Script type</span>
@@ -210,8 +205,10 @@ export function ImportWallet() {
             <p className="m-0 text-sm text-ink-3">It appears here once the text above reads as a descriptor or a key.</p>
           )}
         </section>
-        <Field label="Name" error={nameError} hint="Only you see it, for example Savings or Spending.">
-          {(props) => <input {...props} className={inputClass} value={name} onChange={(e) => setName(e.target.value)} autoComplete="off" />}
+        <Field label="Name" hint={`Only you see it. Left empty, it is ${fallbackName}.`}>
+          {(props) => (
+            <input {...props} className={inputClass} value={typedName} placeholder={fallbackName} onChange={(e) => setTypedName(e.target.value)} autoComplete="off" />
+          )}
         </Field>
         <Button type="submit" variant="primary" wide disabled={!reading.descriptor || !!duplicate}>
           Continue to backup <Icon name="chev" className="size-[18px] -rotate-90" />

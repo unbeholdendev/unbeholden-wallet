@@ -26,7 +26,7 @@ import type { KdfParams } from "./vault/vault";
 const TABS: string[] = ["home", "send", "receive", "coins"] satisfies Tab[];
 
 function Unlocked({ route }: { route: string[] }) {
-  const { settings, wallets, lock } = useVault();
+  const { settings, wallets, draft, lock } = useVault();
   const { connection, connect, disconnect } = useConnection();
   const [reached, setReached] = useState(false);
 
@@ -41,7 +41,13 @@ function Unlocked({ route }: { route: string[] }) {
   }, [connection.phase]);
 
   if (!wallets.length)
-    return <Page aside={<LinkButton onClick={lock}>Lock</LinkButton>}>{reached ? <ImportWallet /> : <Connect onboarding />}</Page>;
+    return <Page aside={draft ? undefined : <LinkButton onClick={lock}>Lock</LinkButton>}>{reached ? <ImportWallet /> : <Connect onboarding />}</Page>;
+  if (draft)
+    return (
+      <SessionProvider>
+        <CreateVault />
+      </SessionProvider>
+    );
 
   const [screen = "home", detail] = route;
   const body =
@@ -67,10 +73,8 @@ function Root() {
   const { state } = useVaultState();
   if (route[0] === "trust") return <Trust />;
   if (route[0] === "guide") return <Guide />;
-  if (state.phase === "loading") return null;
-  if (state.phase === "absent") return <CreateVault />;
-  if (state.phase === "locked") return <Unlock />;
-  return <Unlocked route={route} />;
+  if (state.phase !== "open") return state.phase === "locked" ? <Unlock /> : null;
+  return <Unlocked key={String(state.draft)} route={route} />;
 }
 
 function UpdatePrompt() {
