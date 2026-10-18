@@ -1,5 +1,6 @@
 import { useRef, type ReactNode } from "react";
 import { groupSats } from "../ui/amount";
+import { hostText } from "../ui/format";
 import { Icon, type IconName } from "../ui/icons";
 import { useConnection, type Connection } from "./connection";
 import { Footer, InstallPrompt } from "./layout";
@@ -71,16 +72,14 @@ function WalletSwitcher() {
   );
 }
 
-const host = (url: string) => url.replace(/^wss?:\/\//, "").replace(/\/.*$/, "");
-
 function statusOf(connection: Connection) {
   switch (connection.phase) {
     case "connected":
-      return { dot: "bg-[#5fc27a]", text: <>Connected to <b className="font-medium text-legend-ink">{host(connection.url)}</b></>, short: connection.tip === null ? "Connected" : groupSats(connection.tip) };
+      return { dot: "bg-[#5fc27a]", text: <>Connected to <b className="font-medium text-legend-ink">{hostText(connection.url)}</b></>, short: connection.tip === null ? "Connected" : groupSats(connection.tip) };
     case "connecting":
-      return { dot: "bg-[#e6b95a] animate-pulse", text: <>Connecting to {host(connection.url)}</>, short: "Connecting" };
+      return { dot: "bg-[#e6b95a] animate-pulse", text: <>Connecting to {hostText(connection.url)}</>, short: "Connecting" };
     case "retrying":
-      return { dot: "bg-[#e6b95a] animate-pulse", text: <>Lost {host(connection.url)}, retrying</>, short: "Retrying" };
+      return { dot: "bg-[#e6b95a] animate-pulse", text: <>Lost {hostText(connection.url)}, retrying</>, short: "Retrying" };
     default:
       return { dot: "bg-[#f2948a]", text: <>Not connected</>, short: "Offline" };
   }

@@ -157,6 +157,12 @@ describe("fountain codes", () => {
     expect(decoder.receive({ ...part, seqLen: 2 ** 23, messageLen: 2 ** 24 })).toBe(false);
     expect(decoder.receive({ ...part, seqLen: 10, messageLen: 100 })).toBe(true);
   });
+
+  it("ignores a message split into more parts than a signer would send", () => {
+    const decoder = new FountainDecoder();
+    const part = { seqNum: 1, checksum: 0, data: new Uint8Array(1) };
+    expect(decoder.receive({ ...part, seqLen: 100_000, messageLen: 100_000 })).toBe(false);
+  });
 });
 
 describe("UR", () => {

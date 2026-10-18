@@ -1,12 +1,11 @@
 import type { ReactNode } from "react";
 import { navigate } from "../app/route";
 import { useWalletSnapshot } from "../app/session";
-import type { AddressInfo, TxInput, TxOutput, WalletTx } from "../core/wallet";
+import { feeRate, isOutgoing, txWhen, type AddressInfo, type TxInput, type TxOutput, type WalletTx } from "../core/view";
 import { Amount, groupSats } from "../ui/amount";
-import { confText, dateText, satsText, shortId, timeText } from "../ui/format";
+import { confText, dateText, satsText, shortId, timeText, txFallback } from "../ui/format";
 import { Icon } from "../ui/icons";
 import { Button, Chip, Empty, linkClass } from "../ui/kit";
-import { feeRate, isOutgoing, txFallback, txWhen } from "./Home";
 import { CopyButton, EditableLabel, GroupedAddress, Opening } from "./parts";
 
 function Back() {

@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { useWalletSnapshot } from "../../app/session";
+import { useWallet, useWalletSnapshot } from "../../app/session";
 import { planBump, type BumpProblem } from "../../core/bump";
+import { nextChange } from "../../core/view";
 import { Amount, groupSats } from "../../ui/amount";
 import { Button, Empty, Notice, Panel } from "../../ui/kit";
 import { buildPsbt } from "../../wallet/psbt";
 import { FeePanel, rateOf, rateText, useFeeHistogram, type FeeChoice } from "./fees";
-import { nextChange, useWallet, type Built } from "./Send";
+import type { Built } from "./Send";
 import { SignFlow } from "./Sign";
 
 function why(problem: BumpProblem): string {
@@ -43,8 +44,7 @@ export function Bump({ txid }: { txid: string }) {
       </Empty>
     );
 
-  const change = nextChange(snapshot);
-  const wallet = { scriptType, network, nextChange: change.chain === 1 ? change.index : 0 };
+  const wallet = { scriptType, network, nextChange: nextChange(snapshot) };
   const floor = planBump(tx, snapshot.coins, rateOf(fee, histogram), wallet).minFeeRate;
   const rate = rateOf(fee, histogram, floor);
   const plan = planBump(tx, snapshot.coins, rate, wallet);

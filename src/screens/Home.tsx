@@ -2,31 +2,21 @@ import { useState } from "react";
 import { navigate } from "../app/route";
 import { useWalletSession, useWalletSnapshot } from "../app/session";
 import { useVault } from "../app/vault";
+import { feeRate, isOutgoing, txWhen } from "../core/view";
 import type { WalletSnapshot, WalletTx } from "../core/wallet";
 import { Amount, btcParts, groupSats } from "../ui/amount";
-import { confText, dateText, timeText } from "../ui/format";
+import { confText, dateText, hostText, timeText, txFallback } from "../ui/format";
 import { Icon } from "../ui/icons";
 import { Button, Chip, Empty, LinkButton, linkClass } from "../ui/kit";
 import { SourceSwatch, sourcesOf } from "../ui/sources";
 import { Opening } from "./parts";
 
-const host = (url: string | null) => url?.replace(/^wss?:\/\//, "").replace(/[:/].*$/, "") ?? "your server";
-
 const stages = { history: "Checking addresses", transactions: "Fetching transactions", blocks: "Fetching block times" };
-
-export const isOutgoing = (tx: WalletTx) => tx.inputs.some((i) => i.mine);
-
-export const txWhen = (tx: WalletTx) => tx.time ?? (tx.seenAt === null ? null : Math.floor(tx.seenAt / 1000));
-
-export const txFallback = (tx: WalletTx) =>
-  !isOutgoing(tx) ? "Received" : tx.outputs.every((o) => o.mine) ? "Moved between your addresses" : "Sent";
-
-export const feeRate = (tx: WalletTx) => (tx.fee === null ? null : Math.round((tx.fee / tx.vsize) * 10) / 10);
 
 function SyncLine({ snapshot }: { snapshot: WalletSnapshot }) {
   const session = useWalletSession();
   const { settings } = useVault();
-  const server = host(settings.server);
+  const server = settings.server ? hostText(settings.server) : "your server";
   const { progress, connection, tip } = snapshot;
   const [dot, text] = progress
     ? ["bg-warn animate-pulse", `${stages[progress.stage]}, ${groupSats(progress.done)} of ${groupSats(progress.total)}.`]

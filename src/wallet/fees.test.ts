@@ -38,6 +38,10 @@ describe("feeTargets", () => {
     );
   });
 
+  it("never goes above the most the wallet accepts", () => {
+    expect(feeTargets([{ feeRate: 50_000, vsize: 2_000_000 }]).nextBlock).toBe(10_000);
+  });
+
   it("never goes below the relay minimum", () => {
     expect(feeTargets([{ feeRate: 0.5, vsize: 2_000_000 }]).nextBlock).toBe(1);
   });

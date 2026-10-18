@@ -280,6 +280,29 @@ describe("staying current", () => {
     ]);
     await added;
   });
+  it("drops the transaction a just-broadcast replacement conflicts with", async () => {
+    const session = await open(chain());
+    const original = tx([[id(pay2), 0]], [[theirs(8), 30_000], [mine(1, 1), 19_000]]);
+    const replacement = tx([[id(pay2), 0]], [[theirs(8), 30_000], [mine(1, 1), 18_000]]);
+
+    await session.addTransaction(original);
+    await session.addTransaction(replacement);
+    const txids = session.getSnapshot().transactions.map((t) => t.txid);
+    expect(txids).toContain(id(replacement));
+    expect(txids).not.toContain(id(original));
+    expect(coinsOf(session.getSnapshot())).toEqual([
+      ["1/0", 39_000, "confirmed"],
+      ["1/1", 18_000, "own-change"],
+    ]);
+  });
+
+  it("refuses a transaction the server sends under another txid", async () => {
+    const backend = chain();
+    const lying = { ...backend, transactions: async (txids: string[]) => txids.map(() => pay1) } as WalletBackend;
+    const session = await open(lying);
+    expect(session.getSnapshot()).toMatchObject({ connection: "disconnected", error: expect.stringMatching(/different transaction/) });
+    expect(session.getSnapshot().coins).toEqual([]);
+  });
 });
 
 describe("reorgs", () => {

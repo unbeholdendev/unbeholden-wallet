@@ -1,5 +1,6 @@
-import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { openWallet, type WalletSession, type WalletSnapshot } from "../core/wallet";
+import { walletDescriptor } from "../core/wallets";
 import { useBackendFactory } from "./connection";
 import { useVault } from "./vault";
 
@@ -40,4 +41,14 @@ const none = () => () => {};
 export function useWalletSnapshot(): WalletSnapshot | null {
   const session = useWalletSession();
   return useSyncExternalStore(session?.subscribe ?? none, () => session?.getSnapshot() ?? null);
+}
+
+/** The selected wallet's record, descriptor and network. */
+export function useWallet() {
+  const { wallets, walletId } = useVault();
+  const record = wallets.find((w) => w.id === walletId)!;
+  return useMemo(() => {
+    const descriptor = walletDescriptor(record);
+    return { record, descriptor, network: record.network, scriptType: descriptor.scriptType };
+  }, [record]);
 }
