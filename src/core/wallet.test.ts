@@ -1,9 +1,9 @@
 import { hex } from "@scure/base";
 import { Transaction } from "@scure/btc-signer";
 import { p2wpkh } from "@scure/btc-signer/payment.js";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { WalletBackend } from "../backend/backend";
-import { fakeBackend, type FakeBackend } from "../backend/fake";
+import { fakeBackend, fakeEsplora, type FakeBackend } from "../backend/fake";
 import { createVault, destroyVault, type Vault } from "../vault/vault";
 import { descriptorFromExtendedKey, parseDescriptor } from "../wallet/descriptor";
 import { derivePublicKey } from "../wallet/derive";
@@ -57,15 +57,20 @@ const foreignParent = tx([[id(faucet), 3]], [[theirs(6), 999_000]]);
 const child = tx([[id(foreignParent), 0]], [[mine(0, 3), 5_000], [theirs(7), 993_000]]);
 
 /** Heights 100 to 103. */
-function chain(): FakeBackend {
-  return fakeBackend({ startHeight: 100, blocks: [[faucet], [pay1], [pay2], [spend]] });
+function chain(serve = (backend: FakeBackend) => backend): FakeBackend {
+  return serve(fakeBackend({ startHeight: 100, blocks: [[faucet], [pay1], [pay2], [spend]] }));
 }
 
-function withMempool(): FakeBackend {
-  const backend = chain();
+function withMempool(serve?: (backend: FakeBackend) => FakeBackend): FakeBackend {
+  const backend = chain(serve);
   for (const raw of [foreignPay, ownChange, foreignParent, child]) backend.addToMempool(raw);
   return backend;
 }
+
+const SERVERS: [string, (backend: FakeBackend) => FakeBackend][] = [
+  ["the fake", (backend) => backend],
+  ["Esplora", (backend) => fakeEsplora(backend)],
+];
 
 /** Records every call through the seam. */
 function counting(backend: WalletBackend) {
@@ -112,9 +117,9 @@ const received = (s: WalletSnapshot) => s.coins.find((c) => c.txid === id(pay2))
 const coinsOf = (s: WalletSnapshot) =>
   s.coins.map((c) => [`${c.chain}/${c.index}`, c.value, c.status]).sort();
 
-describe("a wallet with a known history", () => {
+describe.each(SERVERS)("a wallet with a known history, served by %s", (_, serve) => {
   it("has exactly the expected coins, statuses and balance", async () => {
-    const snapshot = (await open(withMempool())).getSnapshot();
+    const snapshot = (await open(withMempool(serve))).getSnapshot();
     expect(snapshot.error).toBeNull();
     expect(coinsOf(snapshot)).toEqual([
       ["0/1", 50_000, "confirmed"],
@@ -131,7 +136,7 @@ describe("a wallet with a known history", () => {
   });
 
   it("lists transactions newest first with amounts, fees and dates", async () => {
-    const backend = withMempool();
+    const backend = withMempool(serve);
     const snapshot = (await open(backend)).getSnapshot();
     const txids = snapshot.transactions.map((t) => t.txid);
     expect(new Set(txids.slice(0, 3))).toEqual(new Set([foreignPay, ownChange, child].map(id)));
@@ -159,7 +164,7 @@ describe("a wallet with a known history", () => {
   });
 
   it("knows which addresses are used and which receive address is next", async () => {
-    const { addresses, nextReceive } = (await open(withMempool())).getSnapshot();
+    const { addresses, nextReceive } = (await open(withMempool(serve))).getSnapshot();
     expect(addresses.receive.slice(0, 5).map((a) => a.used)).toEqual([true, true, true, true, false]);
     expect(addresses.change.slice(0, 3).map((a) => a.txCount)).toEqual([2, 1, 0]);
     expect(nextReceive).toMatchObject({ index: 4, path: "m/84h/0h/0h/0/4", used: false });
@@ -167,16 +172,16 @@ describe("a wallet with a known history", () => {
   });
 
   it("flags a reused address", async () => {
-    const backend = chain();
+    const backend = chain(serve);
     backend.addBlock([tx([[id(faucet), 9]], [[mine(0, 1), 7_000]])]);
     const { addresses } = (await open(backend)).getSnapshot();
     expect(addresses.receive.slice(0, 3).map((a) => a.reused)).toEqual([false, true, false]);
   });
 });
 
-describe("scanning", () => {
+describe.each(SERVERS)("scanning, served by %s", (_, serve) => {
   it("finds a coin beyond the gap limit only on a deeper scan", async () => {
-    const backend = chain();
+    const backend = chain(serve);
     backend.addBlock([tx([[id(faucet), 9]], [[mine(0, 60), 7_000]])]);
     const session = await open(backend);
     expect(session.getSnapshot().balance.confirmed).toBe(89_000);
@@ -191,7 +196,7 @@ describe("scanning", () => {
   });
 
   it("fetches only what changed on a second load", async () => {
-    const backend = withMempool();
+    const backend = withMempool(serve);
     (await open(backend)).close();
 
     const quiet = counting(backend);
@@ -216,7 +221,7 @@ describe("scanning", () => {
       tx([[FAUCET, i]], [[mine(0, i), 1_000 + i], [theirs(1), 990_000]]),
     );
     const blocks = [[faucet], ...Array.from({ length: 50 }, (_, b) => payments.slice(b * 10, b * 10 + 10))];
-    const { backend, calls } = counting(fakeBackend({ startHeight: 100, blocks }));
+    const { backend, calls } = counting(serve(fakeBackend({ startHeight: 100, blocks })));
     const started = performance.now();
     const session = await open(backend);
     const ms = Math.round(performance.now() - started);
@@ -248,6 +253,20 @@ describe("staying current", () => {
     const snapshot = session.getSnapshot();
     expect(snapshot.tip?.height).toBe(104);
     expect(snapshot.transactions[0]).toMatchObject({ txid: id(pay), confirmations: 1 });
+  });
+
+  it("over Esplora, shows a mempool payment on refresh and its confirmation at the next poll", async () => {
+    const backend = chain((fake) => fakeEsplora(fake, 10));
+    const session = await open(backend);
+    const pay = tx([[id(faucet), 5]], [[mine(0, 5), 12_000]]);
+
+    backend.addToMempool(pay);
+    await session.refresh();
+    expect(session.getSnapshot().coins.find((c) => c.txid === id(pay))?.status).toBe("foreign-unconfirmed");
+
+    backend.addBlock([pay]);
+    await vi.waitFor(() => expect(session.getSnapshot().transactions[0]).toMatchObject({ txid: id(pay), confirmations: 1 }));
+    backend.close();
   });
 
   it("polls an address outside the subscribed window on the next block", async () => {

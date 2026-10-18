@@ -42,8 +42,8 @@ export function precheck(url: string): Failure | null {
   } catch {
     return "invalid-url";
   }
-  if (parsed.protocol !== "ws:" && parsed.protocol !== "wss:") return "invalid-url";
-  if (parsed.protocol === "ws:" && location.protocol === "https:" && !LOOPBACK.test(parsed.hostname)) return "mixed-content";
+  if (!["ws:", "wss:", "http:", "https:"].includes(parsed.protocol)) return "invalid-url";
+  if (["ws:", "http:"].includes(parsed.protocol) && location.protocol === "https:" && !LOOPBACK.test(parsed.hostname)) return "mixed-content";
   return null;
 }
 

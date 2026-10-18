@@ -7,7 +7,7 @@ import { descriptorFromExtendedKey } from "../wallet/descriptor";
 import { derivePublicKey } from "../wallet/derive";
 import { BIP84_ZPUB } from "../wallet/vectors";
 import { BroadcastError, ConnectionError, scriptHash } from "./backend";
-import { fakeBackend } from "./fake";
+import { fakeBackend, fakeEsplora, type FakeBackend } from "./fake";
 
 const PARSE = {
   allowUnknownInputs: true,
@@ -70,14 +70,16 @@ const spend = transaction(
 );
 
 /** Received at height 100, partly spent to change at 101. */
-async function wallet() {
-  const backend = fakeBackend({
-    startHeight: 100,
-    blocks: [[funding], [spend]],
-  });
+async function wallet(serve = (backend: FakeBackend) => backend) {
+  const backend = serve(fakeBackend({ startHeight: 100, blocks: [[funding], [spend]] }));
   await backend.connect();
   return backend;
 }
+
+const SERVERS: [string, (backend: FakeBackend) => FakeBackend][] = [
+  ["the fake", (backend) => backend],
+  ["Esplora", (backend) => fakeEsplora(backend)],
+];
 
 // The worked example in the Electrum protocol basics:
 // https://electrum-protocol.readthedocs.io/en/latest/protocol-basics.html
@@ -113,9 +115,9 @@ describe("connecting", () => {
   });
 });
 
-describe("a wallet with history", () => {
+describe.each(SERVERS)("a wallet with history, served by %s", (_, serve) => {
   it("gives every scripthash asked for its own history, in order", async () => {
-    const backend = await wallet();
+    const backend = await wallet(serve);
     const [receive = [], change = [], unused = []] = await backend.history([
       scriptHash(RECEIVE),
       scriptHash(CHANGE),
@@ -132,7 +134,7 @@ describe("a wallet with history", () => {
   });
 
   it("gives every transaction asked for, in order", async () => {
-    const backend = await wallet();
+    const backend = await wallet(serve);
     expect(await backend.transactions([txid(spend), txid(funding)])).toEqual([
       spend,
       funding,
@@ -140,12 +142,12 @@ describe("a wallet with history", () => {
   });
 
   it("serves the tip of the fixture's chain", async () => {
-    const backend = await wallet();
+    const backend = await wallet(serve);
     expect((await backend.chainTip()).height).toBe(101);
   });
 
   it("serves headers with block times ten minutes apart", async () => {
-    const backend = await wallet();
+    const backend = await wallet(serve);
     const [first, second, tip] = await backend.blockHeaders([100, 101, 101]);
     expect(hex.encode(tip!)).toBe(hex.encode((await backend.chainTip()).header));
     expect(previousHash(second!)).toBe(blockHash(first!));
@@ -154,12 +156,12 @@ describe("a wallet with history", () => {
   });
 
   it("serves no header above the tip", async () => {
-    const backend = await wallet();
+    const backend = await wallet(serve);
     await expect(backend.blockHeaders([102])).rejects.toThrow(/102/);
   });
 
   it("serves the fixture's fee histogram", async () => {
-    const backend = fakeBackend({ feeHistogram: [{ feeRate: 12, vsize: 8812 }] });
+    const backend = serve(fakeBackend({ feeHistogram: [{ feeRate: 12, vsize: 8812 }] }));
     await backend.connect();
     expect(await backend.feeHistogram()).toEqual([
       { feeRate: 12, vsize: 8812 },
@@ -167,7 +169,7 @@ describe("a wallet with history", () => {
   });
 });
 
-describe("the mempool", () => {
+describe.each(SERVERS)("the mempool, served by %s", (_, serve) => {
   const child = transaction(
     [{ txid: txid(spend), index: 1 }],
     [{ script: OTHER, amount: 30_000n }],
@@ -183,7 +185,7 @@ describe("the mempool", () => {
   ];
 
   it.each(arrivals)("marks an unconfirmed parent, %s", async (_, order) => {
-    const backend = await wallet();
+    const backend = await wallet(serve);
     for (const raw of order) backend.addToMempool(raw);
 
     const [change = [], receive = [], other = []] = await backend.history([
@@ -205,7 +207,7 @@ describe("the mempool", () => {
   });
 
   it("takes a broadcast transaction and hands back its txid", async () => {
-    const backend = await wallet();
+    const backend = await wallet(serve);
     const raw = transaction(
       [{ txid: txid(spend), index: 1 }],
       [{ script: OTHER, amount: 30_000n }],
@@ -221,7 +223,7 @@ describe("the mempool", () => {
 
   it("hands back the node's reason when it rejects a broadcast", async () => {
     const reason = "insufficient fee, rejecting replacement";
-    const backend = fakeBackend({ broadcastRejection: reason });
+    const backend = serve(fakeBackend({ broadcastRejection: reason }));
     await backend.connect();
     const raw = transaction(
       [{ txid: "44".repeat(32), index: 0 }],
@@ -235,9 +237,9 @@ describe("the mempool", () => {
   });
 });
 
-describe("moving the chain", () => {
+describe.each(SERVERS)("moving the chain, served by %s", (_, serve) => {
   it("mines a block that extends the tip", async () => {
-    const backend = await wallet();
+    const backend = await wallet(serve);
     const before = await backend.chainTip();
     backend.addBlock([]);
 
@@ -247,7 +249,7 @@ describe("moving the chain", () => {
   });
 
   it("reorgs to a chain that does not extend the old tip", async () => {
-    const backend = await wallet();
+    const backend = await wallet(serve);
     const before = await backend.chainTip();
     const replacement = transaction(
       [{ txid: txid(funding), index: 0 }],
@@ -271,7 +273,7 @@ describe("moving the chain", () => {
   });
 
   it("replaces a block at the same height, and keeps the ones below", async () => {
-    const backend = await wallet();
+    const backend = await wallet(serve);
     const before = await backend.chainTip();
     backend.reorg(101, [[]]);
 
@@ -284,7 +286,7 @@ describe("moving the chain", () => {
     ]);
   });
   it("makes a reorg visible even when the replacement block matches", async () => {
-    const backend = await wallet();
+    const backend = await wallet(serve);
     backend.reorg(101, [[]]);
     const before = await backend.chainTip();
     backend.reorg(101, [[]]);

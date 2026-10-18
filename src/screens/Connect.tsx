@@ -2,6 +2,7 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { useConnection, type Connection, type Failure } from "../app/connection";
 import { Heading } from "../app/layout";
 import { useVault } from "../app/vault";
+import { POLL_SECONDS } from "../backend/esplora";
 import { groupSats } from "../ui/amount";
 import { hostText } from "../ui/format";
 import { Icon } from "../ui/icons";
@@ -15,17 +16,21 @@ const breaks: Record<Failure, string> = {
   refused: "refused",
   timeout: "no answer",
   "not-electrum": "not Electrum",
+  "not-esplora": "not Esplora",
+  cors: "not allowed",
   "invalid-url": "",
 };
 
 /** Each failure in one sentence, for where its guidance does not fit. */
 export const reasons: Record<Failure, string> = {
   "certificate-rejected": "The browser rejected its certificate.",
-  "mixed-content": "This page cannot open a plain ws:// connection.",
+  "mixed-content": "This page cannot open a plain ws:// or http:// connection.",
   refused: "Nothing there accepted the connection.",
   timeout: "It did not answer within 10 seconds.",
   "not-electrum": "Something answered, but not an Electrum server.",
-  "invalid-url": "Its address is not a ws:// or wss:// URL.",
+  "not-esplora": "Something answered, but not an Esplora API.",
+  cors: "It answered, but did not let this app read the answer.",
+  "invalid-url": "Its address is not a wss://, ws://, https:// or http:// URL.",
 };
 
 /** The connection drawn as a route from this tab to the server, broken where it failed. */
@@ -117,8 +122,7 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
             </li>
             <li>
               <div>
-                <b className="font-semibold">Expect a blank page or an error there.</b> That is normal: the server only
-                speaks Electrum. Close that tab.
+                <b className="font-semibold">Expect a blank page or an error there.</b> That is normal. Close that tab.
               </div>
             </li>
             <li>
@@ -132,17 +136,17 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
       more: tailscale,
     },
     "mixed-content": {
-      title: "This page cannot open a plain ws:// connection",
+      title: "This page cannot open a plain ws:// or http:// connection",
       body: (
         <>
           <p className="m-0">
-            This app was loaded over https, and browsers do not let an https page open an unencrypted ws:// connection to
+            This app was loaded over https, and browsers do not let an https page open an unencrypted ws:// or http:// connection to
             another machine. There are two ways round it.
           </p>
           <Steps>
             <li>
               <div>
-                <b className="font-semibold">Give your server a certificate and use wss://.</b> Tailscale does this for
+                <b className="font-semibold">Give your server a certificate and use wss:// or https://.</b> Tailscale does this for
                 you on a private name. <a className={linkClass} href="#/guide">Read the Tailscale guide</a>
               </div>
             </li>
@@ -150,7 +154,7 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
               <div>
                 <b className="font-semibold">Or run this app from the local container.</b> It serves the app on{" "}
                 <span className="font-mono text-[0.86em]">http://localhost:8080</span>, and a localhost page may open
-                ws:// to a node on your own network.{" "}
+                ws:// or http:// to a node on your own network.{" "}
                 <a className={linkClass} href="#/guide">How to run it</a>
               </div>
             </li>
@@ -170,11 +174,18 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
               </div>
             </li>
             <li>
-              <div>
-                <b className="font-semibold">The port is the WebSocket one.</b> Fulcrum's TCP ports (50001, 50002) do not
-                speak WebSocket; the <span className="font-mono text-[0.86em]">ws</span> and{" "}
-                <span className="font-mono text-[0.86em]">wss</span> settings in fulcrum.conf name the right ports.
-              </div>
+              {/^https?:/.test(url) ? (
+                <div>
+                  <b className="font-semibold">The port is the one your Esplora API listens on</b>, not the explorer's
+                  web page if it serves that elsewhere.
+                </div>
+              ) : (
+                <div>
+                  <b className="font-semibold">The port is the WebSocket one.</b> Fulcrum's TCP ports (50001, 50002) do
+                  not speak WebSocket; the <span className="font-mono text-[0.86em]">ws</span> and{" "}
+                  <span className="font-mono text-[0.86em]">wss</span> settings in fulcrum.conf name the right ports.
+                </div>
+              )}
             </li>
             <li>
               <div>
@@ -182,7 +193,7 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
                 does not forward the port.
               </div>
             </li>
-            {url.startsWith("wss:") && (
+            {/^(wss|https):/.test(url) && (
               <li>
                 <div>
                   <b className="font-semibold">A self-signed certificate can look exactly like this.</b> Open{" "}
@@ -237,6 +248,56 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
         </p>
       ),
     },
+    "not-esplora": {
+      title: "Something answered, but it is not an Esplora API",
+      body: (
+        <p className="m-0">
+          A web server at <span className="font-mono text-[0.86em]">{h}</span> answered, but{" "}
+          <span className="font-mono text-[0.86em]">{url.replace(/\/+$/, "")}/blocks/tip/hash</span> did not give a block
+          hash. Check that the address is the API's own and not the explorer's page. It often ends in{" "}
+          <span className="font-mono text-[0.86em]">/api</span>.
+        </p>
+      ),
+    },
+    cors: {
+      title: "Your server answered, but did not let this app read it",
+      body: (
+        <>
+          <p className="m-0">
+            A browser only lets a page read an answer from another site when that site allows it, with an{" "}
+            <span className="font-mono text-[0.86em]">Access-Control-Allow-Origin</span> header naming the page. Your
+            server at <span className="font-mono text-[0.86em]">{h}</span> did not name this app, which is at{" "}
+            <span className="font-mono text-[0.86em]">{location.origin}</span>. Esplora does not send the header unless
+            told to.
+          </p>
+          <Steps>
+            <li>
+              <div>
+                <b className="font-semibold">If you run electrs yourself,</b> start it with{" "}
+                <Url>--cors {location.origin}</Url>
+              </div>
+            </li>
+            <li>
+              <div>
+                <b className="font-semibold">If a web server sits in front of it,</b> as on most node packages, add the
+                header there. For nginx, in the block that serves the API:{" "}
+                <Url>add_header Access-Control-Allow-Origin "{location.origin}" always;</Url>
+              </div>
+            </li>
+            <li>
+              <div>
+                <b className="font-semibold">Come back here and choose Retry connection.</b>
+              </div>
+            </li>
+          </Steps>
+        </>
+      ),
+      more: (
+        <p className="m-0">
+          If your node package gives no way to change this, connect to its Electrum server over WebSocket instead.
+        </p>
+      ),
+    },
   };
   const guide =
     failure && failure !== "invalid-url"
@@ -278,6 +339,15 @@ function Status({ connection }: { connection: Connection }) {
               <dd className="m-0 capitalize">{network}</dd>
             </>
           )}
+          {/^https?:/.test(connection.url) && (
+            <>
+              <dt className="text-ink-2">Updates</dt>
+              <dd className="m-0">
+                Asks for a new block every {POLL_SECONDS} seconds. Esplora cannot announce a payment, so one still in the
+                mempool shows at the next block or when you refresh.
+              </dd>
+            </>
+          )}
         </dl>
         {astray.map((w) => (
           <Notice key={w.id} tone="warn">
@@ -317,7 +387,7 @@ export function Connect({ onboarding = false }: { onboarding?: boolean }) {
   return (
     <div className="grid gap-8">
       <div className="grid gap-4">
-        <Heading title={onboarding ? "Connect to your Electrum server" : "Your Electrum server"}>
+        <Heading title={onboarding ? "Connect to your server" : "Your server"}>
           This wallet talks only to a server you run. Nothing about your wallet is sent anywhere else.
         </Heading>
         <RouteLine connection={connection.phase === "failed" && !failed ? { phase: "idle" } : connection} />
@@ -325,9 +395,9 @@ export function Connect({ onboarding = false }: { onboarding?: boolean }) {
       <div className="grid items-start gap-6 @min-[900px]:grid-cols-[400px_minmax(0,1fr)] @min-[900px]:gap-12">
         <form onSubmit={submit} className="grid min-w-0 content-start gap-4" noValidate>
           <Field
-            label="Electrum server address"
-            hint="wss:// and the port your server listens on for WebSocket Secure, often 50004."
-            error={invalid ? "Write it as wss://host:port, for example wss://node.your-tailnet.ts.net:50004." : undefined}
+            label="Server address"
+            hint="An Electrum server as wss:// and its WebSocket Secure port, often 50004, or an Esplora API as its https:// address."
+            error={invalid ? "Write it as wss://host:port, for example wss://node.your-tailnet.ts.net:50004, or as https://host/api." : undefined}
           >
             {(props) => (
               <input
