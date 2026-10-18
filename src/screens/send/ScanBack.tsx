@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { readPsbt } from "../../transport/files";
 import { psbtFromUr, psbtUrDecoder } from "../../transport/ur";
 import { Icon } from "../../ui/icons";
@@ -16,9 +16,6 @@ export function ScanBack({ onSigned, error }: { onSigned: (psbt: Uint8Array) => 
     decoder.current = psbtUrDecoder();
     setProgress({ parts: [], expected: 0 });
   };
-  useEffect(() => {
-    if (error) restart();
-  }, [error]);
 
   const onResult = (text: string) => {
     const d = decoder.current;
@@ -37,7 +34,9 @@ export function ScanBack({ onSigned, error }: { onSigned: (psbt: Uint8Array) => 
     }
     setScanError(null);
     setProgress({ parts: d.parts, expected: d.progress.expected });
-    if (d.result) onSigned(psbtFromUr(d.result));
+    if (!d.result) return;
+    restart();
+    onSigned(psbtFromUr(d.result));
   };
 
   const read = (input: Uint8Array | string) => {

@@ -6,7 +6,7 @@ import { Amount, groupSats } from "../../ui/amount";
 import { Icon } from "../../ui/icons";
 import { hostText } from "../../ui/format";
 import { Button, Chip, LinkButton, Notice, Panel } from "../../ui/kit";
-import { finaliseSigned, parsePsbt, reviewPsbt } from "../../wallet/psbt";
+import { finaliseExternal, finaliseSigned, parsePsbt, reviewPsbt } from "../../wallet/psbt";
 import { download, ExportQr } from "./ExportQr";
 import { rateText } from "./fees";
 import { ScanBack } from "./ScanBack";
@@ -45,6 +45,7 @@ export function SignFlow({
   onBack,
   done = null,
   onDone,
+  external = false,
 }: {
   built: Uint8Array;
   title: string;
@@ -56,6 +57,8 @@ export function SignFlow({
   /** The signed transaction already scanned back, to resume at Broadcast. */
   done?: Uint8Array | null;
   onDone?: (raw: Uint8Array) => void;
+  /** `built` was signed elsewhere, so there is nothing to match and the check stays up to broadcast. */
+  external?: boolean;
 }) {
   const { descriptor, network } = useWallet();
   const snapshot = useWalletSnapshot();
@@ -107,7 +110,7 @@ export function SignFlow({
       : warnings;
 
   const check = (
-    <Panel title="Check before you sign" aside={`${review.outputs.length} output${review.outputs.length === 1 ? "" : "s"}`}>
+    <Panel title={external ? "Check before you broadcast" : "Check before you sign"} aside={`${review.outputs.length} output${review.outputs.length === 1 ? "" : "s"}`}>
       <ul className="m-0 grid list-none gap-2 p-0">
         {review.outputs.map((o, i) => (
           <li key={i} className={`grid gap-1 rounded-control border px-3 py-2.5 ${o.change ? "border-rule bg-sunk" : "border-rule-2"}`}>
@@ -132,9 +135,11 @@ export function SignFlow({
           ["Total leaving the wallet", <Amount sats={leaving + review.fee} unit />],
         ]}
       />
-      <p className="m-0 text-sm text-ink-2">
-        <Chip tone="route">Replaceable (RBF)</Chip> Every transaction this wallet builds can be replaced, so you can raise its fee later if it is slow to confirm.
-      </p>
+      {!external && (
+        <p className="m-0 text-sm text-ink-2">
+          <Chip tone="route">Replaceable (RBF)</Chip> Every transaction this wallet builds can be replaced, so you can raise its fee later if it is slow to confirm.
+        </p>
+      )}
       {notices.map((w) => (
         <Notice key={w} tone="warn">{w}</Notice>
       ))}
@@ -143,7 +148,7 @@ export function SignFlow({
 
   const body = (
     <>
-      {stage === "show" && check}
+      {(stage === "show" || external) && check}
       <section
         className={`grid justify-items-stretch gap-4 rounded-panel border border-rule bg-sheet p-4 @min-[900px]:items-start @min-[900px]:gap-x-8 @min-[900px]:gap-y-5 @min-[900px]:p-6 ${stage === "show" ? "@min-[900px]:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] @min-[900px]:grid-rows-[repeat(4,auto)_1fr]" : "@min-[900px]:grid-cols-[minmax(0,340px)_minmax(0,1fr)]"}`}
       >
@@ -177,8 +182,12 @@ export function SignFlow({
             <ul className="m-0 grid list-none gap-2.5 p-0">
               {[
                 ["Every input carries a signature", `${inputs} of ${inputs}`],
-                ["Outputs match what you built", `${review.outputs.length} of ${review.outputs.length}`],
-                ["Fee matches", `${groupSats(review.fee)} sats`],
+                ...(external
+                  ? [["Every input is one of your coins", `${inputs} of ${inputs}`]]
+                  : [
+                      ["Outputs match what you built", `${review.outputs.length} of ${review.outputs.length}`],
+                      ["Fee matches", `${groupSats(review.fee)} sats`],
+                    ]),
               ].map(([what, detail]) => (
                 <li key={what} className="grid grid-cols-[24px_1fr_auto] items-center gap-2.5 rounded-control border border-rule px-3 py-2.5">
                   <span className="grid size-[22px] place-items-center rounded-full bg-ok text-sheet">
@@ -218,9 +227,9 @@ export function SignFlow({
     <div className="@container grid gap-4">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h1 className="m-0 text-xl font-semibold">{title}</h1>
-        <LinkButton onClick={onBack}>Back to coins</LinkButton>
+        <LinkButton onClick={onBack}>{external ? "Load another" : "Back to coins"}</LinkButton>
       </div>
-      <nav aria-label="Signing steps" className="flex overflow-hidden rounded-panel border border-rule-2 bg-sheet @min-[900px]:max-w-[720px]">
+      <nav aria-label="Signing steps" hidden={external} className="flex overflow-hidden rounded-panel border border-rule-2 bg-sheet @min-[900px]:max-w-[720px]">
         {STEPS.map(([s, name], i) => (
           <button
             key={s}
@@ -238,6 +247,33 @@ export function SignFlow({
         ))}
       </nav>
       {body}
+    </div>
+  );
+}
+
+/** Takes a PSBT signed outside this wallet's own round trip, checks it spends this wallet's coins, and broadcasts it. */
+export function BroadcastSigned() {
+  const snapshot = useWalletSnapshot();
+  const [loaded, setLoaded] = useState<{ psbt: Uint8Array; raw: Uint8Array } | null>(null);
+  const [refusal, setRefusal] = useState<string | null>(null);
+  const title = "Broadcast a signed transaction";
+  if (!snapshot) return <p className="m-0 text-ink-2">Opening this wallet.</p>;
+  if (loaded) return <SignFlow external built={loaded.psbt} done={loaded.raw} title={title} warnings={[]} summary={[]} label="" onBack={() => setLoaded(null)} />;
+
+  const signed = (psbt: Uint8Array) => {
+    try {
+      setLoaded({ psbt, raw: finaliseExternal(psbt, snapshot.coins) });
+      setRefusal(null);
+    } catch (e) {
+      setRefusal(`This PSBT was refused: ${(e as Error).message}.`);
+    }
+  };
+  return (
+    <div className="@container grid gap-4">
+      <h1 className="m-0 text-xl font-semibold">{title}</h1>
+      <section className="grid justify-items-stretch gap-4 rounded-panel border border-rule bg-sheet p-4 @min-[900px]:grid-cols-[minmax(0,340px)_minmax(0,1fr)] @min-[900px]:items-start @min-[900px]:gap-x-8 @min-[900px]:gap-y-5 @min-[900px]:p-6">
+        <ScanBack onSigned={signed} error={refusal} />
+      </section>
     </div>
   );
 }

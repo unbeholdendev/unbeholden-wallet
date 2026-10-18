@@ -67,7 +67,7 @@ export function QrScanner({ onResult }: { onResult: (text: string) => void }) {
 
   const blocked = state === "denied" || state === "no-camera";
   return (
-    <div className="grid gap-3">
+    <div data-keep-unlocked={state === "live" || undefined} className="grid gap-3">
       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-panel bg-[radial-gradient(120%_90%_at_50%_40%,#33413f_0%,#151c1d_70%)]">
         <video ref={video} muted playsInline className={`size-full object-cover ${state === "live" ? "" : "invisible"}`} />
         {!blocked &&
