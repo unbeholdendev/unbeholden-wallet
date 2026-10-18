@@ -47,9 +47,11 @@ docker run --rm -p 127.0.0.1:8080:8080 btc-browser-wallet
 ## Verify a build
 
 Builds are reproducible: the same commit gives the same files, byte for byte.
-Each release publishes `hashes.txt`.
+Each release publishes `hashes.txt` and a tarball of the built files. CI
+checks that two builds of every commit match.
 
 ```sh
+git checkout <release tag>
 bun install --frozen-lockfile
 GIT_COMMIT=<short commit> bun run build
 bun run --silent hashes | diff - hashes.txt
