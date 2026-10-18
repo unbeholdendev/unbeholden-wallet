@@ -59,9 +59,7 @@ export type PrivacyWarning = {
   kind:
     | "links-sources"
     | "kyc"
-    | "address-reuse"
-    | "change-address-type"
-    | "round-payment";
+    | "address-reuse";
   message: string;
 };
 
@@ -69,6 +67,8 @@ export type PrivacyReport = {
   /** The selected coins, one list per group not yet linked to the others. */
   sources: Coin[][];
   warnings: PrivacyWarning[];
+  /** Which output a chain observer would take for the change, and why; null until there is a spend to judge. */
+  change: string | null;
 };
 
 export type SourceInfo = {
@@ -137,23 +137,24 @@ export function assessPrivacy(
     });
   }
 
-  if (spend.change > 0 && payment.recipients.length > 0) {
+  let change: string | null = null;
+  if (!spend.problem && payment.recipients.length > 0) {
     const changeKind = payment.scriptType === "wpkh" ? "0014" : "5120";
-    if (payment.recipients.every((r) => !r.script.startsWith(changeKind))) {
-      warnings.push({
-        kind: "change-address-type",
-        message:
-          "The payment goes to a different type of address from your change, which makes it easy to tell which output is your change.",
-      });
-    }
-    if (spend.amounts.every(isRound) && !isRound(spend.change)) {
-      warnings.push({
-        kind: "round-payment",
-        message:
-          "The payment is a round amount and your change is not, which makes it easy to tell which output is your change.",
-      });
-    }
+    const reasons = [
+      ...(payment.recipients.every((r) => !r.script.startsWith(changeKind))
+        ? ["it is the only output of the same address type as the coins spent"]
+        : []),
+      ...(spend.amounts.every(isRound) && !isRound(spend.change)
+        ? [`it is not a round amount and the payment${spend.amounts.length > 1 ? "s are" : " is"}`]
+        : []),
+    ];
+    change =
+      spend.change === 0
+        ? "There is no change, so no output here can be picked out as yours."
+        : reasons.length > 0
+          ? `Anyone looking at the blockchain would most likely take the ${btc(spend.change)} output for your change: ${reasons.join(", and ")}.`
+          : `Neither the address types nor the amounts single out the ${btc(spend.change)} output as your change.`;
   }
 
-  return { sources, warnings };
+  return { sources, warnings, change };
 }

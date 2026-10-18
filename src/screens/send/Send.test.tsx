@@ -127,6 +127,8 @@ describe("the send screen", () => {
     const map = within(screen.getByRole("region", { name: "What this links" }));
     await user.click(screen.getByRole("button", { name: "Clear" }));
     expect(map.getByText("Nothing selected")).toBeTruthy();
+    const changeRow = () => summary().getByText("Change back to you").parentElement!.textContent;
+    expect(changeRow()).toBe("Change back to youNone");
 
     // At 10 sat/vB, wpkh throughout: 42 WU overhead, 272 per input, 124 per
     // output. One input with payment and change is 562 WU, 141 vB; two are 834 WU, 209 vB.
@@ -138,7 +140,9 @@ describe("the send screen", () => {
     await user.click(await coin(/Bisq trade/));
     expect(summary().getByText("Coins in (2)")).toBeTruthy();
     expect(summary().getByText(sats(2_090))).toBeTruthy();
-    expect(summary().getByText("Change back to you").parentElement!.textContent).toContain("m/84h/1h/0h/1/0");
+    const change = address(BIP84, 1, 0);
+    expect(changeRow()).toContain(`${change.slice(0, 10)}…${change.slice(-6)} · m/84h/1h/0h/1/0`);
+    expect(map.getByText(/would most likely take the .* output for your change: it is not a round amount/)).toBeTruthy();
     expect(map.getByText("Links 2 sources")).toBeTruthy();
     expect(map.getByText(/permanently linking them: Kraken withdrawal and Bisq trade/)).toBeTruthy();
     expect(map.queryByText(/an exchange that knows who you are/)).toBeNull();

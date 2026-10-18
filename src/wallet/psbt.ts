@@ -19,6 +19,8 @@ export type PsbtRequest = {
   coins: Coin[];
   recipients: Recipient[];
   change?: ChangeOutput | null;
+  /** Block time in Unix seconds; null before the first sync. */
+  tip: { height: number; time: number } | null;
 };
 
 export type BuiltPsbt = {
@@ -104,19 +106,28 @@ function randomBelow(n: number): number {
   return crypto.getRandomValues(new Uint32Array(1))[0]! % n;
 }
 
+// Bitcoin Core's anti-fee-sniping, so these transactions look like Core's.
+// https://github.com/bitcoin/bitcoin/blob/f80aaf4bd7c60d16d61d3cee88dd73a8a1bbfe80/src/wallet/spend.cpp#L981-L1035
+const MAX_TIP_AGE = 8 * 60 * 60;
+
+function lockTime(tip: PsbtRequest["tip"]): number {
+  if (!tip || tip.time < Date.now() / 1000 - MAX_TIP_AGE) return 0;
+  return randomBelow(10) === 0 ? Math.max(0, tip.height - randomBelow(100)) : tip.height;
+}
+
 /**
  * Builds an unsigned PSBT spending exactly the given coins. The caller has
  * already chosen the coins and the amounts; whatever they leave over is the fee.
  */
 export function buildPsbt(request: PsbtRequest): BuiltPsbt {
-  const { descriptor, network, coins, recipients, change } = request;
+  const { descriptor, network, coins, recipients, change, tip } = request;
   const params = NETWORKS[network];
   if (coins.length === 0) throw new Error("Choose at least one coin to spend");
   if (recipients.length === 0 && !change) {
     throw new Error("The transaction needs at least one output");
   }
 
-  const tx = new Transaction({ version: 2, lockTime: 0 });
+  const tx = new Transaction({ version: 2, lockTime: lockTime(tip) });
   for (const coin of coins) {
     const { script, fields } = derivation(
       descriptor,

@@ -109,12 +109,21 @@ describe("assessPrivacy", () => {
     expect(kinds([f], payment(10_000), info)).not.toContain("kyc");
   });
 
-  it("flags change that gives itself away", () => {
+  it("names the output an observer would take for the change, and why", () => {
     const taproot = "5120" + "11".repeat(32);
-    expect(kinds([f], payment(10_000, taproot))).toEqual([
-      "change-address-type",
-      "round-payment",
-    ]);
-    expect(kinds([f], payment(12_345))).toEqual([]);
+    expect(assess([f], payment(10_000, taproot)).change).toMatch(
+      /^Anyone looking at the blockchain would most likely take the 0\.\d+ BTC output for your change: it is the only output of the same address type as the coins spent, and it is not a round amount and the payment is\.$/,
+    );
+    expect(assess([f], payment(12_345)).change).toMatch(
+      /^Neither the address types nor the amounts single out the 0\.\d+ BTC output as your change\.$/,
+    );
+  });
+
+  it("says there is nothing to guess when there is no change", () => {
+    const p: Payment = { ...payment(0), recipients: [{ script: wpkh("payee"), value: "max" }] };
+    expect(assess([f], p).change).toBe(
+      "There is no change, so no output here can be picked out as yours.",
+    );
+    expect(assess([], payment(10_000)).change).toBeNull();
   });
 });
