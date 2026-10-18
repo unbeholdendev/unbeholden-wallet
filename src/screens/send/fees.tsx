@@ -1,7 +1,7 @@
 import { useEffect, useId, useState } from "react";
 import { useConnection } from "../../app/connection";
 import type { FeeBucket } from "../../backend/backend";
-import { feeTargets, MIN_FEE_RATE, mempoolPosition, type FeeTargets } from "../../wallet/fees";
+import { feeTargets, MAX_FEE_RATE, MIN_FEE_RATE, mempoolPosition, type FeeTargets } from "../../wallet/fees";
 import { Panel } from "../../ui/kit";
 
 /** The node's mempool histogram, fetched again on each block and every minute. Null until the first answer. */
@@ -138,7 +138,7 @@ export function FeePanel({
     if (!editing) setText(rateText(rate));
   }, [rate, editing]);
   const typed = Number(text.replace(",", "."));
-  const invalid = !(typed >= floor && typed <= 10_000);
+  const invalid = !(typed >= floor && typed <= MAX_FEE_RATE);
   const set = (manual: number) => onChange({ manual: Math.round(Math.max(manual, floor) * 10) / 10 });
   const blocks = (r: number) => (histogram ? mempoolPosition(histogram, r).blocks : 1);
   const lower = Math.max(floor, Math.round((rate - 2) * 10) / 10);
@@ -196,7 +196,7 @@ export function FeePanel({
             onChange={(e) => {
               setText(e.target.value);
               const n = Number(e.target.value.replace(",", "."));
-              if (n >= floor && n <= 10_000) onChange({ manual: n });
+              if (n >= floor && n <= MAX_FEE_RATE) onChange({ manual: n });
             }}
             className="min-h-10 w-16 border-x border-rule bg-transparent text-center tabular-nums outline-none focus:bg-route-tint"
           />

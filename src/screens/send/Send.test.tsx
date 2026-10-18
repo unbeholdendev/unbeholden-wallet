@@ -8,7 +8,6 @@ import { fakeBackend, type FakeBackend, type Fixture } from "../../backend/fake"
 import { createWallet, saveSettings } from "../../core/wallets";
 import { groupSats } from "../../ui/amount";
 import { createVault, destroyVault } from "../../vault/vault";
-import { spend } from "../../wallet/select";
 
 configure({ asyncUtilTimeout: 5000 });
 // Each test unlocks a vault and syncs a wallet, slower than five seconds under the whole parallel suite.
@@ -128,21 +127,16 @@ describe("the send screen", () => {
     const map = within(screen.getByRole("region", { name: "What this links" }));
     expect(map.getByText("Nothing selected")).toBeTruthy();
 
-    const payment = { recipients: [{ script: Buffer.from(script(LARGE, 0, 0)).toString("hex"), value: 100_000 }], feeRate: 10, scriptType: "wpkh" as const };
+    // At 10 sat/vB, wpkh throughout: 42 WU overhead, 272 per input, 124 per
+    // output. One input with payment and change is 562 WU, 141 vB; two are 834 WU, 209 vB.
     await user.click(await coin(/Kraken withdrawal/));
-    const one = spend([{ value: 500_000, script: Buffer.from(script(BIP84, 0, 0)).toString("hex") } as never], payment);
     expect(summary().getByText("Coins in (1)")).toBeTruthy();
-    expect(summary().getByText(sats(one.fee))).toBeTruthy();
+    expect(summary().getByText(sats(1_410))).toBeTruthy();
     expect(map.getByText("No new links")).toBeTruthy();
 
     await user.click(await coin(/Bisq trade/));
-    const two = spend(
-      [500_000, 300_000].map((value, i) => ({ value, script: Buffer.from(script(BIP84, 0, i)).toString("hex") }) as never),
-      payment,
-    );
-    expect(two.fee).toBeGreaterThan(one.fee);
     expect(summary().getByText("Coins in (2)")).toBeTruthy();
-    expect(summary().getByText(sats(two.fee))).toBeTruthy();
+    expect(summary().getByText(sats(2_090))).toBeTruthy();
     expect(summary().getByText("Change back to you").parentElement!.textContent).toContain("m/84h/1h/0h/1/0");
     expect(map.getByText("Links 2 sources")).toBeTruthy();
     expect(map.getByText(/permanently linking them: Kraken withdrawal and Bisq trade/)).toBeTruthy();

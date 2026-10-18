@@ -40,13 +40,14 @@ export function planBump(
   tx: WalletTx,
   coins: WalletCoin[],
   feeRate: number,
-  wallet: { scriptType: ScriptType; network: Network; nextChange: number },
+  wallet: { scriptType: ScriptType; network: Network; nextChange: { chain: number; index: number } },
 ): BumpPlan {
   const oldFee = tx.fee ?? 0;
   const oldFeeRate = oldFee / tx.vsize;
   const address = Address(NETWORKS[wallet.network]);
   const changeOut = tx.outputs.find((o) => o.mine?.chain === 1) ?? null;
   const payments = tx.outputs.filter((o) => o !== changeOut);
+  const changeAt = changeOut?.mine ?? wallet.nextChange;
   const inputs: Coin[] = tx.inputs.flatMap((i) =>
     i.mine && i.value !== null && i.address
       ? [
@@ -115,11 +116,7 @@ export function planBump(
     coins: chosen,
     recipients: payments.flatMap((o) => (o.address ? [{ address: o.address, value: o.value! }] : [])),
     change: result.change
-      ? {
-          chain: 1,
-          index: changeOut?.mine?.index ?? wallet.nextChange,
-          value: result.change,
-        }
+      ? { chain: changeAt.chain, index: changeAt.index, value: result.change }
       : null,
     problem,
   };

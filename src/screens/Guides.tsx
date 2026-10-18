@@ -51,8 +51,9 @@ export function Trust() {
           <Icon name="check" className="mt-0.5 size-5 text-ok" />
           <p>
             <strong>It does protect you from leaking to third parties.</strong> The app makes no requests to anyone except
-            the Electrum server you enter. There is no default server, no analytics, no CDN and no remote fonts, and a
-            strict Content Security Policy enforces it.
+            the Electrum server you enter. There is no default server, no analytics, no CDN and no remote fonts. A strict
+            Content Security Policy blocks every other kind of request, but it cannot name your server in advance, so it
+            allows a WebSocket to any host.
           </p>
         </li>
         <li>

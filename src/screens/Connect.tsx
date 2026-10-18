@@ -3,18 +3,11 @@ import { useConnection, type Connection, type Failure } from "../app/connection"
 import { Heading } from "../app/layout";
 import { useVault } from "../app/vault";
 import { groupSats } from "../ui/amount";
+import { hostText } from "../ui/format";
 import { Icon } from "../ui/icons";
 import { Button, buttonClass, Field, inputClass, linkClass, Steps } from "../ui/kit";
 
-const host = (url: string) => {
-  try {
-    return new URL(url).host;
-  } catch {
-    return url;
-  }
-};
-
-const httpsForm = (url: string) => `https://${host(url)}/`;
+const httpsForm = (url: string) => `https://${hostText(url)}/`;
 
 const breaks: Record<Failure, string> = {
   "certificate-rejected": "certificate",
@@ -83,7 +76,7 @@ const tailscale = (
 );
 
 function Guidance({ failure, url, message }: { failure: Failure | null; url: string; message: string }) {
-  const h = host(url);
+  const h = hostText(url);
   const guides: Record<Exclude<Failure, "invalid-url">, { title: string; body: ReactNode; more?: ReactNode }> = {
     "certificate-rejected": {
       title: "The browser rejected this server's certificate",
@@ -259,7 +252,7 @@ function Status({ connection }: { connection: Connection }) {
       <section className="grid gap-2 rounded-panel border border-rule bg-sheet p-4">
         <h2 className="m-0 flex items-center gap-2 text-md font-semibold">
           <span className={`size-2 rounded-full ${connection.phase === "connected" ? "bg-ok" : "bg-warn"}`} />
-          {connection.phase === "connected" ? `Connected to ${host(connection.url)}` : `Reconnecting to ${host(connection.url)}`}
+          {connection.phase === "connected" ? `Connected to ${hostText(connection.url)}` : `Reconnecting to ${hostText(connection.url)}`}
         </h2>
         <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
           <dt className="text-ink-2">Server software</dt>
@@ -325,7 +318,7 @@ export function Connect({ onboarding = false }: { onboarding?: boolean }) {
               />
             )}
           </Field>
-          {busy && <p className="m-0 text-sm text-ink-2" role="status">Connecting to {host(url)}. Waiting up to 10 seconds for an answer.</p>}
+          {busy && <p className="m-0 text-sm text-ink-2" role="status">Connecting to {hostText(url)}. Waiting up to 10 seconds for an answer.</p>}
           <Button type="submit" variant="primary" wide disabled={busy || !url.trim()} icon={failed && !invalid ? "retry" : undefined}>
             {failed && !invalid ? "Retry connection" : busy ? "Connecting" : connection.phase === "connected" && connection.url === url.trim() ? "Reconnect" : "Connect"}
           </Button>

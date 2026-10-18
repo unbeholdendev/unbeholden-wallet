@@ -8,7 +8,7 @@ import { planBump } from "./bump";
 import type { AddressInfo, WalletCoin, WalletTx } from "./wallet";
 
 const descriptor = descriptorFromExtendedKey(BIP84_ZPUB, "mainnet");
-const wallet = { scriptType: "wpkh" as const, network: "mainnet" as const, nextChange: 5 };
+const wallet = { scriptType: "wpkh" as const, network: "mainnet" as const, nextChange: { chain: 1, index: 5 } };
 // A P2WPKH address from the BIP173 examples.
 // https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
 const PAYEE = "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4";
@@ -93,5 +93,14 @@ describe("fee bump", () => {
   it("refuses a confirmed transaction", () => {
     const tx = { ...walletTx(100_000, 49_718), height: 100 };
     expect(planBump(tx, [], 10, wallet).problem).toEqual({ kind: "confirmed" });
+  });
+
+  it("sends new change to the address it is given, as a single-chain wallet's receive one", () => {
+    const tx = walletTx(50_282, 0);
+    const noChange = { ...tx, outputs: tx.outputs.slice(0, 1) };
+    const extra = coin("cc".repeat(32), 0, 100_000, mine(0, 3), "confirmed");
+    const plan = planBump(noChange, [extra], 10, { ...wallet, nextChange: { chain: 0, index: 7 } });
+    expect(plan.problem).toBeNull();
+    expect(plan.change).toMatchObject({ chain: 0, index: 7 });
   });
 });

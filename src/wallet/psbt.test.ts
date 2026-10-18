@@ -1,6 +1,6 @@
 import { base64, hex } from "@scure/base";
 import { HDKey } from "@scure/bip32";
-import { Address, NETWORK, OutScript, TEST_NETWORK, Transaction } from "@scure/btc-signer";
+import { Address, NETWORK, OutScript, SigHash, TEST_NETWORK, Transaction } from "@scure/btc-signer";
 import { describe, expect, it } from "vitest";
 import { INVALID, VALID } from "./bip174-vectors";
 import type { Coin } from "./coin";
@@ -199,6 +199,46 @@ describe.each(wallets)("a $name wallet", (wallet) => {
       0,
     );
     expect(() => finaliseSigned(psbt, tx.toPSBT())).toThrow("Input 2 is not signed");
+  });
+
+  it("refuses signatures that do not commit to every output", () => {
+    const { psbt } = build();
+    for (const sighash of [SigHash.NONE, SigHash.SINGLE, SigHash.ALL_ANYONECANPAY]) {
+      const tx = Transaction.fromPSBT(psbt);
+      for (let i = 0; i < tx.inputsLength; i++) tx.updateInput(i, { sighashType: sighash });
+      tx.sign(wallet.root as unknown as Parameters<Transaction["sign"]>[0], [sighash]);
+      expect(() => finaliseSigned(psbt, tx.toPSBT())).toThrow(/Input 1 is signed so that whoever relays it/);
+      tx.finalize();
+      expect(() => finaliseSigned(psbt, tx.toPSBT())).toThrow(/Input 1 is signed so that whoever relays it/);
+    }
+  });
+
+  it("accepts inputs the signer already finalised", () => {
+    const { psbt } = build();
+    const tx = Transaction.fromPSBT(signed(psbt, wallet.root));
+    tx.finalize();
+    expect(Transaction.fromRaw(finaliseSigned(psbt, tx.toPSBT())).id).toBe(Transaction.fromPSBT(psbt).id);
+  });
+
+  it("refuses a returned PSBT that pays the same amount to another address", () => {
+    const { psbt } = build();
+    const tx = Transaction.fromPSBT(signed(psbt, wallet.root));
+    const recipient = tx.getOutputAddress(0, NETWORK) === wallet.recipient ? 0 : 1;
+    tx.updateOutput(recipient, { script: hex.decode(script(BIP84.receive1)) }, true);
+    expect(() => finaliseSigned(psbt, tx.toPSBT())).toThrow(
+      `Output ${recipient + 1} pays a different address from the one built`,
+    );
+  });
+
+  it("refuses a returned PSBT with a changed lock time or sequence", () => {
+    const { psbt } = build();
+    const raw = Transaction.fromPSBT(psbt);
+    const changed = new Transaction({ version: 2, lockTime: 900_000 });
+    for (let i = 0; i < raw.inputsLength; i++) changed.addInput({ ...raw.getInput(i), sequence: 0xffffffff });
+    for (let i = 0; i < raw.outputsLength; i++) changed.addOutput(raw.getOutput(i) as never);
+    expect(() => finaliseSigned(psbt, signed(changed.toPSBT(), wallet.root))).toThrow(
+      "The signed transaction differs from the one built in its version, lock time or sequence numbers",
+    );
   });
 });
 

@@ -22,7 +22,8 @@ export type Descriptor = {
   path: PathStep[];
 };
 
-const HARDENED = 0x80000000;
+// https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
+export const HARDENED = 0x80000000;
 
 function parseIndex(text: string, allowHardened: boolean): number {
   const hardened = text.endsWith("h") || text.endsWith("'");
@@ -67,10 +68,12 @@ function parsePath(steps: string[]): PathStep[] {
       }
       multipath = true;
       const choices = step.slice(1, -1).split(";");
-      if (choices.length < 2) {
-        throw new Error("A multipath step needs at least two choices");
+      const indexes = choices.map((choice) => parseIndex(choice, false));
+      // The wallet reads the two choices as its receive and change chains.
+      if (indexes.length !== 2 || indexes[0] === indexes[1]) {
+        throw new Error("A multipath step needs two different choices, receive then change");
       }
-      return choices.map((choice) => parseIndex(choice, false));
+      return indexes;
     }
     return parseIndex(step, false);
   });
@@ -149,8 +152,13 @@ export function descriptorFromExtendedKey(
   };
 }
 
-function formatIndex(index: number): string {
+export function formatIndex(index: number): string {
   return index >= HARDENED ? `${index - HARDENED}h` : `${index}`;
+}
+
+/** The descriptor's steps below its key, for one chain and address index. */
+export function childPath(descriptor: Descriptor, chain: number, index: number): number[] {
+  return descriptor.path.map((step) => (step === "*" ? index : typeof step === "number" ? step : step[chain]!));
 }
 
 function formatStep(step: PathStep): string {

@@ -64,6 +64,12 @@ describe("formatDescriptor", () => {
 });
 
 describe("parseDescriptor", () => {
+  it("refuses a multipath step that is not two different chains", () => {
+    for (const step of ["<0>", "<0;0>", "<0;1;2>"]) {
+      expect(() => parseDescriptor(`wpkh(${BIP84_XPUB}/${step}/*)`, "mainnet")).toThrow(/two different choices/);
+    }
+  });
+
   it("reads key origin", () => {
     const descriptor = parseDescriptor(
       `wpkh([d34db33f/84h/0h/0h]${BIP84_XPUB}/0/*)`,

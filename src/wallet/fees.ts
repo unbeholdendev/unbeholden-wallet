@@ -9,6 +9,9 @@ export const BLOCK_VSIZE = 1_000_000;
 // https://github.com/bitcoin/bitcoin/blob/master/src/policy/policy.h
 export const MIN_FEE_RATE = 1;
 
+// The highest rate the wallet offers or accepts, so a lying server cannot steer a preset into burning the coins.
+export const MAX_FEE_RATE = 10_000;
+
 /** sat/vB to confirm within one, three and six blocks, about an hour. */
 export type FeeTargets = { nextBlock: number; threeBlocks: number; sixBlocks: number };
 
@@ -45,7 +48,7 @@ function rateWithin(histogram: FeeBucket[], blocks: number): number {
   for (let i = 0; i < histogram.length; i++) {
     depth += histogram[i]!.vsize;
     if (depth >= blocks * BLOCK_VSIZE) {
-      return Math.max(upperRate(histogram, i), MIN_FEE_RATE);
+      return Math.min(Math.max(upperRate(histogram, i), MIN_FEE_RATE), MAX_FEE_RATE);
     }
   }
   return MIN_FEE_RATE;

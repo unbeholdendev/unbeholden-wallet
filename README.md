@@ -21,8 +21,9 @@ Read this before trusting a hosted copy with real money.
   tab of the app has been closed. The running version is always shown.
 - **It does protect you from leaking to third parties.** The app makes no
   requests to anyone except the Electrum server you enter. There is no
-  default server, no analytics, no CDN and no remote fonts, and a strict
-  Content Security Policy enforces it.
+  default server, no analytics, no CDN and no remote fonts. A strict
+  Content Security Policy blocks every other kind of request, but it cannot
+  name your server in advance, so it allows a WebSocket to any host.
 - **It does protect your history at rest.** Wallet data in the browser is
   encrypted with a key derived from your passphrase (Argon2id, AES-GCM).
 - **Your signer protects your keys.** The app never sees them. Check the

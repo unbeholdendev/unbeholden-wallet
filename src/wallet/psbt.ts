@@ -5,7 +5,7 @@ import { p2tr, p2wpkh } from "@scure/btc-signer/payment.js";
 import { equalBytes } from "@scure/btc-signer/utils.js";
 import { outpoint, type Coin } from "./coin";
 import { derivePublicKey } from "./derive";
-import type { Descriptor } from "./descriptor";
+import { childPath, HARDENED, type Descriptor } from "./descriptor";
 import { BIP32_VERSIONS } from "./extended-key";
 import { NETWORKS, type Network } from "./network";
 
@@ -48,7 +48,10 @@ export type PsbtReview = {
 // BIP125: any nSequence below 0xfffffffe signals replaceability.
 // https://github.com/bitcoin/bips/blob/master/bip-0125.mediawiki
 const RBF_SEQUENCE = 0xfffffffd;
-const HARDENED = 0x80000000;
+// The last signature byte: SIGHASH_ALL commits to every output. Taproot's
+// 64-byte signature has none and means the same.
+// https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki#common-signature-message
+const SIGHASH_ALL = 0x01;
 
 const NO_ORIGIN_WARNING =
   "This wallet was imported without its key origin, so your signer may not recognise these coins or the change as its own. Import the full descriptor, with its [fingerprint/path], to fix this.";
@@ -75,12 +78,7 @@ function derivation(
   const from = origin(descriptor, network);
   const der = {
     fingerprint: from.fingerprint,
-    path: [
-      ...from.path,
-      ...descriptor.path.map((step) =>
-        step === "*" ? index : typeof step === "number" ? step : step[chain]!,
-      ),
-    ],
+    path: [...from.path, ...childPath(descriptor, chain, index)],
   };
   const params = NETWORKS[network];
   if (descriptor.scriptType === "wpkh") {
@@ -245,14 +243,26 @@ export function finaliseSigned(
   }
 
   for (let i = 0; i < theirs.inputsLength; i++) {
-    if (theirs.getInput(i).finalScriptWitness) continue;
     try {
-      theirs.finalizeIdx(i);
+      if (!theirs.getInput(i).finalScriptWitness) theirs.finalizeIdx(i);
     } catch {
       throw new Error(`Input ${i + 1} is not signed`);
     }
+    const type = OutScript.decode(ours.getInput(i).witnessUtxo!.script).type;
+    if (!signsEverything(theirs.getInput(i).finalScriptWitness!, type)) {
+      throw new Error(`Input ${i + 1} is signed so that whoever relays it could change where it pays`);
+    }
   }
   return theirs.extract();
+}
+
+function signsEverything(witness: Uint8Array[], type: string): boolean {
+  const [sig] = witness;
+  if (!sig) return false;
+  if (type === "tr") {
+    return witness.length === 1 && (sig.length === 64 || (sig.length === 65 && sig[64] === SIGHASH_ALL));
+  }
+  return witness.length === 2 && sig.at(-1) === SIGHASH_ALL;
 }
 
 /** Where a derivation path sits under the descriptor, if it does. */

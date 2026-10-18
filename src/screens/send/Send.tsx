@@ -1,8 +1,7 @@
 import { useMemo, useRef, useState, type ReactNode } from "react";
-import { useWalletSnapshot } from "../../app/session";
-import { useVault } from "../../app/vault";
+import { useWallet, useWalletSnapshot } from "../../app/session";
+import { nextChange } from "../../core/view";
 import type { WalletCoin, WalletSnapshot } from "../../core/wallet";
-import { walletDescriptor } from "../../core/wallets";
 import { Amount, groupSats } from "../../ui/amount";
 import { Icon } from "../../ui/icons";
 import { Button, Chip, Notice } from "../../ui/kit";
@@ -17,20 +16,6 @@ import { FeePanel, rateOf, rateText, useFeeHistogram, type FeeChoice } from "./f
 import { PrivacyMap } from "./PrivacyMap";
 import { checkAddress, parseBtc, Recipients, type Draft } from "./Recipients";
 import { SignFlow } from "./Sign";
-
-/** The selected wallet's descriptor and network. */
-export function useWallet() {
-  const { wallets, walletId } = useVault();
-  const record = wallets.find((w) => w.id === walletId)!;
-  return useMemo(() => {
-    const descriptor = walletDescriptor(record);
-    return { descriptor, network: record.network, scriptType: descriptor.scriptType };
-  }, [record]);
-}
-
-/** Where change goes: the first unused change address, or the next receive one for a single-chain descriptor. */
-export const nextChange = (snapshot: WalletSnapshot) =>
-  snapshot.addresses.change.find((a) => !a.used) ?? snapshot.nextReceive;
 
 const seed = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16)).join("");
 
