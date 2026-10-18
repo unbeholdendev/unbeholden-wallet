@@ -80,7 +80,6 @@ async function builtPsbt(user: ReturnType<typeof userEvent.setup>): Promise<Uint
   await payTo(user, PAYEE, "0.001");
   await user.click(await coin(/Kraken withdrawal/));
   await user.click(screen.getByRole("button", { name: "Review and sign" }));
-  await user.click(screen.getByRole("button", { name: "Looks right, show to signer" }));
   let blob: Blob | null = null;
   URL.createObjectURL = (b: Blob) => ((blob = b), (created = "blob:psbt"));
   URL.revokeObjectURL = () => {};
