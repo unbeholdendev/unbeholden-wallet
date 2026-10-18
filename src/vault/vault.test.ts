@@ -2,7 +2,10 @@ import { argon2id } from "@noble/hashes/argon2.js";
 import { hex } from "@scure/base";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  BadBackup,
   createVault,
+  openBackup,
+  sealBackup,
   destroyVault,
   idleLock,
   requestPersistence,
@@ -260,6 +263,27 @@ describe("vault", () => {
 
   it("reports when the browser cannot persist storage", async () => {
     expect(await requestPersistence()).toBe("unsupported");
+  });
+});
+
+describe("backup file", () => {
+  it("opens with its passphrase and refuses what it cannot trust", async () => {
+    const file = await sealBackup(PASSPHRASE, wallets, CHEAP);
+    expect(await openBackup(file, PASSPHRASE)).toEqual(wallets);
+
+    await expect(openBackup(file, "incorrect horse")).rejects.toThrow(WrongPassphrase);
+    await expect(openBackup("{}", PASSPHRASE)).rejects.toThrow("This is not a backup file from this app.");
+    await expect(openBackup("not json", PASSPHRASE)).rejects.toThrow(BadBackup);
+
+    const parsed = JSON.parse(file);
+    await expect(openBackup(JSON.stringify({ ...parsed, salt: "zz" }), PASSPHRASE)).rejects.toThrow(BadBackup);
+    await expect(openBackup(JSON.stringify({ ...parsed, kdf: undefined }), PASSPHRASE)).rejects.toThrow(BadBackup);
+    const newer = JSON.stringify({ ...parsed, version: 2 });
+    await expect(openBackup(newer, PASSPHRASE)).rejects.toThrow(/newer version/);
+
+    const flipped = parsed.data.data.replace(/^./, (c: string) => (c === "0" ? "1" : "0"));
+    const tampered = JSON.stringify({ ...parsed, data: { ...parsed.data, data: flipped } });
+    await expect(openBackup(tampered, PASSPHRASE)).rejects.toThrow(/changed or damaged/);
   });
 });
 

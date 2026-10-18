@@ -40,6 +40,14 @@ export class VaultChanged extends Error {
   }
 }
 
+/** A backup file that is not one, is from a newer version, or was changed. */
+export class BadBackup extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BadBackup";
+  }
+}
+
 type Sealed = { iv: Uint8Array<ArrayBuffer>; data: Uint8Array<ArrayBuffer> };
 type Header = { salt: string; kdf: KdfParams; check: Sealed };
 
@@ -132,6 +140,67 @@ async function checkPassphrase(passphrase: string, header: Header | undefined) {
     throw new WrongPassphrase();
   }
   return key;
+}
+
+/**
+ * Backup file, the one place its format is written down. UTF-8 JSON:
+ *
+ *     { "format": "btc-browser-wallet backup", "version": 1,
+ *       "salt": hex, "kdf": { m, t, p }, "check": box, "data": box }
+ *
+ * A box is `{ "iv": hex, "data": hex }`: AES-GCM under the Argon2id key of the
+ * passphrase, as in the vault header. `check` seals `null` with additional
+ * data "", so a wrong passphrase is told apart from a changed file. `data`
+ * seals `{ "records": { name: value } }` with additional data "backup/1", as
+ * the vault stores them: `settings`, `wallet/<id>`, `labels/<id>`,
+ * `frozen/<id>` and `kyc/<id>`. A reader refuses a version above its own.
+ */
+const BACKUP = { format: "btc-browser-wallet backup", version: 1 } as const;
+const BACKUP_DATA = `backup/${BACKUP.version}`;
+
+const boxText = (box: Sealed) => ({ iv: hex.encode(box.iv), data: hex.encode(box.data) });
+const boxBytes = (box: { iv: string; data: string }) =>
+  ({ iv: hex.decode(box.iv), data: hex.decode(box.data) }) as Sealed;
+
+export async function sealBackup(
+  passphrase: string,
+  records: Record<string, unknown>,
+  kdf = DEFAULT_KDF,
+): Promise<string> {
+  const { header, key } = await newHeader(passphrase, kdf);
+  const data = await seal(key, BACKUP_DATA, { records });
+  return JSON.stringify({ ...BACKUP, salt: header.salt, kdf, check: boxText(header.check), data: boxText(data) });
+}
+
+/** @throws {WrongPassphrase} or {BadBackup} */
+export async function openBackup(text: string, passphrase: string): Promise<Record<string, unknown>> {
+  const notOne = new BadBackup("This is not a backup file from this app.");
+  let file;
+  try {
+    file = JSON.parse(text);
+  } catch {
+    throw notOne;
+  }
+  if (file?.format !== BACKUP.format) throw notOne;
+  if (file.version > BACKUP.version)
+    throw new BadBackup("This backup is from a newer version of the app. Update the app and try again.");
+  let header: Header;
+  let data: Sealed;
+  try {
+    hex.decode(file.salt);
+    const { m, t, p } = file.kdf;
+    if (![m, t, p].every((n) => Number.isInteger(n) && n > 0)) throw new Error();
+    header = { salt: file.salt, kdf: { m, t, p }, check: boxBytes(file.check) };
+    data = boxBytes(file.data);
+  } catch {
+    throw notOne;
+  }
+  const key = await checkPassphrase(passphrase, header);
+  try {
+    return (await unseal(key, BACKUP_DATA, data)).records;
+  } catch {
+    throw new BadBackup("This backup has been changed or damaged since it was made, so it cannot be read.");
+  }
 }
 
 export async function vaultExists(): Promise<boolean> {
@@ -246,6 +315,11 @@ export class Vault {
       db.transaction("records").objectStore("records").getAllKeys(),
     );
     return (keys as string[]).filter((key) => key.startsWith(prefix));
+  }
+
+  /** @throws {WrongPassphrase} */
+  async verify(passphrase: string): Promise<void> {
+    await checkPassphrase(passphrase, await readHeader(this.#open()));
   }
 
   /** When anything in the vault was last written, by the injected clock. */

@@ -1,6 +1,7 @@
 import type { Clock, Store } from "../vault/vault";
 import {
   descriptorFromExtendedKey,
+  formatDescriptor,
   parseDescriptor,
   type Descriptor,
   type ScriptType,
@@ -73,6 +74,55 @@ export async function renameWallet(vault: Store, id: string, name: string): Prom
 export async function deleteWallet(vault: Store, id: string): Promise<void> {
   const cache = await vault.keys(`cache/${id}/`);
   await vault.delete(`wallet/${id}`, `labels/${id}`, `frozen/${id}`, `kyc/${id}`, `send/${id}`, ...cache);
+}
+
+/** What `mergeBackup` reads: no cached chain data, no unfinished send. */
+export async function backupRecords(vault: Store): Promise<Record<string, unknown>> {
+  const keys = (await vault.keys()).filter((key) => key === "settings" || /^(wallet|labels|frozen|kyc)\//.test(key));
+  return Object.fromEntries(await Promise.all(keys.map(async (key) => [key, await vault.get(key)])));
+}
+
+export type Merged = { added: string[]; skipped: string[]; labels: number; kept: number };
+
+/**
+ * Adds the backup's wallets not already here, by descriptor and network. Of
+ * labels, adds those for things with none here and keeps the rest; frozen and
+ * KYC marks add up; a setting is taken only where none is set.
+ */
+export async function mergeBackup(vault: Store, records: Record<string, unknown>): Promise<Merged> {
+  const same = (w: WalletRecord) => `${w.network} ${formatDescriptor(walletDescriptor(w))}`;
+  const here = new Map((await listWallets(vault)).map((w) => [same(w), w.id]));
+  const merged: Merged = { added: [], skipped: [], labels: 0, kept: 0 };
+  for (const [key, value] of Object.entries(records)) {
+    if (!key.startsWith("wallet/")) continue;
+    const wallet = value as WalletRecord;
+    const from = key.slice("wallet/".length);
+    let to = here.get(same(wallet));
+    if (to) merged.skipped.push(wallet.name);
+    else {
+      to = crypto.randomUUID();
+      await vault.put(`wallet/${to}`, { ...wallet, id: to });
+      here.set(same(wallet), to);
+      merged.added.push(wallet.name);
+    }
+    const labels = (await vault.get<Record<string, string>>(`labels/${to}`)) ?? {};
+    for (const [ref, label] of Object.entries((records[`labels/${from}`] ?? {}) as Record<string, string>)) {
+      if (labels[ref] === undefined) {
+        labels[ref] = label;
+        merged.labels++;
+      } else if (labels[ref] !== label) merged.kept++;
+    }
+    await vault.put(`labels/${to}`, labels);
+    for (const marks of ["frozen", "kyc"]) {
+      const union = new Set([...((await vault.get<string[]>(`${marks}/${to}`)) ?? []), ...((records[`${marks}/${from}`] ?? []) as string[])]);
+      await vault.put(`${marks}/${to}`, [...union]);
+    }
+  }
+  const settings: Record<string, unknown> = { ...(await getSettings(vault)) };
+  for (const [key, value] of Object.entries((records.settings ?? {}) as Record<string, unknown>))
+    if (settings[key] == null && key !== "walletId") settings[key] = value;
+  await vault.put("settings", settings);
+  return merged;
 }
 
 export async function getSettings(vault: Store): Promise<Settings> {

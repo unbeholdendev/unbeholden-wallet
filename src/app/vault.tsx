@@ -5,7 +5,9 @@ import {
   destroyVault,
   idleLock,
   memoryStore,
+  openBackup,
   requestPersistence,
+  sealBackup,
   unlockVault,
   Vault,
   vaultExists,
@@ -13,12 +15,15 @@ import {
   type Store,
 } from "../vault/vault";
 import {
+  backupRecords,
   createWallet,
   deleteWallet,
   getSettings,
   listWallets,
+  mergeBackup,
   renameWallet,
   saveSettings,
+  type Merged,
   type NewWallet,
   type Settings as CoreSettings,
   type WalletRecord,
@@ -37,6 +42,8 @@ type Open = {
   settings: Settings;
   wallets: WalletRecord[];
   walletId: string | null;
+  /** Counts backups merged in, so the open wallet rereads its labels. */
+  restored: number;
 };
 
 type VaultState =
@@ -53,6 +60,10 @@ type VaultApi = {
   lock(): void;
   destroy(): Promise<void>;
   changePassphrase(old: string, next: string): Promise<void>;
+  /** @throws {WrongPassphrase} when it is not the vault's. */
+  exportBackup(passphrase: string): Promise<string>;
+  /** Merges into the vault, or on first run makes one with the backup's passphrase. */
+  restoreBackup(file: string, passphrase: string): Promise<Merged>;
   saveSettings(patch: Partial<Settings>): Promise<void>;
   addWallet(wallet: NewWallet): Promise<WalletRecord>;
   renameWallet(id: string, name: string): Promise<void>;
@@ -80,7 +91,7 @@ async function load(vault: Store): Promise<Open> {
   const wallets = await listWallets(vault);
   const settings: Settings = await getSettings(vault);
   const walletId = (wallets.find((w) => w.id === settings.walletId) ?? wallets[0])?.id ?? null;
-  return { vault, draft: !(vault instanceof Vault), settings, wallets, walletId };
+  return { vault, draft: !(vault instanceof Vault), settings, wallets, walletId, restored: 0 };
 }
 
 export function VaultProvider({ kdf = DEFAULT_KDF, children }: { kdf?: KdfParams; children: ReactNode }) {
@@ -119,22 +130,23 @@ export function VaultProvider({ kdf = DEFAULT_KDF, children }: { kdf?: KdfParams
     };
   }, [idleMinutes, lock]);
 
-  const api = useMemo<VaultApi>(
-    () => ({
+  const api = useMemo<VaultApi>(() => {
+    const create = async (passphrase: string) => {
+      if (state.phase !== "open" || !state.draft) throw new Error("A vault already exists in this browser");
+      const created = await createVault(passphrase, kdf);
+      try {
+        for (const key of await state.vault.keys()) await created.put(key, await state.vault.get(key));
+      } catch (error) {
+        created.lock();
+        await destroyVault().catch(() => {});
+        throw error;
+      }
+      await open(created);
+    };
+    return {
       state,
       persistence,
-      create: async (passphrase) => {
-        if (state.phase !== "open" || !state.draft) throw new Error("A vault already exists in this browser");
-        const created = await createVault(passphrase, kdf);
-        try {
-          for (const key of await state.vault.keys()) await created.put(key, await state.vault.get(key));
-        } catch (error) {
-          created.lock();
-          await destroyVault().catch(() => {});
-          throw error;
-        }
-        await open(created);
-      },
+      create,
       unlock: async (passphrase) => open(await unlockVault(passphrase)),
       lock,
       destroy: async () => {
@@ -143,6 +155,17 @@ export function VaultProvider({ kdf = DEFAULT_KDF, children }: { kdf?: KdfParams
         setState({ phase: "open", ...(await load(memoryStore())) });
       },
       changePassphrase: (old, next) => vault!.changePassphrase(old, next, kdf),
+      exportBackup: async (passphrase) => {
+        await vault!.verify(passphrase);
+        return sealBackup(passphrase, await backupRecords(vault!), kdf);
+      },
+      restoreBackup: async (file, passphrase) => {
+        if (state.phase !== "open") throw new Error("The vault is locked");
+        const merged = await mergeBackup(state.vault, await openBackup(file, passphrase));
+        if (state.draft) await create(passphrase);
+        else setState({ ...state, ...(await load(state.vault)), restored: state.restored + 1 });
+        return merged;
+      },
       saveSettings: async (patch) => {
         if (state.phase !== "open") return;
         const settings = { ...state.settings, ...patch };
@@ -174,9 +197,8 @@ export function VaultProvider({ kdf = DEFAULT_KDF, children }: { kdf?: KdfParams
         setState({ ...state, settings, walletId: id });
         saveSettings(state.vault, settings).catch(() => {});
       },
-    }),
-    [state, persistence, kdf, open, lock, vault],
-  );
+    };
+  }, [state, persistence, kdf, open, lock, vault]);
 
   return <VaultContext.Provider value={api}>{children}</VaultContext.Provider>;
 }

@@ -31,12 +31,12 @@ async function loadSend(vault: Store, walletId: string): Promise<SendDraft | nul
 
 /**
  * Opens the selected wallet, syncs it while the connection is up, and closes
- * it on a switch, a server change or a lock. Holds the selected wallet's
- * unfinished send, kept in the vault once its PSBT is built, and each
- * wallet's skipped receive address until the lock.
+ * it on a switch, a server change, a restored backup or a lock. Holds the
+ * selected wallet's unfinished send, kept in the vault once its PSBT is built,
+ * and each wallet's skipped receive address until the lock.
  */
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const { vault, walletId, settings } = useVault();
+  const { vault, walletId, settings, restored } = useVault();
   const { backend, connection } = useConnection();
   const live = connection.phase === "connected" ? backend : null;
   const liveNow = useRef(live);
@@ -62,7 +62,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setSession(null);
       setFailed(null);
     };
-  }, [vault, walletId, settings.server, attempt]);
+  }, [vault, walletId, settings.server, attempt, restored]);
 
   useEffect(() => {
     session?.use(live);
