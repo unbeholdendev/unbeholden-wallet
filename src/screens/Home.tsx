@@ -192,9 +192,7 @@ export function Home() {
           </button>
         </div>
       )}
-      <div className="grid content-start gap-6">
-        <Balance snapshot={snapshot} />
-      </div>
+      <Balance snapshot={snapshot} />
       {fresh && snapshot.connection === "connected" && !snapshot.progress ? (
         <Empty title="No transactions yet">
           <p className="m-0">

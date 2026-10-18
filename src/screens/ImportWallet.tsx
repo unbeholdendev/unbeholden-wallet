@@ -18,10 +18,10 @@ type Reading = { descriptor?: string; fingerprint?: string; needsType?: boolean;
 const canonical = (wallet: Pick<WalletRecord, "descriptor" | "network" | "scriptType">) =>
   formatDescriptor(walletDescriptor(wallet));
 
-// xpub, ypub, zpub, Ypub and Zpub are the mainnet prefixes in SLIP-132. Signet and
-// regtest keys look alike, so the server's chain picks between them.
+// xpub, ypub, zpub, Ypub and Zpub are the mainnet prefixes in SLIP-132. Keys for
+// every test network look alike, so the server's chain picks between them.
 const keyNetwork = (text: string, server: Network | null): Network =>
-  /(^|[(\]])[xyzYZ]pub/.test(text.trim()) ? "mainnet" : server === "regtest" ? "regtest" : "signet";
+  /(^|[(\]])[xyzYZ]pub/.test(text.trim()) ? "mainnet" : server && server !== "mainnet" ? server : "signet";
 
 function interpret(text: string, network: Network, scriptType: ScriptType | null): Reading {
   const input = text.trim();

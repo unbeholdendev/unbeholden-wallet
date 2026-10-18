@@ -9,7 +9,7 @@ import { NETWORKS, type Network } from "../../wallet/network";
 
 export type Draft = { key: number; address: string; amount: string; max: boolean; label: string };
 
-const NAMES: Record<Network, string> = { mainnet: "mainnet", signet: "testnet or signet", regtest: "regtest" };
+const NAMES: Record<Network, string> = { mainnet: "mainnet", signet: "testnet or signet", regtest: "regtest", testnet3: "testnet or signet", testnet4: "testnet or signet" };
 
 /** The output script for an address on the wallet's network, or why there is none. */
 export function checkAddress(text: string, network: Network): { script: string } | { error: string } {

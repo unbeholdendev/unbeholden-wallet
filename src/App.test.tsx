@@ -1,12 +1,12 @@
 import { cleanup, configure, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 import type { ConnectionFailure } from "./backend/backend";
 import { fakeBackend } from "./backend/fake";
 import { hex } from "@scure/base";
 import { createWallet, listWallets, walletDescriptor } from "./core/wallets";
-import { createVault, destroyVault, unlockVault, vaultExists, type KdfParams } from "./vault/vault";
+import { createVault, destroyVault, unlockVault, Vault, vaultExists, type KdfParams } from "./vault/vault";
 import { formatDescriptor } from "./wallet/descriptor";
 import { asVersion, BIP84_ZPUB, BIP86_XPUB, VERSION } from "./wallet/vectors";
 
@@ -92,6 +92,11 @@ describe("onboarding", () => {
 
     await user.clear(screen.getByLabelText("Type it again"));
     await user.type(screen.getByLabelText("Type it again"), PASSPHRASE);
+    const put = vi.spyOn(Vault.prototype, "put").mockRejectedValueOnce(new Error("The disk is full"));
+    await user.click(create);
+    expect(await screen.findByText("The disk is full")).toBeTruthy();
+    expect(await vaultExists()).toBe(false);
+    put.mockRestore();
     await user.click(create);
     expect(await screen.findByRole("heading", { name: "Home" })).toBeTruthy();
 
