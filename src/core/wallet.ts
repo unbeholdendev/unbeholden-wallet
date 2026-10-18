@@ -2,10 +2,8 @@ import { hex } from "@scure/base";
 import { Address, OutScript, Transaction } from "@scure/btc-signer";
 import { sha256x2 } from "@scure/btc-signer/utils.js";
 import {
-  ConnectionError,
   scriptHash,
   type BlockHeader,
-  type ConnectionFailure,
   type HistoryEntry,
   type Unsubscribe,
   type WalletBackend,
@@ -39,9 +37,7 @@ export type SyncProgress = {
 
 export type WalletSnapshot = Omit<View, "own"> & {
   id: string;
-  connection: "connecting" | "connected" | "disconnected";
-  /** Why the last connection attempt failed, when it was a connection failure. */
-  failure: ConnectionFailure | null;
+  /** Why the last sync failed, cleared by the next that succeeds. */
   error: string | null;
   /** Null when no sync is running. */
   progress: SyncProgress | null;
@@ -54,8 +50,10 @@ export type LabelType = "tx" | "addr" | "output";
 export type WalletSession = {
   subscribe(listener: () => void): () => void;
   getSnapshot(): WalletSnapshot;
-  /** Syncs now; also reconnects after a failure. Resolves when done, never rejects. */
+  /** Syncs now. Resolves when done, never rejects. */
   refresh(): Promise<void>;
+  /** Syncs on this backend from scratch, or stops syncing on null. The caller connects and closes it. */
+  use(backend: WalletBackend | null): void;
   /** Resolves once no sync is running. */
   settled(): Promise<void>;
   /** Checks `count` more addresses on each chain, keeps them only up to the gap past any found used, and returns how many were found used. */
@@ -71,7 +69,7 @@ export type WalletSession = {
   /** Shows a just-broadcast transaction as unconfirmed before the server reports it. */
   addTransaction(raw: Uint8Array): Promise<void>;
   dismissReorg(): void;
-  /** Stops syncing and closes the backend. */
+  /** Stops syncing. */
   close(): void;
 };
 
@@ -86,7 +84,7 @@ const PARSE = {
 export async function openWallet(
   vault: Store,
   id: string,
-  backend: WalletBackend,
+  server: WalletBackend | null,
   { now = Date.now as Clock, gapLimit = 20 } = {},
 ): Promise<WalletSession> {
   const record = await getWallet(vault, id);
@@ -155,9 +153,7 @@ export async function openWallet(
   const listeners = new Set<() => void>();
   extend();
   let derived = deriveView(source());
-  let status: Pick<WalletSnapshot, "connection" | "failure" | "error" | "progress" | "reorg"> = {
-    connection: "connecting",
-    failure: null,
+  let status: Pick<WalletSnapshot, "error" | "progress" | "reorg"> = {
     error: null,
     progress: null,
     reorg: null,
@@ -176,7 +172,8 @@ export async function openWallet(
   emit();
 
   let closed = false;
-  let connected = false;
+  let backend: WalletBackend | null = null;
+  let watching = false;
   let full = true;
   let newTip: BlockHeader | null = null;
   const dirty = new Set<string>();
@@ -198,14 +195,14 @@ export async function openWallet(
       return hex.encode(tip.header.slice(4, 36)) === hex.encode(sha256x2(hex.decode(stored.header)));
     }
     const [header] =
-      tip.height === stored.height ? [tip.header] : await backend.blockHeaders([stored.height]);
+      tip.height === stored.height ? [tip.header] : await backend!.blockHeaders([stored.height]);
     return hex.encode(header!) === stored.header;
   }
 
   async function fetchTransactions(txids: string[], stage: SyncProgress["stage"]) {
     if (!txids.length) return;
     emit({ progress: { stage, done: 0, total: txids.length } });
-    const found = await backend.transactions(txids);
+    const found = await backend!.transactions(txids);
     txids.forEach((txid, i) => {
       if (Transaction.fromRaw(found[i]!, PARSE).id !== txid) {
         throw new Error(`The server sent a different transaction for ${txid}`);
@@ -216,22 +213,17 @@ export async function openWallet(
   }
 
   async function syncOnce() {
-    if (!connected) {
-      emit({ connection: "connecting" });
-      await backend.connect();
-      connected = true;
-      full = true;
-      subscribed.clear();
+    if (!watching) {
       unsubscribes.push(
-        await backend.subscribeHeaders((tip) => {
+        await backend!.subscribeHeaders((tip) => {
           newTip = tip;
           void request();
         }),
       );
-      emit({ connection: "connected", failure: null, error: null });
+      watching = true;
     }
     let everything = full;
-    const tip = newTip ?? (full ? await backend.chainTip() : null);
+    const tip = newTip ?? (full ? await backend!.chainTip() : null);
     let ask = new Set(dirty);
     full = false;
     newTip = null;
@@ -255,7 +247,7 @@ export async function openWallet(
     let done = 0;
     while (pending.length) {
       emit({ progress: { stage: "history", done, total: done + pending.length } });
-      const histories = await backend.history(pending);
+      const histories = await backend!.history(pending);
       pending.forEach((hash, i) => {
         if (histories[i]!.length) cache.histories[hash] = histories[i]!;
         else delete cache.histories[hash];
@@ -277,7 +269,7 @@ export async function openWallet(
     ];
     if (heights.length) {
       emit({ progress: { stage: "blocks", done: 0, total: heights.length } });
-      const headers = await backend.blockHeaders(heights);
+      const headers = await backend!.blockHeaders(heights);
       heights.forEach((h, i) => (cache.times[h] = blockTime(headers[i]!)));
     }
     for (const e of entries) if (e.height === null) cache.seen[e.txid] ??= now();
@@ -295,7 +287,7 @@ export async function openWallet(
     if (fresh.length) {
       for (const h of fresh) subscribed.add(h);
       unsubscribes.push(
-        await backend.subscribeScriptHashes(fresh, (hash) => {
+        await backend!.subscribeScriptHashes(fresh, (hash) => {
           dirty.add(hash);
           void request();
         }),
@@ -304,23 +296,16 @@ export async function openWallet(
   }
 
   function request(): Promise<void> {
+    // With nothing to await, the loop below would clear `loop` before it is set.
+    if (!backend) return loop ?? Promise.resolve();
     loop ??= (async () => {
       try {
-        while (!closed && (full || newTip || dirty.size)) await syncOnce();
-        if (!closed) emit({ progress: null });
+        while (!closed && backend && (full || newTip || dirty.size)) await syncOnce();
+        if (!closed) emit(backend ? { progress: null, error: null } : { progress: null });
       } catch (error) {
         if (closed) return;
-        for (const unsubscribe of unsubscribes.splice(0)) unsubscribe();
-        backend.close();
-        connected = false;
         full = true;
-        const failure = error instanceof ConnectionError ? error.failure : null;
-        emit({
-          connection: "disconnected",
-          failure,
-          error: failure ? null : (error as Error).message,
-          progress: null,
-        });
+        emit({ error: backend ? (error as Error).message : null, progress: null });
       } finally {
         loop = null;
       }
@@ -332,7 +317,18 @@ export async function openWallet(
   const saveFrozen = () => vault.put(`frozen/${id}`, [...frozen]);
   const saveKyc = () => vault.put(`kyc/${id}`, [...kyc]);
 
-  void request();
+  const use = (next: WalletBackend | null) => {
+    if (next === backend) return;
+    for (const unsubscribe of unsubscribes.splice(0)) unsubscribe();
+    subscribed.clear();
+    watching = false;
+    full = true;
+    backend = next;
+    if (next) emit({ progress: { stage: "history", done: 0, total: allHashes().length } });
+    // A sync still running may fail on the old backend after this one is in.
+    void (loop ? loop.then(request) : request());
+  };
+  use(server);
 
   return {
     subscribe(listener) {
@@ -448,11 +444,11 @@ export async function openWallet(
       rebuild();
       await persist();
     },
+    use,
     dismissReorg: () => emit({ reorg: null }),
     close() {
       closed = true;
       for (const unsubscribe of unsubscribes.splice(0)) unsubscribe();
-      backend.close();
     },
   };
 }

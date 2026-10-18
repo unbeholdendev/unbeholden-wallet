@@ -99,6 +99,7 @@ afterEach(async () => {
 });
 
 async function open(backend: WalletBackend, id = walletId, now = () => 1234) {
+  await backend.connect();
   const session = await openWallet(vault, id, backend, { now });
   sessions.push(session);
   await session.settled();
@@ -114,7 +115,7 @@ const coinsOf = (s: WalletSnapshot) =>
 describe("a wallet with a known history", () => {
   it("has exactly the expected coins, statuses and balance", async () => {
     const snapshot = (await open(withMempool())).getSnapshot();
-    expect(snapshot.connection).toBe("connected");
+    expect(snapshot.error).toBeNull();
     expect(coinsOf(snapshot)).toEqual([
       ["0/1", 50_000, "confirmed"],
       ["0/2", 20_000, "foreign-unconfirmed"],
@@ -300,7 +301,7 @@ describe("staying current", () => {
     const backend = chain();
     const lying = { ...backend, transactions: async (txids: string[]) => txids.map(() => pay1) } as WalletBackend;
     const session = await open(lying);
-    expect(session.getSnapshot()).toMatchObject({ connection: "disconnected", error: expect.stringMatching(/different transaction/) });
+    expect(session.getSnapshot()).toMatchObject({ error: expect.stringMatching(/different transaction/) });
     expect(session.getSnapshot().coins).toEqual([]);
   });
 });

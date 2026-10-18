@@ -18,6 +18,16 @@ const breaks: Record<Failure, string> = {
   "invalid-url": "",
 };
 
+/** Each failure in one sentence, for where its guidance does not fit. */
+export const reasons: Record<Failure, string> = {
+  "certificate-rejected": "The browser rejected its certificate.",
+  "mixed-content": "This page cannot open a plain ws:// connection.",
+  refused: "Nothing there accepted the connection.",
+  timeout: "It did not answer within 10 seconds.",
+  "not-electrum": "Something answered, but not an Electrum server.",
+  "invalid-url": "Its address is not a ws:// or wss:// URL.",
+};
+
 /** The connection drawn as a route from this tab to the server, broken where it failed. */
 function RouteLine({ connection }: { connection: Connection }) {
   const failed = connection.phase === "failed" ? connection.failure : null;
