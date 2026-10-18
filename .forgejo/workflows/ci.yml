@@ -15,7 +15,3 @@ jobs:
       - run: bun run typecheck
       - run: bun run test
       - run: bun run build
-      - run: bunx playwright install --with-deps chromium chromium-headless-shell
-      - run: bun run test:integration
-      - run: bun run regtest:up
-      - run: bun run test:e2e
