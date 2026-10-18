@@ -1,4 +1,18 @@
+import { isOutgoing, type WalletTx } from "../core/view";
 import { groupSats } from "./amount";
+
+/** The server's host and port, or the text itself when it is not a URL. */
+export const hostText = (url: string) => {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
+};
+
+/** What a transaction did, for one with no label. */
+export const txFallback = (tx: WalletTx) =>
+  !isOutgoing(tx) ? "Received" : tx.outputs.every((o) => o.mine) ? "Moved between your addresses" : "Sent";
 
 /** Counted up to six, the depth past which a reorg is no longer a practical worry. */
 export const confText = (confirmations: number) =>

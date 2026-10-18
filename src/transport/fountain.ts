@@ -114,6 +114,9 @@ export function chooseFragments(
 
 // Far more than any PSBT a camera could read; bounds what a crafted part can make us allocate.
 const MAX_MESSAGE_LENGTH = 1 << 20;
+// Choosing a mixed part's fragments costs the square of the part count, so a
+// crafted first part with tiny fragments could stall the tab on every frame.
+const MAX_PARTS = 2_000;
 
 export type FountainPart = {
   seqNum: number;
@@ -221,6 +224,7 @@ export class FountainDecoder {
     if (!e) {
       if (
         part.messageLen > MAX_MESSAGE_LENGTH ||
+        part.seqLen > MAX_PARTS ||
         part.seqLen !== Math.ceil(part.messageLen / part.data.length)
       ) {
         return false;

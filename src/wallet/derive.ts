@@ -1,6 +1,6 @@
 import { HDKey } from "@scure/bip32";
 import { p2tr, p2wpkh } from "@scure/btc-signer/payment.js";
-import type { Descriptor } from "./descriptor";
+import { childPath, HARDENED, type Descriptor } from "./descriptor";
 import { BIP32_VERSIONS } from "./extended-key";
 import { NETWORKS, type Network } from "./network";
 
@@ -21,18 +21,14 @@ export function derivePublicKey(
       `This descriptor covers a single chain, so not chain ${chain}`,
     );
   }
-  if (!Number.isInteger(index) || index < 0 || index >= 0x80000000) {
+  if (!Number.isInteger(index) || index < 0 || index >= HARDENED) {
     throw new Error(`${index} is not an address index`);
   }
 
   // Version bytes differ per network, so this also rejects a key belonging to
   // a different one.
   let node = HDKey.fromExtendedKey(descriptor.key, BIP32_VERSIONS[network]);
-  for (const step of descriptor.path) {
-    node = node.deriveChild(
-      step === "*" ? index : typeof step === "number" ? step : step[chain]!,
-    );
-  }
+  for (const step of childPath(descriptor, chain, index)) node = node.deriveChild(step);
   return node.publicKey!;
 }
 

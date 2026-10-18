@@ -1,18 +1,15 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useConnection } from "../../app/connection";
 import { navigate } from "../../app/route";
-import { useWalletSession, useWalletSnapshot } from "../../app/session";
-import { useVault } from "../../app/vault";
-import { walletDescriptor } from "../../core/wallets";
-import { psbtFile, readPsbt } from "../../transport/files";
-import { qrPath } from "../../transport/qr";
-import { psbtFromUr, psbtUrDecoder, psbtUrEncoder } from "../../transport/ur";
+import { useWallet, useWalletSession, useWalletSnapshot } from "../../app/session";
 import { Amount, groupSats } from "../../ui/amount";
 import { Icon } from "../../ui/icons";
-import { Button, buttonClass, Chip, inputClass, LinkButton, Notice, Panel, Segmented } from "../../ui/kit";
-import { QrScanner } from "../../ui/QrScanner";
+import { hostText } from "../../ui/format";
+import { Button, Chip, LinkButton, Notice, Panel } from "../../ui/kit";
 import { finaliseSigned, parsePsbt, reviewPsbt } from "../../wallet/psbt";
+import { download, ExportQr } from "./ExportQr";
 import { rateText } from "./fees";
+import { ScanBack } from "./ScanBack";
 
 type Stage = "check" | "show" | "scan" | "verified";
 
@@ -22,29 +19,6 @@ const STEPS: [Stage, string][] = [
   ["scan", "Scan back"],
   ["verified", "Broadcast"],
 ];
-
-// CBOR bytes per QR part: a SeedSigner reads the low setting reliably, a phone camera the high one.
-const DENSITY = { low: 80, medium: 160, high: 320 };
-type Density = keyof typeof DENSITY;
-const SPEEDS = [2, 4, 6, 8];
-const PREFS = "qr-export";
-
-function loadPrefs(): { fps: number; density: Density } {
-  try {
-    const saved = JSON.parse(localStorage.getItem(PREFS) ?? "{}");
-    return { fps: SPEEDS.includes(saved.fps) ? saved.fps : 4, density: saved.density in DENSITY ? saved.density : "medium" };
-  } catch {
-    return { fps: 4, density: "medium" };
-  }
-}
-
-function savePrefs(prefs: { fps: number; density: Density }) {
-  try {
-    localStorage.setItem(PREFS, JSON.stringify(prefs));
-  } catch {
-    // Private browsing: the choice lasts for this page only.
-  }
-}
 
 function Facts({ rows }: { rows: [ReactNode, ReactNode][] }) {
   return (
@@ -58,199 +32,6 @@ function Facts({ rows }: { rows: [ReactNode, ReactNode][] }) {
     </dl>
   );
 }
-
-function ExportQr({ psbt }: { psbt: Uint8Array }) {
-  const [prefs, setPrefs] = useState(loadPrefs);
-  const counts = useMemo(
-    () => Object.fromEntries(Object.entries(DENSITY).map(([k, n]) => [k, psbtUrEncoder(psbt, n).seqLen])) as Record<Density, number>,
-    [psbt],
-  );
-  const encoder = useMemo(() => psbtUrEncoder(psbt, DENSITY[prefs.density]), [psbt, prefs.density]);
-  const [part, setPart] = useState(() => encoder.nextPart());
-  useEffect(() => {
-    setPart(encoder.nextPart());
-    if (encoder.seqLen === 1) return;
-    const timer = setInterval(() => setPart(encoder.nextPart()), 1000 / prefs.fps);
-    return () => clearInterval(timer);
-  }, [encoder, prefs.fps]);
-  const change = (patch: Partial<typeof prefs>) => {
-    const next = { ...prefs, ...patch };
-    setPrefs(next);
-    savePrefs(next);
-  };
-  const seq = Number(/\/(\d+)-\d+\//.exec(part)?.[1] ?? 1);
-  const at = ((seq - 1) % encoder.seqLen) + 1;
-  const qr = useMemo(() => qrPath(part.toUpperCase()), [part]);
-
-  return (
-    <>
-      <div className="mx-auto aspect-square w-full max-w-[340px] rounded-control bg-qr p-1.5 shadow-[0_0_0_1px_var(--rule-2)] @min-[900px]:row-span-4 @min-[900px]:max-w-none">
-        <svg viewBox={`0 0 ${qr.size} ${qr.size}`} shapeRendering="crispEdges" role="img" aria-label={`QR code, part ${at} of ${encoder.seqLen}`} className="block size-full">
-          <path d={qr.d} className="fill-qr-ink" />
-        </svg>
-      </div>
-      <div className="grid gap-1">
-        <h2 className="text-md font-semibold">Show this to your signer</h2>
-        <p className="m-0 max-w-[60ch] text-sm text-ink-3">
-          On a SeedSigner choose Scan, then hold this screen steady in front of its camera. The code cycles through every part; the signer collects them in any order.
-        </p>
-      </div>
-      <div className="grid gap-1.5">
-        <div className="flex items-baseline justify-between">
-          <span className="text-xl font-medium" aria-live="off">
-            {encoder.seqLen === 1 ? "One part" : <>Part {at} <small className="text-md font-normal text-ink-2">of {encoder.seqLen}</small></>}
-          </span>
-          <span className="text-sm text-ink-3">{encoder.seqLen === 1 ? "Nothing to animate" : `${prefs.fps} frames a second`}</span>
-        </div>
-        {encoder.seqLen > 1 && (
-          <div aria-hidden="true">
-            <div className="grid h-2.5 auto-cols-fr grid-flow-col border border-ink">
-              {Array.from({ length: encoder.seqLen }, (_, i) => (
-                <i key={i} className={i + 1 === at ? "bg-route" : i % 2 ? "bg-sheet" : "bg-ink"} />
-              ))}
-            </div>
-            <div className="mt-1 flex justify-between text-xs text-ink-3">
-              <span>1</span>
-              <span>{encoder.seqLen} parts</span>
-            </div>
-          </div>
-        )}
-      </div>
-      <div className="grid gap-3.5">
-        <div className="grid gap-1.5">
-          <span className="text-sm font-medium text-ink-2">Speed, frames per second</span>
-          <Segmented label="Speed, frames per second" value={String(prefs.fps)} onChange={(v) => change({ fps: Number(v) })} options={SPEEDS.map((f) => ({ value: String(f), label: f }))} />
-        </div>
-        <div className="grid gap-1.5">
-          <span className="text-sm font-medium text-ink-2">Density</span>
-          <Segmented
-            label="Density"
-            value={prefs.density}
-            onChange={(density) => change({ density })}
-            options={(Object.keys(DENSITY) as Density[]).map((k) => ({ value: k, label: `${k[0]!.toUpperCase()}${k.slice(1)}, ${counts[k]} part${counts[k] === 1 ? "" : "s"}` }))}
-          />
-          <p className="m-0 text-sm text-ink-3">Lower density is easier for a weak camera to read but takes longer.</p>
-        </div>
-      </div>
-    </>
-  );
-}
-
-function download(psbt: Uint8Array) {
-  const file = psbtFile(psbt);
-  const url = URL.createObjectURL(file);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = file.name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-function ScanBack({ onSigned, error }: { onSigned: (psbt: Uint8Array) => void; error: string | null }) {
-  const decoder = useRef(psbtUrDecoder());
-  const [progress, setProgress] = useState({ parts: [] as number[], expected: 0 });
-  const [scanError, setScanError] = useState<string | null>(null);
-  const [pasted, setPasted] = useState("");
-  const [readError, setReadError] = useState<string | null>(null);
-
-  const restart = () => {
-    decoder.current = psbtUrDecoder();
-    setProgress({ parts: [], expected: 0 });
-  };
-  useEffect(() => {
-    if (error) restart();
-  }, [error]);
-
-  const onResult = (text: string) => {
-    const d = decoder.current;
-    if (!/^ur:/i.test(text.trim())) {
-      try {
-        onSigned(readPsbt(text));
-      } catch {}
-      return;
-    }
-    if (!d.receive(text)) {
-      if (d.error) {
-        setScanError(`${d.error.message}. Starting the scan again.`);
-        restart();
-      }
-      return;
-    }
-    setScanError(null);
-    setProgress({ parts: d.parts, expected: d.progress.expected });
-    if (d.result) onSigned(psbtFromUr(d.result));
-  };
-
-  const read = (input: Uint8Array | string) => {
-    try {
-      setReadError(null);
-      onSigned(readPsbt(input));
-    } catch (e) {
-      setReadError((e as Error).message);
-    }
-  };
-
-  const captured = new Set(progress.parts);
-  return (
-    <>
-      <div className="w-full @min-[900px]:row-span-5">
-        <QrScanner onResult={onResult} />
-      </div>
-      <div className="grid gap-1">
-        <h2 className="text-md font-semibold">Point your camera at the signer</h2>
-        <p className="m-0 max-w-[60ch] text-sm text-ink-3">Keep the signed code in view. Parts arrive in any order; gaps fill in as the code loops.</p>
-      </div>
-      <div className="grid gap-2" aria-live="polite">
-        <span className="text-xl font-medium">
-          {progress.expected ? (
-            <>
-              {captured.size} <small className="text-md font-normal text-ink-2">of {progress.expected} parts captured</small>
-            </>
-          ) : (
-            <small className="text-md font-normal text-ink-2">Waiting for the first part</small>
-          )}
-        </span>
-        {progress.expected > 0 && (
-          <div aria-hidden="true" className="grid grid-cols-10 gap-[3px]">
-            {Array.from({ length: progress.expected }, (_, i) => (
-              <i key={i} className={`aspect-[1.6] rounded-[2px] border ${captured.has(i) ? "border-route bg-route" : "border-rule-2 bg-sheet"}`} />
-            ))}
-          </div>
-        )}
-      </div>
-      {(error ?? scanError) && <Notice tone="bad">{error ?? scanError}</Notice>}
-      <details className="group grid gap-3 rounded-control border border-rule p-3">
-        <summary className="cursor-pointer list-none text-sm font-medium text-route [&::-webkit-details-marker]:hidden">No camera? Load the signed file or paste it</summary>
-        <div className="mt-3 grid gap-3">
-          <label className={`${buttonClass({})} cursor-pointer justify-self-start`}>
-            <Icon name="file" />
-            Load signed file
-            <input
-              type="file"
-              accept=".psbt,application/octet-stream,text/plain"
-              className="sr-only"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                e.target.value = "";
-                if (file) read(new Uint8Array(await file.arrayBuffer()));
-              }}
-            />
-          </label>
-          <label className="grid gap-1.5 text-sm font-medium text-ink-2">
-            Or paste it, base64 or hex
-            <textarea value={pasted} onChange={(e) => setPasted(e.target.value)} rows={3} spellCheck={false} className={`${inputClass} font-mono text-[0.86em]`} />
-          </label>
-          <Button size="sm" className="justify-self-start" disabled={!pasted.trim()} onClick={() => read(pasted)}>
-            Check pasted PSBT
-          </Button>
-          {readError && <Notice tone="bad">{readError}</Notice>}
-        </div>
-      </details>
-    </>
-  );
-}
-
-const host = (url: string) => url.replace(/^wss?:\/\//, "").replace(/\/.*$/, "");
 
 /**
  * Check, show to the signer, take the signed PSBT back, broadcast. `built` is
@@ -272,8 +53,7 @@ export function SignFlow({
   label: string;
   onBack: () => void;
 }) {
-  const { wallets, walletId } = useVault();
-  const wallet = wallets.find((w) => w.id === walletId)!;
+  const { descriptor, network } = useWallet();
   const snapshot = useWalletSnapshot();
   const session = useWalletSession();
   const { backend, connection } = useConnection();
@@ -282,7 +62,7 @@ export function SignFlow({
   const [refusal, setRefusal] = useState<string | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
-  const review = useMemo(() => reviewPsbt(built, walletDescriptor(wallet), wallet.network), [built, wallet]);
+  const review = useMemo(() => reviewPsbt(built, descriptor, network), [built, descriptor, network]);
   const paths = new Map([...(snapshot?.addresses.receive ?? []), ...(snapshot?.addresses.change ?? [])].map((a) => [a.address, a.path]));
   const inputs = useMemo(() => parsePsbt(built).inputsLength, [built]);
 
@@ -314,6 +94,11 @@ export function SignFlow({
 
   const at = STEPS.findIndex(([s]) => s === stage);
   const payments = review.outputs.filter((o) => !o.change);
+  const leaving = payments.filter((o) => !o.mine).reduce((a, o) => a + o.value, 0);
+  const notices =
+    review.fee > leaving / 10 && leaving > 0
+      ? [...warnings, `The fee is ${Math.round((review.fee / leaving) * 100)}% of what you are sending. Make sure that is what you meant.`]
+      : warnings;
   const facts: [ReactNode, ReactNode][] = [
     ["Sending", <Amount sats={payments.reduce((a, o) => a + o.value, 0)} />],
     ["Fee", `${groupSats(review.fee)} sats, ${rateText(review.feeRate)} sat/vB`],
@@ -345,13 +130,13 @@ export function SignFlow({
           ["Fee", `${groupSats(review.fee)} sats`],
           ["Fee rate", `${rateText(review.feeRate)} sat/vB, about ${review.vsize} vB`],
           ...summary,
-          ["Total leaving the wallet", <Amount sats={payments.filter((o) => !o.mine).reduce((a, o) => a + o.value, 0) + review.fee} unit />],
+          ["Total leaving the wallet", <Amount sats={leaving + review.fee} unit />],
         ]}
       />
       <p className="m-0 text-sm text-ink-2">
         <Chip tone="route">Replaceable (RBF)</Chip> Every transaction this wallet builds can be replaced, so you can raise its fee later if it is slow to confirm.
       </p>
-      {warnings.map((w) => (
+      {notices.map((w) => (
         <Notice key={w} tone="warn">{w}</Notice>
       ))}
       <div className="flex flex-wrap gap-2">
@@ -397,7 +182,7 @@ export function SignFlow({
             </div>
             <ul className="m-0 grid list-none gap-2.5 p-0">
               {[
-                ["Every input is signed", `${inputs} of ${inputs}`],
+                ["Every input carries a signature", `${inputs} of ${inputs}`],
                 ["Outputs match what you built", `${review.outputs.length} of ${review.outputs.length}`],
                 ["Fee matches", `${groupSats(review.fee)} sats`],
               ].map(([what, detail]) => (
@@ -412,7 +197,7 @@ export function SignFlow({
             </ul>
             <p className="m-0 text-sm text-ink-3">
               {connection.phase === "connected"
-                ? `Broadcasting sends the transaction to ${host(connection.url)} only. Your server relays it to the network.`
+                ? `Broadcasting sends the transaction to ${hostText(connection.url)} only. Your server relays it to the network.`
                 : "Not connected to your server, so there is nowhere to broadcast. Reconnect, then try again."}
             </p>
             {failure && (

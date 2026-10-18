@@ -1,4 +1,4 @@
-import type { Descriptor } from "../wallet/descriptor";
+import { HARDENED, type Descriptor } from "../wallet/descriptor";
 
 /** One line of a BIP329 export. https://github.com/bitcoin/bips/blob/master/bip-0329.mediawiki */
 export type Bip329Record = {
@@ -43,10 +43,7 @@ export function formatBip329(records: Bip329Record[]): string {
 export function bip329Origin(descriptor: Descriptor): string | null {
   const { origin, scriptType } = descriptor;
   if (!origin) return null;
-  // https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
-  const steps = origin.path.map((i) =>
-    i >= 0x80000000 ? `${i - 0x80000000}'` : `${i}`,
-  );
+  const steps = origin.path.map((i) => (i >= HARDENED ? `${i - HARDENED}'` : `${i}`));
   return `${scriptType}([${[origin.fingerprint, ...steps].join("/")}])`;
 }
 

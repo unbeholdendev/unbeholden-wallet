@@ -28,11 +28,15 @@ export function checkAddress(text: string, network: Network): { script: string }
   return { error: "This is not a Bitcoin address." };
 }
 
+// 21 million BTC, well inside exact integer range.
+const MAX_SATS = 21e14;
+
 /** Sats from a BTC amount as typed, spaces allowed; null when it is not one. */
 export function parseBtc(text: string): number | null {
   const m = /^(\d*)(?:\.(\d{0,8}))?$/.exec(text.replace(/[\s ]/g, ""));
   if (!m || (!m[1] && !m[2])) return null;
-  return Number(m[1] || 0) * 1e8 + Number((m[2] ?? "").padEnd(8, "0"));
+  const sats = Number(m[1] || 0) * 1e8 + Number((m[2] ?? "").padEnd(8, "0"));
+  return sats <= MAX_SATS ? sats : null;
 }
 
 export const btcText = (sats: number) => (sats / 1e8).toFixed(8).replace(/\.?0+$/, "");
@@ -43,6 +47,8 @@ export function parseUri(text: string): { address: string; amount?: string; labe
   const m = /^bitcoin:([^?]*)(?:\?(.*))?$/i.exec(text.trim());
   if (!m) return { address: text.trim() };
   const query = new URLSearchParams(m[2] ?? "");
+  // A required parameter this wallet does not know voids the URI, so it is left whole to fail as an address.
+  if ([...query.keys()].some((k) => k.startsWith("req-"))) return { address: text.trim() };
   const amount = query.get("amount");
   return {
     address: m[1]!,

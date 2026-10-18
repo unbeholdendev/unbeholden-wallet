@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { ConnectionError, type ConnectionFailure, type WalletBackend } from "../backend/backend";
-import { LOOPBACK, type ConnectionStatus as Live, type ElectrumBackend } from "../backend/electrum";
+import type { ConnectionStatus as Live, ElectrumBackend } from "../backend/electrum";
+import { LOOPBACK } from "../backend/handshake";
 
 export type Failure = ConnectionFailure | "invalid-url";
 
