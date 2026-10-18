@@ -153,6 +153,7 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
           <CoinList
             sources={sources}
             tip={snapshot.tip?.height ?? null}
+            rate={rate}
             selected={selected}
             onToggle={toggle}
             onGroup={(source) => {

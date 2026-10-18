@@ -339,3 +339,37 @@ describe("fee bump", () => {
     expect(await screen.findByRole("heading", { name: "Sign the replacement" })).toBeTruthy();
   });
 });
+
+describe("coin economics", () => {
+  // Two small coins paid in one transaction, so one source.
+  const dribble = tx([[id(faucet), 5]], [[script(BIP84, 0, 5), 600], [script(BIP84, 0, 6), 9_000], [theirs, 99_990_000]]);
+  beforeEach(() => fixture.blocks![1]!.push(dribble));
+
+  it("says what each coin costs to spend and flags one worth less than that", async () => {
+    const user = await start("#/send");
+    await payTo(user, PAYEE, "0.001");
+    // A wpkh input is 68 vB, so 680 sats at the 10 sat/vB the send starts on.
+    expect(await coin(/0\.00 000 600 BTC.*Uneconomic at 10 sat\/vB/)).toBeTruthy();
+    expect(screen.getAllByText(/^Uneconomic at/)).toHaveLength(1);
+    expect(screen.getAllByText("680 sats to spend").length).toBeGreaterThan(1);
+
+    location.hash = "#/coins";
+    expect(await screen.findByText("Uneconomic at 10 sat/vB")).toBeTruthy();
+    expect(screen.queryByText(/Fees are low/)).toBeNull();
+  });
+
+  it("offers to join one source's small coins while fees are low, through the normal send", async () => {
+    fixture.feeHistogram = [{ feeRate: 1, vsize: 50_000 }];
+    const user = await start("#/coins");
+    // At 50 sat/vB each coin costs 3 400 sats to spend, 6 800 for both. Joined
+    // at 1 sat/vB: 42 + 2 × 272 + 124 WU is 178 vB, 178 sats, then 3 400 once.
+    expect(await screen.findByText(/Saves 3.222 sats/)).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Join these 2 coins" }));
+
+    expect(((await screen.findByLabelText("Address")) as HTMLInputElement).value).toBe(address(BIP84, 1, 0));
+    expect((await coin(/^0\.00 000 600 BTC/)).getAttribute("aria-checked")).toBe("true");
+    expect((await coin(/^0\.00 009 000 BTC/)).getAttribute("aria-checked")).toBe("true");
+    expect(summary().getByText(sats(178))).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Review and sign" })).toHaveProperty("disabled", false);
+  });
+});
