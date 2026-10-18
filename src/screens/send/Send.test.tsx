@@ -6,8 +6,27 @@ import { address, BIP84, LARGE, script, signPsbt } from "../../../scripts/regtes
 import { App } from "../../App";
 import { fakeBackend, type FakeBackend, type Fixture } from "../../backend/fake";
 import { createWallet, saveSettings } from "../../core/wallets";
+import { psbtUrEncoder } from "../../transport/ur";
 import { groupSats } from "../../ui/amount";
 import { createVault, destroyVault } from "../../vault/vault";
+
+const camera = vi.hoisted(() => ({ frames: [] as string[] }));
+vi.mock("../../transport/qr", async (original) => ({ ...(await original<typeof import("../../transport/qr")>()), readQr: () => camera.frames.shift() ?? null }));
+
+/** A camera that is live at once and sees whatever is pushed onto `camera.frames`, one frame per scan. */
+function fakeCamera() {
+  Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia: async () => ({ getTracks: () => [] }) } });
+  Object.defineProperty(HTMLMediaElement.prototype, "readyState", { configurable: true, get: () => 4 });
+  Object.defineProperty(HTMLVideoElement.prototype, "videoWidth", { configurable: true, get: () => 640 });
+  Object.defineProperty(HTMLVideoElement.prototype, "videoHeight", { configurable: true, get: () => 480 });
+  vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({ drawImage() {}, getImageData: () => ({}) } as never);
+}
+
+const idle = () => {
+  vi.setSystemTime(Date.now() + 16 * 60_000);
+  document.dispatchEvent(new Event("visibilitychange"));
+};
 
 configure({ asyncUtilTimeout: 5000 });
 // Each test unlocks a vault and syncs a wallet, slower than five seconds under the whole parallel suite.
@@ -117,6 +136,9 @@ beforeEach(() => {
 
 afterEach(async () => {
   cleanup();
+  vi.restoreAllMocks();
+  delete (navigator as { mediaDevices?: unknown }).mediaDevices;
+  camera.frames = [];
   await destroyVault();
 });
 
@@ -218,16 +240,26 @@ describe("the send screen", () => {
       await payTo(user, PAYEE, "0.001");
       await user.click(screen.getByRole("button", { name: "Review and sign" }));
       await screen.findByRole("img", { name: /^QR code/ });
-      const idle = () => {
-        vi.setSystemTime(Date.now() + 16 * 60_000);
-        document.dispatchEvent(new Event("visibilitychange"));
-      };
       await act(idle);
       expect(screen.getByRole("img", { name: /^QR code/ })).toBeTruthy();
       location.hash = "#/home";
       await waitFor(() => expect(screen.queryByRole("img", { name: /^QR code/ })).toBeNull());
       await act(idle);
       expect(await screen.findByLabelText("Passphrase")).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not lock for idleness while the camera scans the signed PSBT back", async () => {
+    fakeCamera();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const user = await start("#/send");
+      await builtPsbt(user);
+      await screen.findByText("Scanning");
+      await act(idle);
+      expect(screen.getByText("Scanning")).toBeTruthy();
     } finally {
       vi.useRealTimers();
     }
@@ -297,6 +329,78 @@ describe("signing and broadcasting", () => {
     psbt.updateOutput(0, { amount: psbt.getOutput(0).amount! - 1_000n });
     await upload(user, psbt.toPSBT());
     expect(await screen.findByText(/This PSBT was refused: Output 1 pays \d+ sats, but the one built pays \d+ sats/)).toBeTruthy();
+  });
+
+  it("keeps scanning after a refusal, even the same refusal twice", async () => {
+    fakeCamera();
+    const user = await start("#/send");
+    const built = await builtPsbt(user);
+    const wrong = Transaction.fromPSBT(built);
+    wrong.updateOutput(0, { amount: wrong.getOutput(0).amount! - 1_000n });
+    const frame = (psbt: Uint8Array) => psbtUrEncoder(psbt, 10_000).nextPart();
+
+    camera.frames.push(frame(wrong.toPSBT()));
+    expect(await screen.findByText(/This PSBT was refused/)).toBeTruthy();
+    camera.frames.push(frame(wrong.toPSBT()));
+    await waitFor(() => expect(camera.frames).toHaveLength(0));
+    camera.frames.push(frame(signPsbt(built, BIP84)));
+    expect(await screen.findByText("Signed and checked")).toBeTruthy();
+  });
+
+  it("keeps a built send, then its signed transaction, through a lock and offers to resume it", async () => {
+    const user = await start("#/send");
+    const built = await builtPsbt(user);
+    const relock = async () => {
+      await user.click(screen.getByRole("button", { name: "Lock" }));
+      await user.type(await screen.findByLabelText("Passphrase"), PASSPHRASE);
+      await user.click(screen.getByRole("button", { name: "Unlock" }));
+    };
+    location.hash = "#/home";
+    await relock();
+    expect(await screen.findByText("A transaction you built is waiting to be signed.")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Resume it" }).getAttribute("href")).toBe("#/send");
+
+    location.hash = "#/send";
+    await user.click(await screen.findByRole("button", { name: "Signed it, scan it back" }));
+    await upload(user, signPsbt(built, BIP84));
+    expect(await screen.findByText("Signed and checked")).toBeTruthy();
+    await relock();
+    expect(await screen.findByText("Signed and checked")).toBeTruthy();
+  });
+
+  it("forgets a saved send once its coins are spent elsewhere", async () => {
+    const user = await start("#/send");
+    await builtPsbt(user);
+    await user.click(screen.getByRole("button", { name: "Lock" }));
+    fixture.blocks!.push([tx([[id(payA), 0]], [[theirs, 499_000]])]);
+    await user.type(await screen.findByLabelText("Passphrase"), PASSPHRASE);
+    await user.click(screen.getByRole("button", { name: "Unlock" }));
+    await waitFor(() => expect((screen.getByLabelText("Address") as HTMLInputElement).value).toBe(""));
+    expect(screen.queryByText("Signed it, scan it back")).toBeNull();
+  });
+
+  it("broadcasts a PSBT signed elsewhere after showing every output, and refuses one spending coins not this wallet's", async () => {
+    const user = await start("#/send");
+    const built = await builtPsbt(user);
+    await user.click(screen.getByRole("button", { name: "Back to coins" }));
+    await user.click(screen.getByRole("button", { name: "Discard this send" }));
+    expect(screen.getByRole("link", { name: "Broadcast a PSBT signed elsewhere" }).getAttribute("href")).toBe("#/broadcast");
+    location.hash = "#/broadcast";
+    await screen.findByRole("heading", { name: "Broadcast a signed transaction" });
+
+    const stranger = new Transaction();
+    stranger.addInput({ txid: id(faucet), index: 5, witnessUtxo: { script: theirs, amount: 100_000_000n } });
+    stranger.addOutput({ script: theirs, amount: 99_999_000n });
+    await upload(user, stranger.toPSBT());
+    expect(await screen.findByText("This PSBT was refused: Input 1 is not one of this wallet's unspent coins.")).toBeTruthy();
+
+    const signed = signPsbt(built, BIP84);
+    await upload(user, signed);
+    expect(await screen.findByRole("heading", { name: "Check before you broadcast" })).toBeTruthy();
+    expect(screen.getByText(PAYEE)).toBeTruthy();
+    expect(screen.getByText("Change back to you")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Broadcast through your server" }));
+    expect(await screen.findByText(Transaction.fromPSBT(signed).id)).toBeTruthy();
   });
 
   it("shows the node's rejection word for word", async () => {

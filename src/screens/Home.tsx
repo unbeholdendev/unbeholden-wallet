@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { navigate } from "../app/route";
-import { useWalletSession, useWalletSnapshot } from "../app/session";
+import { useSendDraft, useWalletSession, useWalletSnapshot } from "../app/session";
 import { useVault } from "../app/vault";
 import { feeRate, isOutgoing, txDirection, txWhen } from "../core/view";
 import type { WalletSnapshot, WalletTx } from "../core/wallet";
@@ -8,6 +8,7 @@ import { Amount, btcParts, groupSats } from "../ui/amount";
 import { confText, dateText, hostText, timeText, txFallback } from "../ui/format";
 import { Icon } from "../ui/icons";
 import { Button, Chip, Empty, LinkButton, linkClass, Segmented } from "../ui/kit";
+import { outpoint } from "../wallet/coin";
 import { Opening } from "./parts";
 import { parseAmount } from "./send/Recipients";
 
@@ -241,8 +242,11 @@ function History({ snapshot }: { snapshot: WalletSnapshot }) {
 export function Home() {
   const snapshot = useWalletSnapshot();
   const session = useWalletSession();
+  const [draft] = useSendDraft();
   if (!snapshot) return <Opening title="Home" />;
   const fresh = !snapshot.transactions.length;
+  const unspent = new Set(snapshot.coins.map(outpoint));
+  const waiting = draft?.built?.inputs.every((k) => unspent.has(k)) ? draft.built : null;
   return (
     <div className="grid content-start items-start gap-6 @min-[900px]/app:grid-cols-[360px_minmax(0,1fr)]">
       <h1 className="sr-only">Home</h1>
@@ -257,6 +261,14 @@ export function Home() {
           <button type="button" onClick={() => session?.dismissReorg()} aria-label="Dismiss" className="-m-1 grid size-8 flex-none place-items-center rounded-control hover:bg-[color-mix(in_srgb,var(--warn)_12%,transparent)]">
             <Icon name="close" />
           </button>
+        </div>
+      )}
+      {waiting && (
+        <div role="status" className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-control bg-route-tint px-3 py-2.5 text-sm @min-[900px]/app:col-span-2">
+          <p className="m-0 flex-1">{waiting.signed ? "A signed transaction is waiting to be broadcast." : "A transaction you built is waiting to be signed."}</p>
+          <a className={linkClass} href="#/send">
+            Resume it
+          </a>
         </div>
       )}
       <Balance snapshot={snapshot} />

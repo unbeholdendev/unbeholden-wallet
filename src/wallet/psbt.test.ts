@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { INVALID, VALID } from "./bip174-vectors";
 import type { Coin } from "./coin";
 import { descriptorFromExtendedKey, parseDescriptor } from "./descriptor";
-import { buildPsbt, finaliseSigned, parsePsbt, reviewPsbt } from "./psbt";
+import { buildPsbt, finaliseExternal, finaliseSigned, parsePsbt, reviewPsbt } from "./psbt";
 import { asVersion, BIP84_ZPUB, BIP86_XPUB, VERSION } from "./vectors";
 
 describe("BIP174 vectors", () => {
@@ -261,6 +261,24 @@ describe.each(wallets)("a $name wallet", (wallet) => {
     expect(() => finaliseSigned(psbt, tx.toPSBT())).toThrow(
       `Output ${recipient + 1} pays a different address from the one built`,
     );
+  });
+
+  it("finalises a PSBT signed elsewhere only when it spends the wallet's coins as the server knows them, signed for every output", () => {
+    const { psbt } = build();
+    const raw = finaliseExternal(signed(psbt, wallet.root), wallet.coins);
+    expect(Transaction.fromRaw(raw).id).toBe(Transaction.fromPSBT(psbt).id);
+
+    expect(() => finaliseExternal(signed(psbt, wallet.root), wallet.coins.slice(1))).toThrow(
+      "Input 1 is not one of this wallet's unspent coins",
+    );
+    const richer = wallet.coins.map((c, i) => (i === 1 ? { ...c, value: c.value + 1 } : c));
+    expect(() => finaliseExternal(signed(psbt, wallet.root), richer)).toThrow(
+      "Input 2 describes its coin differently from your server",
+    );
+    const tx = Transaction.fromPSBT(psbt);
+    for (let i = 0; i < tx.inputsLength; i++) tx.updateInput(i, { sighashType: SigHash.NONE });
+    tx.sign(wallet.root as unknown as Parameters<Transaction["sign"]>[0], [SigHash.NONE]);
+    expect(() => finaliseExternal(tx.toPSBT(), wallet.coins)).toThrow(/Input 1 is signed so that whoever relays it/);
   });
 
   it("refuses a returned PSBT with a changed lock time or sequence", () => {

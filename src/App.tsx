@@ -16,6 +16,7 @@ import { Home } from "./screens/Home";
 import { Receive } from "./screens/Receive";
 import { Bump } from "./screens/send/Bump";
 import { Send } from "./screens/send/Send";
+import { BroadcastSigned } from "./screens/send/Sign";
 import { Transaction } from "./screens/Transaction";
 import { Settings } from "./screens/Settings";
 import { Unlock } from "./screens/Unlock";
@@ -56,6 +57,7 @@ function Unlocked({ route }: { route: string[] }) {
     screen === "import" ? <ImportWallet /> :
     screen === "tx" ? <Transaction txid={detail} /> :
     screen === "send" ? <Send /> :
+    screen === "broadcast" ? <BroadcastSigned /> :
     screen === "bump" && detail ? <Bump key={detail} txid={detail} /> :
     screen === "receive" ? <Receive /> :
     screen === "coins" ? <Coins /> :
@@ -63,7 +65,7 @@ function Unlocked({ route }: { route: string[] }) {
     <Home />;
   return (
     <SessionProvider>
-      <Shell tab={screen === "bump" ? "send" : TABS.includes(screen) ? (screen as Tab) : null}>{body}</Shell>
+      <Shell tab={screen === "bump" || screen === "broadcast" ? "send" : TABS.includes(screen) ? (screen as Tab) : null}>{body}</Shell>
     </SessionProvider>
   );
 }

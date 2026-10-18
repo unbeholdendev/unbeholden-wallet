@@ -107,7 +107,7 @@ export function VaultProvider({ kdf = DEFAULT_KDF, children }: { kdf?: KdfParams
     if (idleMinutes === null) return;
     const idle = idleLock(idleMinutes * 60_000, Date.now, lock);
     const events = ["pointerdown", "keydown", "wheel", "touchstart"];
-    // Someone holding the signer up to the signing QR touches nothing here.
+    // Someone holding the signer up to the signing QR, or to the camera, touches nothing here.
     const check = () => (document.querySelector("[data-keep-unlocked]") ? idle.touch() : idle.check());
     events.forEach((e) => addEventListener(e, idle.touch, { passive: true }));
     document.addEventListener("visibilitychange", check);

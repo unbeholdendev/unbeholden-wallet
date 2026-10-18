@@ -5,7 +5,7 @@ import type { WalletCoin, WalletSnapshot } from "../../core/wallet";
 import { Amount, groupSats } from "../../ui/amount";
 import { shortId } from "../../ui/format";
 import { Icon } from "../../ui/icons";
-import { Button, Chip, LinkButton, Notice } from "../../ui/kit";
+import { Button, Chip, LinkButton, linkClass, Notice } from "../../ui/kit";
 import { Sheet } from "../../ui/sheet";
 import { sourcesOf } from "../../ui/sources";
 import { outpoint } from "../../wallet/coin";
@@ -241,6 +241,7 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
               {error && <Notice tone="bad">{error}</Notice>}
               {primary("md")}
               {onDiscard && <LinkButton onClick={onDiscard} className="justify-self-center">Discard this send</LinkButton>}
+              <a href="#/broadcast" className={`${linkClass} justify-self-center text-sm`}>Broadcast a PSBT signed elsewhere</a>
             </div>
           </section>
         </div>
@@ -285,15 +286,17 @@ export function Send() {
   const session = useWalletSession();
   const [stored, store] = useSendDraft();
   const [blank] = useState(blankDraft);
-  // Dropped on the way out rather than at broadcast, so the screen does not flash back to an empty form.
-  useEffect(
-    () => () => {
-      if (!session) return;
+  const synced = snapshot?.connection === "connected" && !snapshot.progress;
+  // Checked once synced and on the way out, not on every change, so a broadcast does not flash the screen back to an empty form.
+  useEffect(() => {
+    if (!session) return;
+    const drop = () => {
       const unspent = new Set(session.getSnapshot().coins.map(outpoint));
       store((d) => (d?.built?.inputs.some((k) => !unspent.has(k)) ? null : d));
-    },
-    [session, store],
-  );
+    };
+    if (synced) drop();
+    return drop;
+  }, [session, store, synced]);
   if (!snapshot) return <p className="m-0 text-ink-2">Opening this wallet.</p>;
   const draft = stored ?? blank;
   const update = (patch: Partial<SendDraft>) => store((d) => ({ ...(d ?? blank), ...patch }));
