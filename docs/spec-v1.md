@@ -285,7 +285,9 @@ Explicitly excluded from v1. None of these get an issue opened until v1 ships.
 - CPFP fee bumping.
 - Tor.
 - Coinjoin and payjoin.
-- BIP47 payment codes and silent payments.
+- BIP47 payment codes and silent payments. A watch-only sender needs the signer
+  to supply BIP375 ECDH shares, and no released SeedSigner, Coldcard, Jade,
+  Passport or Keystone firmware does, as of October 2026.
 - Fiat prices, currency conversion and any form of cost-basis or tax accounting.
   This would require a price oracle and would break the property that the app
   makes no requests to anyone but the user's node.
