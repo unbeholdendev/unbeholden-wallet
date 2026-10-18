@@ -3,6 +3,7 @@ import { useSendDraft, useWallet, useWalletSession, useWalletSnapshot } from "..
 import { nextChange } from "../../core/view";
 import type { WalletCoin, WalletSnapshot } from "../../core/wallet";
 import { Amount, groupSats } from "../../ui/amount";
+import { shortId } from "../../ui/format";
 import { Icon } from "../../ui/icons";
 import { Button, Chip, LinkButton, Notice } from "../../ui/kit";
 import { Sheet } from "../../ui/sheet";
@@ -114,6 +115,7 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
         coins: result.coins,
         recipients: drafts.map((d, i) => ({ address: d.address.trim(), value: result.amounts[i]! })),
         change: result.change ? { chain: change.chain, index: change.index, value: result.change } : null,
+        tip: snapshot.tip,
       });
       setError(null);
       update({
@@ -194,6 +196,7 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
                     {w.message}
                   </p>
                 ))}
+              {report.change && <p className="m-0 max-w-[60ch] text-sm text-ink-2">{report.change}</p>}
               {foreign.length > 0 && (
                 <Notice tone="warn">
                   {foreign.length === 1 ? "One selected coin is" : `${foreign.length} selected coins are`} an unconfirmed payment from someone else. They can still replace it, and then this transaction fails with it.
@@ -225,7 +228,7 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
               <div>
                 <dt>
                   Change back to you
-                  <small className="block font-mono text-xs text-ink-3">{change.path}</small>
+                  {result.change > 0 && <small className="block font-mono text-xs text-ink-3">{shortId(change.address, 10, 6)} &middot; {change.path}</small>}
                 </dt>
                 <dd><Flash value={result.change}>{result.change ? <Amount sats={result.change} /> : "None"}</Flash></dd>
               </div>

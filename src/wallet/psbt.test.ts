@@ -1,7 +1,7 @@
 import { base64, hex } from "@scure/base";
 import { HDKey } from "@scure/bip32";
 import { Address, NETWORK, OutScript, SigHash, TEST_NETWORK, Transaction } from "@scure/btc-signer";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { INVALID, VALID } from "./bip174-vectors";
 import type { Coin } from "./coin";
 import { descriptorFromExtendedKey, parseDescriptor } from "./descriptor";
@@ -117,14 +117,47 @@ function signed(psbt: Uint8Array, root: HDKey): Uint8Array {
 }
 
 describe.each(wallets)("a $name wallet", (wallet) => {
-  const build = () =>
+  const build = (tip = { height: 850_000, time: Date.now() / 1000 - 600 }) =>
     buildPsbt({
       descriptor: wallet.descriptor,
       network: "mainnet",
       coins: wallet.coins,
       recipients: [{ address: wallet.recipient, value: 70_000 }],
       change: { chain: 1, index: 0, value: 38_000 },
+      tip,
     });
+
+  // The build's own draws are the Uint32 ones, each taken modulo its range: the
+  // one-in-ten, then how far back if so, then the change position.
+  const real = crypto.getRandomValues.bind(crypto);
+  const drawing = (...draws: number[]) => {
+    vi.spyOn(crypto, "getRandomValues").mockImplementation((array) => {
+      if (!(array instanceof Uint32Array)) return real(array);
+      array[0] = draws.shift()!;
+      return array;
+    });
+  };
+  afterEach(() => vi.restoreAllMocks());
+
+  it("locks to the tip like Bitcoin Core, one time in ten up to 99 blocks back", () => {
+    drawing(3, 0);
+    expect(Transaction.fromPSBT(build().psbt).lockTime).toBe(850_000);
+    drawing(10, 99, 0);
+    expect(Transaction.fromPSBT(build().psbt).lockTime).toBe(850_000 - 99);
+  });
+
+  it("does not lock to a tip more than 8 hours old", () => {
+    const stale = { height: 850_000, time: Date.now() / 1000 - 9 * 60 * 60 };
+    expect(Transaction.fromPSBT(build(stale).psbt).lockTime).toBe(0);
+  });
+
+  it("puts the change at a random position", () => {
+    const changeAt = () => reviewPsbt(build().psbt, wallet.descriptor, "mainnet").outputs.findIndex((o) => o.change);
+    drawing(1, 0);
+    expect(changeAt()).toBe(0);
+    drawing(1, 1);
+    expect(changeAt()).toBe(1);
+  });
 
   it("builds a PSBT that signals RBF and carries key origins", () => {
     const { psbt, warnings } = build();
@@ -248,6 +281,7 @@ describe("building", () => {
     const { psbt, warnings } = buildPsbt({
       descriptor,
       network: "mainnet",
+      tip: null,
       coins: [coin(BIP84.receive0, 0, 0, 10_000, 1)],
       recipients: [{ address: BIP86.receive0, value: 9_000 }],
     });
@@ -261,6 +295,7 @@ describe("building", () => {
       buildPsbt({
         descriptor: wpkh,
         network: "mainnet",
+        tip: null,
         coins: [{ ...coin(BIP84.receive0, 0, 0, 10_000, 1), index: 1 }],
         recipients: [{ address: BIP86.receive0, value: 9_000 }],
       }),
@@ -272,6 +307,7 @@ describe("building", () => {
       buildPsbt({
         descriptor: wpkh,
         network: "mainnet",
+        tip: null,
         coins: [coin(BIP84.receive0, 0, 0, 10_000, 1)],
         recipients: [{ address: BIP86.receive0, value: 11_000 }],
       }),
@@ -286,6 +322,7 @@ describe("building", () => {
       buildPsbt({
         descriptor: wpkh,
         network: "mainnet",
+        tip: null,
         coins: [coin(BIP84.receive0, 0, 0, 10_000, 1)],
         recipients: [{ address: signetAddress, value: 9_000 }],
       }),

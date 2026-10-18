@@ -56,7 +56,7 @@ export function Bump({ txid }: { txid: string }) {
 
   const build = () => {
     try {
-      const { psbt, warnings } = buildPsbt({ descriptor, network, coins: plan.coins, recipients: plan.recipients, change: plan.change });
+      const { psbt, warnings } = buildPsbt({ descriptor, network, coins: plan.coins, recipients: plan.recipients, change: plan.change, tip: snapshot.tip });
       setError(null);
       setBuilt({
         psbt,
