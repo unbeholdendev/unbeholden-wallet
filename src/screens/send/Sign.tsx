@@ -43,6 +43,8 @@ export function SignFlow({
   summary,
   label,
   onBack,
+  done = null,
+  onDone,
 }: {
   built: Uint8Array;
   title: string;
@@ -51,13 +53,16 @@ export function SignFlow({
   summary: [ReactNode, ReactNode][];
   label: string;
   onBack: () => void;
+  /** The signed transaction already scanned back, to resume at Broadcast. */
+  done?: Uint8Array | null;
+  onDone?: (raw: Uint8Array) => void;
 }) {
   const { descriptor, network } = useWallet();
   const snapshot = useWalletSnapshot();
   const session = useWalletSession();
   const { backend, connection } = useConnection();
-  const [stage, setStage] = useState<Stage>("show");
-  const [raw, setRaw] = useState<Uint8Array | null>(null);
+  const [stage, setStage] = useState<Stage>(done ? "verified" : "show");
+  const [raw, setRaw] = useState<Uint8Array | null>(done);
   const [refusal, setRefusal] = useState<string | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
@@ -67,7 +72,9 @@ export function SignFlow({
 
   const signed = (psbt: Uint8Array) => {
     try {
-      setRaw(finaliseSigned(built, psbt));
+      const final = finaliseSigned(built, psbt);
+      setRaw(final);
+      onDone?.(final);
       setRefusal(null);
       setFailure(null);
       setStage("verified");

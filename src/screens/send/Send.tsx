@@ -32,7 +32,7 @@ function Flash({ value, children }: { value: number; children: ReactNode }) {
 export type Built = { psbt: Uint8Array; warnings: string[]; label: string; summary: [ReactNode, ReactNode][] };
 
 /** `picked` null lets the wallet choose coins for the amount; a tap fixes the choice. */
-export type SendDraft = { drafts: Draft[]; fee: FeeChoice; seed: string; picked: string[] | null; built: (Built & { inputs: string[] }) | null };
+export type SendDraft = { drafts: Draft[]; fee: FeeChoice; seed: string; picked: string[] | null; built: (Built & { inputs: string[]; signed?: Uint8Array }) | null };
 
 export const blankDraft = (): SendDraft => ({
   drafts: [{ key: 0, address: "", amount: "", max: false, label: "" }],
@@ -299,7 +299,7 @@ export function Send() {
       <div hidden={!!built}>
         <Compose snapshot={snapshot} draft={draft} update={update} onDiscard={stored ? () => store(null) : undefined} />
       </div>
-      {built && <SignFlow built={built.psbt} title="Sign and send" warnings={built.warnings} summary={built.summary} label={built.label} onBack={() => update({ built: null })} />}
+      {built && <SignFlow built={built.psbt} title="Sign and send" warnings={built.warnings} summary={built.summary} label={built.label} onBack={() => update({ built: null })} done={built.signed} onDone={(signed) => update({ built: { ...built, signed } })} />}
     </>
   );
 }

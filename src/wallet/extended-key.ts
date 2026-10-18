@@ -14,6 +14,8 @@ export const BIP32_VERSIONS: Record<Network, typeof MAINNET> = {
   mainnet: MAINNET,
   signet: TESTNET,
   regtest: TESTNET,
+  testnet3: TESTNET,
+  testnet4: TESTNET,
 };
 
 type Kind = ScriptType | "unspecified" | "sh-wpkh" | "multisig";

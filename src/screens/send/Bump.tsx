@@ -91,6 +91,7 @@ export function Bump({ txid }: { txid: string }) {
         </p>
       </div>
       <div className="grid gap-4 @min-[900px]:grid-cols-[minmax(0,1fr)_440px] @min-[900px]:items-start">
+        <FeePanel histogram={histogram} choice={fee} onChange={setFee} floor={plan.minFeeRate} />
         <Panel title="Old and new" aside={<span className="font-mono">{`${txid.slice(0, 8)}…${txid.slice(-6)}`}</span>}>
           <div className="grid grid-cols-2 gap-2">
             {side("Now", plan.oldFeeRate, plan.oldFee, false)}
@@ -134,7 +135,6 @@ export function Bump({ txid }: { txid: string }) {
             Build the replacement
           </Button>
         </Panel>
-        <FeePanel histogram={histogram} choice={fee} onChange={setFee} floor={plan.minFeeRate} />
       </div>
     </div>
   );
