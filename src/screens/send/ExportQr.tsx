@@ -52,7 +52,7 @@ export function ExportQr({ psbt }: { psbt: Uint8Array }) {
 
   return (
     <>
-      <div className="mx-auto aspect-square w-full max-w-[340px] rounded-control bg-qr p-1.5 shadow-[0_0_0_1px_var(--rule-2)] @min-[900px]:row-span-4 @min-[900px]:max-w-none">
+      <div className="mx-auto aspect-square w-full max-w-[calc(100svh-2rem)] rounded-control bg-qr p-1.5 shadow-[0_0_0_1px_var(--rule-2)] @min-[900px]:row-span-5">
         <svg viewBox={`0 0 ${qr.size} ${qr.size}`} shapeRendering="crispEdges" role="img" aria-label={`QR code, part ${at} of ${encoder.seqLen}`} className="block size-full">
           <path d={qr.d} className="fill-qr-ink" />
         </svg>
@@ -84,22 +84,25 @@ export function ExportQr({ psbt }: { psbt: Uint8Array }) {
           </div>
         )}
       </div>
-      <div className="grid gap-3.5">
-        <div className="grid gap-1.5">
-          <span className="text-sm font-medium text-ink-2">Speed, frames per second</span>
-          <Segmented label="Speed, frames per second" value={String(prefs.fps)} onChange={(v) => change({ fps: Number(v) })} options={SPEEDS.map((f) => ({ value: String(f), label: f }))} />
+      <details className="grid rounded-control border border-rule p-3">
+        <summary className="cursor-pointer list-none text-sm font-medium text-route [&::-webkit-details-marker]:hidden">Signer can't read it?</summary>
+        <div className="mt-3 grid gap-3.5">
+          <div className="grid gap-1.5">
+            <span className="text-sm font-medium text-ink-2">Speed, frames per second</span>
+            <Segmented label="Speed, frames per second" value={String(prefs.fps)} onChange={(v) => change({ fps: Number(v) })} options={SPEEDS.map((f) => ({ value: String(f), label: f }))} />
+          </div>
+          <div className="grid gap-1.5">
+            <span className="text-sm font-medium text-ink-2">Density</span>
+            <Segmented
+              label="Density"
+              value={prefs.density}
+              onChange={(density) => change({ density })}
+              options={(Object.keys(DENSITY) as Density[]).map((k) => ({ value: k, label: `${k[0]!.toUpperCase()}${k.slice(1)}, ${counts[k]} part${counts[k] === 1 ? "" : "s"}` }))}
+            />
+            <p className="m-0 text-sm text-ink-3">Lower density is easier for a weak camera to read but takes longer.</p>
+          </div>
         </div>
-        <div className="grid gap-1.5">
-          <span className="text-sm font-medium text-ink-2">Density</span>
-          <Segmented
-            label="Density"
-            value={prefs.density}
-            onChange={(density) => change({ density })}
-            options={(Object.keys(DENSITY) as Density[]).map((k) => ({ value: k, label: `${k[0]!.toUpperCase()}${k.slice(1)}, ${counts[k]} part${counts[k] === 1 ? "" : "s"}` }))}
-          />
-          <p className="m-0 text-sm text-ink-3">Lower density is easier for a weak camera to read but takes longer.</p>
-        </div>
-      </div>
+      </details>
     </>
   );
 }

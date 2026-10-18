@@ -11,10 +11,9 @@ import { download, ExportQr } from "./ExportQr";
 import { rateText } from "./fees";
 import { ScanBack } from "./ScanBack";
 
-type Stage = "check" | "show" | "scan" | "verified";
+type Stage = "show" | "scan" | "verified";
 
 const STEPS: [Stage, string][] = [
-  ["check", "Check"],
   ["show", "Show"],
   ["scan", "Scan back"],
   ["verified", "Broadcast"],
@@ -34,7 +33,7 @@ function Facts({ rows }: { rows: [ReactNode, ReactNode][] }) {
 }
 
 /**
- * Check, show to the signer, take the signed PSBT back, broadcast. `built` is
+ * Check and show to the signer, take the signed PSBT back, broadcast. `built` is
  * the unsigned PSBT the signed one has to match.
  */
 export function SignFlow({
@@ -48,7 +47,7 @@ export function SignFlow({
   built: Uint8Array;
   title: string;
   warnings: string[];
-  /** Extra facts for the check step, such as where the coins come from. */
+  /** Extra facts for the check, such as where the coins come from. */
   summary: [ReactNode, ReactNode][];
   label: string;
   onBack: () => void;
@@ -57,7 +56,7 @@ export function SignFlow({
   const snapshot = useWalletSnapshot();
   const session = useWalletSession();
   const { backend, connection } = useConnection();
-  const [stage, setStage] = useState<Stage>("check");
+  const [stage, setStage] = useState<Stage>("show");
   const [raw, setRaw] = useState<Uint8Array | null>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
@@ -99,13 +98,6 @@ export function SignFlow({
     review.fee > leaving / 10 && leaving > 0
       ? [...warnings, `The fee is ${Math.round((review.fee / leaving) * 100)}% of what you are sending. Make sure that is what you meant.`]
       : warnings;
-  const facts: [ReactNode, ReactNode][] = [
-    ["Sending", <Amount sats={payments.reduce((a, o) => a + o.value, 0)} />],
-    ["Fee", `${groupSats(review.fee)} sats, ${rateText(review.feeRate)} sat/vB`],
-    ["Change", review.outputs.some((o) => o.change) ? <Amount sats={review.outputs.find((o) => o.change)!.value} /> : "None"],
-    ...summary,
-    ["Replaceable", "Yes (RBF)"],
-  ];
 
   const check = (
     <Panel title="Check before you sign" aside={`${review.outputs.length} output${review.outputs.length === 1 ? "" : "s"}`}>
@@ -139,20 +131,15 @@ export function SignFlow({
       {notices.map((w) => (
         <Notice key={w} tone="warn">{w}</Notice>
       ))}
-      <div className="flex flex-wrap gap-2">
-        <Button variant="primary" onClick={() => setStage("show")}>
-          Looks right, show to signer
-        </Button>
-        <Button onClick={onBack}>Change it</Button>
-      </div>
     </Panel>
   );
 
-  const body =
-    stage === "check" ? (
-      check
-    ) : (
-      <section className="grid justify-items-stretch gap-4 rounded-panel border border-rule bg-sheet p-4 @min-[900px]:grid-cols-[minmax(0,340px)_minmax(0,1fr)] @min-[900px]:items-start @min-[900px]:gap-x-8 @min-[900px]:gap-y-5 @min-[900px]:p-6">
+  const body = (
+    <>
+      {stage === "show" && check}
+      <section
+        className={`grid justify-items-stretch gap-4 rounded-panel border border-rule bg-sheet p-4 @min-[900px]:items-start @min-[900px]:gap-x-8 @min-[900px]:gap-y-5 @min-[900px]:p-6 ${stage === "show" ? "@min-[900px]:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] @min-[900px]:grid-rows-[repeat(4,auto)_1fr]" : "@min-[900px]:grid-cols-[minmax(0,340px)_minmax(0,1fr)]"}`}
+      >
         {stage === "show" && (
           <>
             <ExportQr psbt={built} />
@@ -217,7 +204,8 @@ export function SignFlow({
           </div>
         )}
       </section>
-    );
+    </>
+  );
 
   return (
     <div className="@container grid gap-4">
@@ -242,10 +230,7 @@ export function SignFlow({
           </button>
         ))}
       </nav>
-      <div className="grid gap-4 @min-[900px]:grid-cols-[minmax(0,1fr)_340px] @min-[900px]:items-start">
-        {body}
-        {stage !== "check" && <Panel title={title}><Facts rows={facts} /></Panel>}
-      </div>
+      {body}
     </div>
   );
 }
