@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { ConnectionError, type ConnectionFailure, type WalletBackend } from "../backend/backend";
 import type { ConnectionStatus as Live, ElectrumBackend } from "../backend/electrum";
 import { LOOPBACK } from "../backend/handshake";
+import { genesisNetwork, type Network } from "../wallet/network";
 
 export type Failure = ConnectionFailure | "invalid-url";
 
@@ -12,7 +13,7 @@ export type BackendFactory = (url: string) => Observable;
 
 export type Connection =
   | { phase: "idle" }
-  | { phase: Live; url: string; software: string | null; tip: number | null }
+  | { phase: Live; url: string; software: string | null; tip: number | null; network: Network | null }
   | { phase: "failed"; url: string; failure: Failure | null; message: string };
 
 const FactoryContext = createContext<BackendFactory | null>(null);
@@ -82,7 +83,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
         return false;
       }
       const next = factory(url);
-      setConnection({ phase: "connecting", url, software: null, tip: null });
+      setConnection({ phase: "connecting", url, software: null, tip: null, network: null });
       try {
         await next.connect();
       } catch (error) {
@@ -97,12 +98,13 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
         return false;
       }
       const software = next.server?.()?.software ?? null;
-      setConnection({ phase: "connected", url, software, tip: null });
+      setConnection({ phase: "connected", url, software, tip: null, network: null });
       current.current = next;
       setBackend(next);
-      const update = (patch: Partial<{ phase: Live; tip: number }>) =>
+      const update = (patch: Partial<{ phase: Live; tip: number; network: Network | null }>) =>
         !stale() && setConnection((c) => (c.phase === "failed" || c.phase === "idle" ? c : { ...c, ...patch }));
       next.onStatus?.((phase) => update({ phase }));
+      next.blockHeaders([0]).then(([genesis]) => update({ network: genesisNetwork(genesis!) }), () => {});
       next.chainTip().then(({ height }) => update({ tip: height }), () => {});
       next.subscribeHeaders(({ height }) => update({ tip: height })).catch(() => {});
       return true;

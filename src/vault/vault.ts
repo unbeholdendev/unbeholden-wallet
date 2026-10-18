@@ -327,6 +327,23 @@ export class Vault {
   }
 }
 
+/** What the wallet code reads and writes: the vault, or a draft held in memory. */
+export type Store = Pick<Vault, "get" | "put" | "delete" | "keys">;
+
+/** Records kept only in this tab, for a wallet set up before it has a passphrase. */
+export function memoryStore(): Store {
+  const records = new Map<string, string>();
+  return {
+    get: async (name) => {
+      const json = records.get(name);
+      return json === undefined ? undefined : JSON.parse(json);
+    },
+    put: async (name, value) => void records.set(name, JSON.stringify(value)),
+    delete: async (...names) => names.forEach((name) => records.delete(name)),
+    keys: async (prefix = "") => [...records.keys()].filter((key) => key.startsWith(prefix)),
+  };
+}
+
 /**
  * Locks after `timeoutMs` without `touch()`. The caller calls `check()` on a
  * timer; measuring by the clock keeps it right after the tab sleeps.

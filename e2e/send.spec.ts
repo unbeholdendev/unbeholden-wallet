@@ -79,18 +79,16 @@ test("send, sign from a file, broadcast, then bump and sign the replacement thro
   test.setTimeout(180_000);
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
-  await page.getByLabel("Passphrase", { exact: true }).fill(PASSPHRASE);
-  await page.getByLabel("Type it again").fill(PASSPHRASE);
-  await page.getByRole("button", { name: "Create vault" }).click();
   await page.getByLabel("Electrum server address").fill(ELECTRUM_WS);
   await page.getByRole("button", { name: "Connect" }).click();
   await page.getByLabel("Descriptor or extended public key").fill(BIP84.text);
-  await page.getByRole("button", { name: "Regtest" }).click();
   await page.getByLabel("Name").fill("Regtest bench");
   await page.getByRole("button", { name: /Continue to backup/ }).click();
   await page.getByRole("button", { name: "Copy" }).click();
-  await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "Finish" }).click();
+  await page.getByLabel("Passphrase", { exact: true }).fill(PASSPHRASE);
+  await page.getByLabel("Type it again").fill(PASSPHRASE);
+  await page.getByRole("button", { name: "Protect this wallet" }).click();
   await expect(page).toHaveURL(/#\/home$/);
 
   await go(page, "#/send");

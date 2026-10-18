@@ -3,7 +3,9 @@ import { useConnection } from "../app/connection";
 import { IDLE_DEFAULT_MINUTES, useVault } from "../app/vault";
 import { APP_VERSION } from "../pwa/register";
 import { VaultChanged, WrongPassphrase } from "../vault/vault";
-import { Button, buttonClass, Field, linkClass, Notice, Panel, Segmented } from "../ui/kit";
+import { Button, buttonClass, Field, inputClass, LinkButton, linkClass, Notice, Panel, Segmented } from "../ui/kit";
+import { Sheet } from "../ui/sheet";
+import type { WalletRecord } from "../core/wallets";
 import { Icon } from "../ui/icons";
 import { useWalletSession } from "../app/session";
 import { useToast } from "../ui/toast";
@@ -121,8 +123,86 @@ function Labels() {
   );
 }
 
+function Wallets() {
+  const { wallets, renameWallet, removeWallet } = useVault();
+  const toast = useToast();
+  const [editing, setEditing] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [removing, setRemoving] = useState<WalletRecord | null>(null);
+
+  const rename = async (event: FormEvent) => {
+    event.preventDefault();
+    await renameWallet(editing!, name.trim());
+    setEditing(null);
+  };
+  const remove = async () => {
+    await removeWallet(removing!.id);
+    toast(`${removing!.name} removed`);
+    setRemoving(null);
+  };
+
+  return (
+    <Panel title="Wallets" aside={`${wallets.length} in this vault`}>
+      <ul className="m-0 grid list-none gap-2 p-0">
+        {wallets.map((w) =>
+          editing === w.id ? (
+            <li key={w.id}>
+              <form onSubmit={rename} className="flex flex-wrap items-end gap-2">
+                <div className="min-w-0 flex-1">
+                  <Field label={`New name for ${w.name}`}>
+                    {(props) => <input {...props} className={inputClass} value={name} onChange={(e) => setName(e.target.value)} autoComplete="off" autoFocus />}
+                  </Field>
+                </div>
+                <Button type="submit" variant="primary" disabled={!name.trim()}>
+                  Save
+                </Button>
+                <Button onClick={() => setEditing(null)}>Cancel</Button>
+              </form>
+            </li>
+          ) : (
+            <li key={w.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
+              <span className="min-w-0 flex-1 font-medium break-words">{w.name}</span>
+              <span className="text-ink-3">{w.network}</span>
+              <LinkButton
+                aria-label={`Rename ${w.name}`}
+                onClick={() => {
+                  setName(w.name);
+                  setEditing(w.id);
+                }}
+              >
+                Rename
+              </LinkButton>
+              <LinkButton aria-label={`Remove ${w.name}`} onClick={() => setRemoving(w)}>
+                Remove
+              </LinkButton>
+            </li>
+          ),
+        )}
+      </ul>
+      <a className={linkClass} href="#/import">
+        Add a wallet
+      </a>
+      <Sheet open={!!removing} onClose={() => setRemoving(null)} title={`Remove ${removing?.name ?? "this wallet"}`}>
+        <div className="grid gap-3 text-ink-2">
+          <p className="m-0">
+            This removes the wallet from this browser, with its history, labels and frozen coins. Your coins are not
+            affected.
+          </p>
+          <p className="m-0">To see it here again you will need its descriptor. Labels you have not exported are lost.</p>
+        </div>
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button onClick={() => setRemoving(null)}>Keep it</Button>
+          <Button variant="danger" onClick={remove}>
+            Remove the wallet
+          </Button>
+        </div>
+      </Sheet>
+    </Panel>
+  );
+}
+
 export function Settings() {
-  const { settings, saveSettings, lock, persistence, wallets } = useVault();
+  const { settings, saveSettings, lock, persistence } = useVault();
   const { connection } = useConnection();
   const [destroying, setDestroying] = useState(false);
   const status = persistence && persistenceText[persistence];
@@ -137,19 +217,7 @@ export function Settings() {
             Change server or see the connection
           </a>
         </Panel>
-        <Panel title="Wallets" aside={`${wallets.length} in this vault`}>
-          <ul className="m-0 grid list-none gap-1 p-0">
-            {wallets.map((w) => (
-              <li key={w.id} className="flex justify-between gap-3 text-sm">
-                <span className="font-medium">{w.name}</span>
-                <span className="text-ink-3">{w.network}</span>
-              </li>
-            ))}
-          </ul>
-          <a className={linkClass} href="#/import">
-            Add a wallet
-          </a>
-        </Panel>
+        <Wallets />
         <Labels />
         <Panel title="Storage">
           {status ? <Notice tone={status.tone}>{status.text}</Notice> : <p className="m-0 text-sm text-ink-3">Asking the browser.</p>}
