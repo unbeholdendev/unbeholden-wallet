@@ -2,7 +2,7 @@ import { useEffect, useId, useState } from "react";
 import { useConnection } from "../../app/connection";
 import type { FeeBucket } from "../../backend/backend";
 import { feeTargets, MAX_FEE_RATE, MIN_FEE_RATE, mempoolPosition, type FeeTargets } from "../../wallet/fees";
-import { Panel } from "../../ui/kit";
+import { LinkButton, Panel } from "../../ui/kit";
 
 /** The node's mempool histogram, fetched again on each block and every minute. Null until the first answer. */
 export function useFeeHistogram(): FeeBucket[] | null {
@@ -133,6 +133,7 @@ export function FeePanel({
   const rate = rateOf(choice, histogram, floor);
   const [text, setText] = useState(rateText(rate));
   const [editing, setEditing] = useState(false);
+  const [chart, setChart] = useState(false);
   const id = useId();
   useEffect(() => {
     if (!editing) setText(rateText(rate));
@@ -143,41 +144,47 @@ export function FeePanel({
   const blocks = (r: number) => (histogram ? mempoolPosition(histogram, r).blocks : 1);
   const lower = Math.max(floor, Math.round((rate - 2) * 10) / 10);
 
+  const rates = PRESETS.map((p) => rateOf({ preset: p.key }, histogram, floor));
+
   return (
-    <Panel title="Fee" aside="From your node's mempool">
+    <Panel title="Fee" aside="From your node's mempool" className="@container">
       {histogram === null ? (
         <p className="m-0 text-sm text-ink-3">Asking your node for its mempool.</p>
-      ) : histogram.length === 0 ? (
-        <p className="m-0 text-sm text-ink-2">Your node's mempool is empty, so any rate from {rateText(floor)} sat/vB should make the next block.</p>
+      ) : rates.every((r) => r === rates[0]) ? (
+        <p className="m-0 text-sm text-ink-2">
+          {histogram.length === 0 && "Your node's mempool is empty, so there is nothing to outbid. "}Any rate from {rateText(rates[0]!)} sat/vB makes the next block.
+        </p>
       ) : (
-        <>
-          <Section histogram={histogram} rate={rate} />
-          <p className="m-0 text-sm text-ink-2">
-            At {rateText(rate)} sat/vB, {mvb(mempoolPosition(histogram, rate).vsizeAhead)} MvB pays more than you: {eta(blocks(rate))}.
-            {lower < rate && (
-              <> At {rateText(lower)} sat/vB that would be {mvb(mempoolPosition(histogram, lower).vsizeAhead)} MvB, {eta(blocks(lower))}.</>
-            )}
-          </p>
-        </>
+        <div className="grid gap-3 @min-[640px]:grid-cols-2 @min-[640px]:items-start">
+          <LinkButton aria-expanded={chart} onClick={() => setChart(!chart)} className="justify-self-start text-sm md:hidden">
+            {chart ? "Hide" : "Show"} the mempool
+          </LinkButton>
+          <div className={`gap-3 md:grid ${chart ? "grid" : "hidden"}`}>
+            <Section histogram={histogram} rate={rate} />
+            <p className="m-0 text-sm text-ink-2">
+              At {rateText(rate)} sat/vB, {mvb(mempoolPosition(histogram, rate).vsizeAhead)} MvB pays more than you: {eta(blocks(rate))}.
+              {lower < rate && (
+                <> At {rateText(lower)} sat/vB that would be {mvb(mempoolPosition(histogram, lower).vsizeAhead)} MvB, {eta(blocks(lower))}.</>
+              )}
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {PRESETS.map((p, i) => (
+              <button
+                key={p.key}
+                type="button"
+                aria-pressed={"preset" in choice && choice.preset === p.key}
+                onClick={() => onChange({ preset: p.key })}
+                className="grid gap-px rounded-control border border-rule-2 bg-sheet px-2.5 py-2 text-left hover:bg-sunk aria-pressed:border-route aria-pressed:bg-route-tint aria-pressed:shadow-[inset_0_0_0_1px_var(--route)]"
+              >
+                <b className="text-sm font-semibold">{p.name}</b>
+                <span className="text-base font-medium">{rateText(rates[i]!)} sat/vB</span>
+                <span className="text-xs text-ink-3">{eta(blocks(rates[i]!))}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       )}
-      <div className="grid grid-cols-2 gap-2">
-        {PRESETS.map((p) => {
-          const r = rateOf({ preset: p.key }, histogram, floor);
-          return (
-            <button
-              key={p.key}
-              type="button"
-              aria-pressed={"preset" in choice && choice.preset === p.key}
-              onClick={() => onChange({ preset: p.key })}
-              className="grid gap-px rounded-control border border-rule-2 bg-sheet px-2.5 py-2 text-left hover:bg-sunk aria-pressed:border-route aria-pressed:bg-route-tint aria-pressed:shadow-[inset_0_0_0_1px_var(--route)]"
-            >
-              <b className="text-sm font-semibold">{p.name}</b>
-              <span className="text-base font-medium">{rateText(r)} sat/vB</span>
-              <span className="text-xs text-ink-3">{eta(blocks(r))}</span>
-            </button>
-          );
-        })}
-      </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <label htmlFor={id} className="text-sm font-medium text-ink-2">
           Custom rate

@@ -72,7 +72,7 @@ const summary = () => within(screen.getByRole("region", { name: "Summary" }));
 
 async function payTo(user: ReturnType<typeof userEvent.setup>, to: string, btc: string) {
   await user.type(await screen.findByLabelText("Address"), to);
-  await user.type(screen.getByLabelText("Amount, BTC"), btc);
+  await user.type(screen.getByLabelText("Amount, BTC or sats"), btc);
 }
 
 let created: string | null = null;
@@ -181,6 +181,22 @@ describe("the send screen", () => {
     await user.clear(field);
     await user.type(field, PAYEE.slice(0, -1) + (PAYEE.endsWith("q") ? "p" : "q"));
     expect(screen.getByText(/its checksum does not match/)).toBeTruthy();
+  });
+
+  it("keeps the note behind a link until asked, and forgets it with its recipient", async () => {
+    const user = await start("#/send");
+    await user.click(await screen.findByRole("button", { name: /Add another recipient/ }));
+    await user.type(screen.getByLabelText("Address 2"), PAYEE);
+    await user.click(screen.getByRole("button", { name: "Add a note" }));
+    expect(screen.getByLabelText("Note")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Remove recipient 2" }));
+    await user.click(screen.getByRole("button", { name: /Add another recipient/ }));
+    expect(screen.queryByLabelText("Note")).toBeNull();
+
+    await user.click(screen.getByLabelText("Address 2"));
+    await user.paste(`bitcoin:${PAYEE}?label=Rent`);
+    await user.clear(screen.getByLabelText("Note"));
+    expect(screen.getByLabelText("Note")).toBeTruthy();
   });
 
   it("keeps a manual fee rate when the mempool changes", async () => {
