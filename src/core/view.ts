@@ -28,7 +28,7 @@ type Endpoint = {
 };
 
 export type TxInput = Endpoint & { txid: string; vout: number };
-export type TxOutput = Endpoint & { vout: number; script: string; label: string | null };
+export type TxOutput = Endpoint & { vout: number; script: string; label: string | null; kyc: boolean };
 
 export type WalletTx = {
   txid: string;
@@ -258,6 +258,7 @@ export function deriveView(source: ViewSource) {
         address: addressOf(o.script),
         mine: own.get(o.script) ?? null,
         label: labels[`output:${tx.txid}:${vout}`] ?? null,
+        kyc: kyc.has(`${tx.txid}:${vout}`),
       }));
       const ownValue = (list: Endpoint[]) => sum(list.map((e) => (e.mine ? e.value! : 0)));
       const outTotal = sum(outputs.map((o) => o.value));
