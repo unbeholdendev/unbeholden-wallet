@@ -97,7 +97,12 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
   const typed = drafts.every((d) => !d.max && parseAmount(d.amount));
   const paymentKey = JSON.stringify(payment);
   const auto = useMemo(
-    () => (typed ? selectCoins(snapshot.coins, payment, draft.seed, snapshot.groups, !skip).coins.map(outpoint) : []),
+    () =>
+      typed
+        ? selectCoins(snapshot.coins, payment, draft.seed, snapshot.groups, !skip).coins.map(outpoint)
+        : drafts.some((d) => d.max)
+          ? snapshot.coins.filter(take).map(outpoint)
+          : [],
     [typed, paymentKey, snapshot, draft.seed, skip],
   );
   const selected = new Set(draft.picked ?? auto);
@@ -112,7 +117,7 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
   const stop = blocker(drafts, checks.map((c) => !c || "script" in c), result);
   const change = nextChange(snapshot);
   const sweepable = snapshot.coins.filter(take);
-  const swept = drafts.length === 1 && drafts[0]!.max && sweepable.length > 0 && sweepable.every((c) => selected.has(outpoint(c)));
+  const swept = drafts.some((d) => d.max) && sweepable.length > 0 && sweepable.every((c) => selected.has(outpoint(c)));
   const left = snapshot.coins.filter((c) => !selected.has(outpoint(c)) && !sweepable.includes(c));
   const leftOut = (
     [
@@ -191,9 +196,7 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
             own={own}
             maxAmounts={result.amounts}
             book={book}
-            onSave={(c) => saveBook([...book.filter((b) => b.address !== c.address), c])}
-            onSweep={() => update({ drafts: [{ ...drafts[0]!, max: true }], picked: sweepable.map(outpoint) })}
-          />
+            onSave={(c) => saveBook([...book.filter((b) => b.address !== c.address), c])}          />
           {swept && left.length > 0 && (
             <Notice tone="warn">
               Sending everything spendable. Left out, <Amount sats={left.reduce((a, c) => a + c.value, 0)} unit />: {leftOut}.

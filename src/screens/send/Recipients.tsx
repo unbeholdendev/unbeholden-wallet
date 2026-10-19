@@ -75,7 +75,6 @@ export function Recipients({
   maxAmounts,
   book,
   onSave,
-  onSweep,
 }: {
   drafts: Draft[];
   onChange: (drafts: Draft[]) => void;
@@ -85,7 +84,6 @@ export function Recipients({
   maxAmounts: number[];
   book: Contact[];
   onSave: (contact: Contact) => void;
-  onSweep: () => void;
 }) {
   const [scanning, setScanning] = useState<number | null>(null);
   const [choosing, setChoosing] = useState<number | null>(null);
@@ -193,11 +191,6 @@ export function Recipients({
       <LinkButton className="flex items-center gap-1.5 justify-self-start" onClick={() => onChange([...drafts, { key: Math.max(...drafts.map((d) => d.key)) + 1, address: "", amount: "", max: false, label: "" }])}>
         <Icon name="plus" className="size-4" /> Add another recipient
       </LinkButton>
-      {drafts.length === 1 && (
-        <LinkButton className="justify-self-start" onClick={onSweep}>
-          Send everything
-        </LinkButton>
-      )}
       <Sheet open={choosing !== null} onClose={() => setChoosing(null)} title="Choose a saved address">
         <ul className="m-0 grid list-none gap-2 p-0">
           {usable.map((c) => (
