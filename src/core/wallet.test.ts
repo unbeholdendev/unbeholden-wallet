@@ -133,6 +133,7 @@ describe.each(SERVERS)("a wallet with a known history, served by %s", (_, serve)
       unconfirmed: 53_000,
       frozen: 0,
       spendable: 78_000,
+      foreign: 20_000,
     });
   });
 

@@ -53,8 +53,8 @@ function SyncLine({ snapshot }: { snapshot: WalletSnapshot }) {
 }
 
 function Balance({ snapshot }: { snapshot: WalletSnapshot }) {
-  const { confirmed, unconfirmed, frozen, spendable } = snapshot.balance;
-  // Unconfirmed change of our own is already in spendable; what is left is other people's payments still waiting.
+  const { confirmed, unconfirmed, frozen, foreign } = snapshot.balance;
+  const spendable = snapshot.balance.spendable + (useVault().settings.skipForeignUnconfirmed ? 0 : foreign);
   const waiting = confirmed + unconfirmed - spendable - frozen;
   return (
     <section aria-label="Balance" className="rounded-panel border border-rule bg-sheet">

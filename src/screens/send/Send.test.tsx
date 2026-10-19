@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { address, BIP84, LARGE, MULTISIG, script, signPsbt } from "../../../scripts/regtest/fixture";
 import { App } from "../../App";
 import { fakeBackend, type FakeBackend, type Fixture } from "../../backend/fake";
-import { createWallet, saveSettings } from "../../core/wallets";
+import { createWallet } from "../../core/wallets";
 import { bbqrParts } from "../../transport/bbqr";
 import { psbtUrEncoder } from "../../transport/ur";
 import { btcParts, groupSats } from "../../ui/amount";
@@ -62,9 +62,9 @@ const outgoing = tx([[id(payB), 0]], [[theirs, 200_000], [script(BIP84, 1, 0), 9
 let fixture: Partial<Fixture>;
 let backends: FakeBackend[];
 
-async function start(hash: string, mempool: Uint8Array[] = [foreign, parent, child], descriptor = BIP84.text) {
+async function start(hash: string, mempool: Uint8Array[] = [foreign, parent, child], descriptor = BIP84.text, settings = {}) {
   const vault = await createVault(PASSPHRASE, CHEAP);
-  await saveSettings(vault, { server: "wss://node.example:50004" });
+  await vault.put("settings", { server: "wss://node.example:50004", ...settings });
   const wallet = await createWallet(vault, { name: "Spending", descriptor, network: "regtest" });
   await vault.put(`labels/${wallet.id}`, { [`output:${id(payA)}:0`]: "Kraken withdrawal", [`output:${id(payB)}:0`]: "Bisq trade" });
   await vault.put(`frozen/${wallet.id}`, [`${id(payC)}:0`]);
@@ -197,8 +197,8 @@ describe("the send screen", () => {
     expect(map.queryByText(/an exchange that knows who you are/)).toBeNull();
   });
 
-  it("never picks a frozen coin or one with an unconfirmed parent, and asks before spending someone else's unconfirmed payment", async () => {
-    const user = await start("#/send");
+  it("never picks a frozen coin or one with an unconfirmed parent, and, when set to, asks before spending someone else's unconfirmed payment", async () => {
+    const user = await start("#/send", undefined, undefined, { skipForeignUnconfirmed: true });
     await payTo(user, PAYEE, "0.0095");
 
     expect((await coin(/Kraken withdrawal/)).getAttribute("aria-checked")).toBe("true");
@@ -219,6 +219,17 @@ describe("the send screen", () => {
     expect(foreignCoin.getAttribute("aria-checked")).toBe("false");
     await user.click(screen.getByRole("button", { name: "Spend it anyway" }));
     expect(foreignCoin.getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("spends someone else's unconfirmed payment without asking, and warns", async () => {
+    const user = await start("#/send");
+    await payTo(user, PAYEE, "0.0095");
+    await user.click(screen.getByRole("button", { name: "Clear" }));
+    const foreignCoin = await coin(/Unconfirmed, from someone else/);
+    await user.click(foreignCoin);
+    expect(foreignCoin.getAttribute("aria-checked")).toBe("true");
+    expect(screen.queryByRole("button", { name: "Spend it anyway" })).toBeNull();
+    expect(screen.getByText(/One selected coin is an unconfirmed payment from someone else/)).toBeTruthy();
   });
 
   it("picks coins from one source once an amount is typed, until a tap takes over", async () => {
@@ -334,10 +345,11 @@ describe("the send screen", () => {
     expect(screen.getByRole("button", { name: "Max" }).getAttribute("aria-pressed")).toBe("true");
     expect((await coin(/Kraken withdrawal/)).getAttribute("aria-checked")).toBe("true");
     expect((await coin(/Bisq trade/)).getAttribute("aria-checked")).toBe("true");
-    expect(summary().getByText("Coins in (2)")).toBeTruthy();
+    expect((await coin(/Unconfirmed, from someone else/)).getAttribute("aria-checked")).toBe("true");
+    expect(summary().getByText("Coins in (3)")).toBeTruthy();
     expect(summary().getByText("Change back to you").parentElement!.textContent).toBe("Change back to youNone");
-    // Frozen 200 000, waiting on a parent 150 000, someone else's unconfirmed 100 000.
-    expect(screen.getByText(/^Sending everything spendable/).textContent!.replace(/\s+/g, " ")).toMatch(/^Sending everything spendable\. Left out, 0\.00 450 000 ?BTC: 1 frozen, 1 waiting on an unconfirmed parent, 1 unconfirmed from someone else\.$/);
+    // Frozen 200 000, waiting on a parent 150 000.
+    expect(screen.getByText(/^Sending everything spendable/).textContent!.replace(/\s+/g, " ")).toMatch(/^Sending everything spendable\. Left out, 0\.00 350 000 ?BTC: 1 frozen, 1 waiting on an unconfirmed parent\.$/);
     expect(screen.getByRole("button", { name: "Review and sign" })).toHaveProperty("disabled", false);
   });
 

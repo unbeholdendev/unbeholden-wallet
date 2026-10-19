@@ -137,7 +137,7 @@ the user's own node.
 ### Unconfirmed coins and safety
 
 70. As a wallet owner, I want to spend my own unconfirmed change freely, so that I am not blocked between transactions.
-71. As a wallet owner, I want a clear warning before spending an unconfirmed payment from someone else, so that I understand it can be replaced out from under me.
+71. As a wallet owner, I want to spend an unconfirmed payment from someone else with a clear warning that it can be replaced out from under me, and a setting to leave such payments out.
 72. As a wallet owner, I want coins with unconfirmed parents excluded by default, so that I do not build transactions that cannot propagate.
 
 ### Trust, storage and platform
@@ -195,7 +195,7 @@ the user's own node.
 - Subscriptions are taken on the chain tip and on addresses within the active gap window. Addresses outside it are polled on new blocks.
 - Performance targets are treated as acceptance criteria: a return visit is interactive in under one second, and a first sync of a wallet with roughly 500 transactions completes in under ten seconds against a local Fulcrum.
 - Reorg handling is deliberately blunt. When an incoming header does not extend the stored tip, the wallet's cached chain data is discarded, the wallet re-syncs, and the user is told it happened. Surgical invalidation is not worth the edge cases.
-- Unconfirmed coins: the wallet's own unconfirmed change is spendable without friction, unconfirmed incoming payments from others carry a hard warning, and coins with unconfirmed parents are excluded by default.
+- Unconfirmed coins: the wallet's own unconfirmed change is spendable without friction, unconfirmed incoming payments from others are spendable with a warning unless a setting leaves them out, and coins with unconfirmed parents are excluded by default.
 
 ### Sending
 

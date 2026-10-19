@@ -64,8 +64,8 @@ describe("wallet views on the demo history", () => {
   it("shows the balances and each payment's amount and direction, newest first", async () => {
     const user = await openApp();
     const balance = screen.getByRole("region", { name: "Balance" }).textContent;
-    expect(balance).toContain("Spendable now0.30 626 773");
-    expect(balance).toContain("+0.00 300 000 waiting to confirm");
+    expect(balance).toContain("Spendable now0.30 926 773");
+    expect(balance).not.toContain("waiting to confirm");
     expect(balance).toContain("0.00 021 400 frozen");
 
     expect(row("Rent, October")).toContain("−0.01 451 440");
@@ -264,9 +264,9 @@ describe("wallet views on the demo history", () => {
 
   it("takes a frozen coin out of the spendable balance", async () => {
     const user = await openApp("#/coins");
-    expect(spendable()).toContain("0.30 626 773");
+    expect(spendable()).toContain("0.30 926 773");
     await user.click(screen.getByRole("button", { name: "Freeze 0.06 000 000 BTC" }));
-    await waitFor(() => expect(spendable()).toBe("0.24 626 773"));
+    await waitFor(() => expect(spendable()).toBe("0.24 926 773"));
     expect(screen.getByRole("button", { name: "Unfreeze 0.06 000 000 BTC" })).toBeTruthy();
   });
 
@@ -356,14 +356,14 @@ describe("the connection", () => {
     down = false;
     act(() => report("connected"));
 
-    await waitFor(() => expect(screen.getByRole("region", { name: "Balance" }).textContent).toContain("+0.00 310 000 waiting to confirm"));
+    await waitFor(() => expect(screen.getByRole("region", { name: "Balance" }).textContent).toContain("Spendable now0.30 936 773"));
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
   });
 
   it("says why it could not connect and leads to what to do about it", async () => {
     const user = await unlockWith(() => fakeBackend({ failure: "refused" }));
     expect(await screen.findByText(/Not connected to node.example.ts.net:50004. Nothing there accepted the connection/)).toBeTruthy();
-    expect(spendable()).toContain("0.30 626 773");
+    expect(spendable()).toContain("0.30 926 773");
     await user.click(screen.getByRole("link", { name: "What to do" }));
     expect(await screen.findByRole("heading", { name: "Nothing at node.example.ts.net:50004 accepted the connection" })).toBeTruthy();
   });

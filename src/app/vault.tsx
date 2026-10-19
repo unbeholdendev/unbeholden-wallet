@@ -30,7 +30,7 @@ import {
   type WalletRecord,
 } from "../core/wallets";
 
-export type Settings = CoreSettings & { idleMinutes?: number; walletId?: string; notify?: boolean };
+export type Settings = CoreSettings & { idleMinutes?: number; walletId?: string; notify?: boolean; skipForeignUnconfirmed?: boolean };
 
 export type Persistence = Awaited<ReturnType<typeof requestPersistence>>;
 
