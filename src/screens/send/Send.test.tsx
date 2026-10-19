@@ -338,10 +338,10 @@ describe("the send screen", () => {
     expect(screen.getByLabelText("Note")).toBeTruthy();
   });
 
-  it("sends everything spendable in one tap, and says what it left out", async () => {
+  it("sends everything spendable on Max with no coins picked, and says what it left out", async () => {
     const user = await start("#/send");
     await user.type(await screen.findByLabelText("Address"), PAYEE);
-    await user.click(screen.getByRole("button", { name: "Send everything" }));
+    await user.click(screen.getByRole("button", { name: "Max" }));
     expect(screen.getByRole("button", { name: "Max" }).getAttribute("aria-pressed")).toBe("true");
     expect((await coin(/Kraken withdrawal/)).getAttribute("aria-checked")).toBe("true");
     expect((await coin(/Bisq trade/)).getAttribute("aria-checked")).toBe("true");

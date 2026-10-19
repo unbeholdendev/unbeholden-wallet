@@ -386,7 +386,7 @@ export function Settings() {
           </label>
           <p className="m-0 text-sm text-ink-2">
             Until it confirms, the sender can replace a payment, and a transaction that spends it fails with it. Off,
-            they are left out of automatic picks and Send everything, and you are asked before picking one. Your own
+            they are left out of automatic picks and Max, and you are asked before picking one. Your own
             unconfirmed change is spent either way.
           </p>
         </Panel>

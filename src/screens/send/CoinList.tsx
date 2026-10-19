@@ -12,7 +12,7 @@ import { SourceTitle } from "../parts";
 /** Frozen coins and coins waiting on someone else's unconfirmed transaction cannot be chosen. */
 export const selectable = (c: WalletCoin) => !c.frozen && c.status !== "unconfirmed-parents";
 
-/** What a group tap or Send everything takes when the setting leaves out someone else's unconfirmed payment. */
+/** What a group tap or Max takes when the setting leaves out someone else's unconfirmed payment. */
 export const bulk = (c: WalletCoin) => selectable(c) && c.status !== "foreign-unconfirmed";
 
 function age(coin: WalletCoin, tip: number | null) {
