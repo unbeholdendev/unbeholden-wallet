@@ -11,6 +11,9 @@ Spec: `docs/spec-v1.md`.
 `bun run dev`, `bun run build`, `bun run typecheck`, `bun run test` (Vitest),
 `bun run test:e2e` (Playwright).
 
+`bun run dev` serves https and must run on real Node; Vite on Bun crashes
+serving https.
+
 Not `bun test`: that is Bun's own runner, which ignores the Vitest config and
 so never loads the `fake-indexeddb` setup.
 
