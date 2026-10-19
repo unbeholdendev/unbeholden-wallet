@@ -42,6 +42,7 @@ export function SignFlow({
   warnings,
   summary,
   label,
+  names = {},
   onBack,
   done = null,
   onDone,
@@ -53,6 +54,8 @@ export function SignFlow({
   /** Extra facts for the check, such as where the coins come from. */
   summary: [ReactNode, ReactNode][];
   label: string;
+  /** Address book names by address, for the outputs that pay them. */
+  names?: Record<string, string>;
   onBack: () => void;
   /** The signed transaction already scanned back, to resume at Broadcast. */
   done?: Uint8Array | null;
@@ -94,6 +97,7 @@ export function SignFlow({
       const txid = await backend.broadcast(raw);
       await session.addTransaction(raw);
       if (label) await session.setLabel("tx", txid, label);
+      for (const [vout, o] of review.outputs.entries()) if (o.address && names[o.address]) await session.setLabel("output", `${txid}:${vout}`, names[o.address]!);
       navigate(`/tx/${txid}`);
     } catch (e) {
       setFailure((e as Error).message);
@@ -116,7 +120,7 @@ export function SignFlow({
           <li key={i} className={`grid gap-1 rounded-control border px-3 py-2.5 ${o.change ? "border-rule bg-sunk" : "border-rule-2"}`}>
             <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
               <span className="text-sm font-medium text-ink-2">
-                {o.change ? "Change back to you" : o.mine ? "To one of your own addresses" : `Payment ${payments.indexOf(o) + 1}`}
+                {o.change ? "Change back to you" : o.mine ? "To one of your own addresses" : `Payment ${payments.indexOf(o) + 1}${o.address && names[o.address] ? ` to ${names[o.address]}` : ""}`}
               </span>
               <span className="text-md font-medium">
                 <Amount sats={o.value} unit />

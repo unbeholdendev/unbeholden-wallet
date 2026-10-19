@@ -183,7 +183,7 @@ the user's own node.
 ### Storage
 
 - One encrypted vault per browser origin, holding multiple wallets, unlocked by a single passphrase. Argon2id for key derivation, AES-GCM for encryption, IndexedDB for storage.
-- The vault holds descriptors, wallet metadata, labels, frozen-coin flags, payment requests, cached transactions and cached address history.
+- The vault holds descriptors, wallet metadata, labels, frozen-coin flags, payment requests, an address book of saved recipients, cached transactions and cached address history.
 - Cached chain data is treated as a cache, not as a record of truth. The descriptor is the only thing whose loss matters, so descriptor backup is part of onboarding, and each wallet's descriptor stays in Settings to copy, download or show as a QR.
 - Settings exports wallets, labels, frozen and KYC marks and settings, without the cache, as one backup file, encrypted as the vault is and confirmed with the vault passphrase. It restores on the first-run screen into a new vault, or in Settings merges in: wallets added by descriptor, missing labels added, nothing here replaced. Its format is written down once, above `sealBackup` in `src/vault/vault.ts`.
 - `navigator.storage.persist()` is requested where supported. On iOS the app relies on home-screen installation to avoid seven-day storage eviction, and says so explicitly rather than burying it.

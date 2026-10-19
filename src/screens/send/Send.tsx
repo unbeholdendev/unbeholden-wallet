@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useConnection } from "../../app/connection";
 import { useSendDraft, useWallet, useWalletSession, useWalletSnapshot } from "../../app/session";
+import { useBook } from "../../app/vault";
 import { nextChange } from "../../core/view";
 import type { WalletCoin, WalletSnapshot } from "../../core/wallet";
 import { Amount, groupSats } from "../../ui/amount";
@@ -13,7 +14,7 @@ import { outpoint } from "../../wallet/coin";
 import { assessPrivacy } from "../../wallet/privacy";
 import { buildPsbt } from "../../wallet/psbt";
 import { selectCoins, spend, type Payment, type Spend } from "../../wallet/select";
-import { CoinList, selectable } from "./CoinList";
+import { bulk, CoinList, selectable } from "./CoinList";
 import { FeePanel, rateOf, rateText, useFeeHistogram, type FeeChoice } from "./fees";
 import { PrivacyMap } from "./PrivacyMap";
 import { checkAddress, parseAmount, Recipients, type Draft } from "./Recipients";
@@ -31,7 +32,7 @@ function Flash({ value, children }: { value: number; children: ReactNode }) {
   );
 }
 
-export type Built = { psbt: Uint8Array; warnings: string[]; label: string; summary: [ReactNode, ReactNode][] };
+export type Built = { psbt: Uint8Array; warnings: string[]; label: string; names?: Record<string, string>; summary: [ReactNode, ReactNode][] };
 
 /** `picked` null lets the wallet choose coins for the amount; a tap fixes the choice. */
 export type SendDraft = { drafts: Draft[]; fee: FeeChoice; seed: string; picked: string[] | null; built: (Built & { inputs: string[]; signed?: Uint8Array }) | null };
@@ -65,6 +66,8 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
   const [error, setError] = useState<string | null>(null);
   const map = useRef<HTMLElement>(null);
   const histogram = useFeeHistogram();
+  const [book, saveBook] = useBook();
+  const named = new Map(book.map((c) => [c.address, c.name]));
 
   const sources = useMemo(() => sourcesOf(snapshot), [snapshot]);
   const nameOf = useMemo(() => new Map(sources.flatMap((s) => s.coins.map((c) => [outpoint(c), s.name]))), [sources]);
@@ -74,6 +77,7 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
   // An unfinished address still has to cost its output's bytes, so it stands in as one of the wallet's own type.
   const placeholder = scriptType === "wpkh" ? `0014${"00".repeat(20)}` : `5120${"00".repeat(32)}`;
   const checks = drafts.map((d) => (d.address.trim() ? checkAddress(d.address, network) : null));
+  const addresses = checks.map((c) => (c && "address" in c ? c.address : ""));
   const payment: Payment = {
     recipients: drafts.map((d, i) => {
       const check = checks[i];
@@ -99,6 +103,19 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
   const foreign = chosen.filter((c) => c.status === "foreign-unconfirmed");
   const stop = blocker(drafts, checks.map((c) => !c || "script" in c), result);
   const change = nextChange(snapshot);
+  const sweepable = snapshot.coins.filter(bulk);
+  const swept = drafts.length === 1 && drafts[0]!.max && sweepable.length > 0 && sweepable.every((c) => selected.has(outpoint(c)));
+  const left = snapshot.coins.filter((c) => !selected.has(outpoint(c)) && !sweepable.includes(c));
+  const leftOut = (
+    [
+      [left.filter((c) => c.frozen).length, "frozen"],
+      [left.filter((c) => !c.frozen && c.status === "unconfirmed-parents").length, "waiting on an unconfirmed parent"],
+      [left.filter((c) => !c.frozen && c.status === "foreign-unconfirmed").length, "unconfirmed from someone else"],
+    ] as const
+  )
+    .filter(([n]) => n)
+    .map(([n, why]) => `${n} ${why}`)
+    .join(", ");
 
   const toggle = (coin: WalletCoin) => {
     const key = outpoint(coin);
@@ -122,7 +139,8 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
       update({
         built: {
           ...built,
-          label: drafts.map((d) => d.label.trim()).filter(Boolean).join(", "),
+          label: drafts.map((d, i) => d.label.trim() || named.get(addresses[i]!)).filter(Boolean).join(", "),
+          names: Object.fromEntries(addresses.flatMap((a) => (named.has(a) ? [[a, named.get(a)!]] : []))),
           summary: [["Inputs", `${result.coins.length} coin${result.coins.length === 1 ? "" : "s"} from ${linked} source${linked === 1 ? "" : "s"}`]],
           inputs: result.coins.map(outpoint),
         },
@@ -151,7 +169,21 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
       <h1 className="sr-only">Send</h1>
       <div className="grid gap-4 @min-[900px]:grid-cols-[minmax(0,1fr)_440px] @min-[900px]:items-start">
         <div className="grid min-w-0 gap-4">
-          <Recipients drafts={drafts} onChange={setDrafts} network={network} own={own} maxAmounts={result.amounts} />
+          <Recipients
+            drafts={drafts}
+            onChange={setDrafts}
+            network={network}
+            own={own}
+            maxAmounts={result.amounts}
+            book={book}
+            onSave={(c) => saveBook([...book.filter((b) => b.address !== c.address), c])}
+            onSweep={() => update({ drafts: [{ ...drafts[0]!, max: true }], picked: sweepable.map(outpoint) })}
+          />
+          {swept && left.length > 0 && (
+            <Notice tone="warn">
+              Sending everything spendable. Left out, <Amount sats={left.reduce((a, c) => a + c.value, 0)} unit />: {leftOut}.
+            </Notice>
+          )}
           <FeePanel histogram={histogram} choice={fee} onChange={setFee} />
           <CoinList
             sources={sources}
@@ -160,7 +192,7 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
             selected={selected}
             onToggle={toggle}
             onGroup={(source) => {
-              const open = source.coins.filter((c) => selectable(c) && c.status !== "foreign-unconfirmed").map(outpoint);
+              const open = source.coins.filter(bulk).map(outpoint);
               const next = new Set(selected);
               if (open.every((k) => next.has(k))) open.forEach((k) => next.delete(k));
               else open.forEach((k) => next.add(k));
@@ -308,7 +340,7 @@ export function Send() {
       <div hidden={!!built}>
         <Compose snapshot={snapshot} draft={draft} update={update} onDiscard={stored ? () => store(null) : undefined} />
       </div>
-      {built && <SignFlow built={built.psbt} title="Sign and send" warnings={built.warnings} summary={built.summary} label={built.label} onBack={() => update({ built: null })} done={built.signed} onDone={(signed) => update({ built: { ...built, signed } })} />}
+      {built && <SignFlow built={built.psbt} title="Sign and send" warnings={built.warnings} summary={built.summary} label={built.label} names={built.names} onBack={() => update({ built: null })} done={built.signed} onDone={(signed) => update({ built: { ...built, signed } })} />}
     </>
   );
 }

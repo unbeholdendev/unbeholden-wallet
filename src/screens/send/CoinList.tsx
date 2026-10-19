@@ -11,6 +11,9 @@ import { SourceTitle } from "../parts";
 /** Frozen coins and coins waiting on someone else's unconfirmed transaction cannot be chosen. */
 export const selectable = (c: WalletCoin) => !c.frozen && c.status !== "unconfirmed-parents";
 
+/** What a group tap or Send everything takes: someone else's unconfirmed payment is asked about one at a time. */
+export const bulk = (c: WalletCoin) => selectable(c) && c.status !== "foreign-unconfirmed";
+
 function age(coin: WalletCoin, tip: number | null) {
   if (coin.height === null || tip === null) return "unconfirmed";
   const confs = tip - coin.height + 1;
@@ -140,7 +143,7 @@ export function CoinList({
           const coin = source.coins[0]!;
           return <CoinRow key={source.id} coin={coin} source={source} tip={tip} rate={rate} on={selected.has(outpoint(coin))} onToggle={() => onToggle(coin)} />;
         }
-        const open = source.coins.filter((c) => selectable(c) && c.status !== "foreign-unconfirmed");
+        const open = source.coins.filter(bulk);
         const whole = open.length > 0 && open.every((c) => selected.has(outpoint(c)));
         return (
           <div key={source.id} role="group" aria-label={source.name} className="border-t border-rule-2">
