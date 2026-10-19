@@ -14,7 +14,14 @@ import { normaliseExtendedKey } from "../wallet/extended-key";
 import { descriptorsFromUr, descriptorUrDecoder } from "../transport/ur";
 import type { Network } from "../wallet/network";
 
-type Reading = { descriptor?: string; fingerprint?: string; needsType?: boolean; error?: string };
+type Reading = {
+  descriptor?: string;
+  fingerprint?: string;
+  /** A multisig's k, and each key's fingerprint, null for a key without an origin. */
+  multi?: { threshold: number; fingerprints: (string | null)[] };
+  needsType?: boolean;
+  error?: string;
+};
 
 const canonical = (wallet: Pick<WalletRecord, "descriptor" | "network" | "scriptType">) =>
   formatDescriptor(walletDescriptor(wallet));
@@ -22,7 +29,7 @@ const canonical = (wallet: Pick<WalletRecord, "descriptor" | "network" | "script
 // xpub, ypub, zpub, Ypub and Zpub are the mainnet prefixes in SLIP-132. Keys for
 // every test network look alike, so the server's chain picks between them.
 const keyNetwork = (text: string, server: Network | null): Network =>
-  /(^|[(\]])[xyzYZ]pub/.test(text.trim()) ? "mainnet" : server && server !== "mainnet" ? server : "signet";
+  /(^|[(\],])[xyzYZ]pub/.test(text.trim()) ? "mainnet" : server && server !== "mainnet" ? server : "signet";
 
 function interpret(text: string, network: Network, scriptType: ScriptType | null): Reading {
   const input = text.trim();
@@ -31,7 +38,13 @@ function interpret(text: string, network: Network, scriptType: ScriptType | null
     const needsType = !/[([]/.test(input) && normaliseExtendedKey(input, network).scriptType === null;
     if (needsType && !scriptType) return { needsType };
     const descriptor = walletDescriptor({ descriptor: input, network, scriptType });
-    return { needsType, descriptor: formatDescriptor(descriptor), fingerprint: descriptor.origin?.fingerprint };
+    const { keys, multi } = descriptor;
+    return {
+      needsType,
+      descriptor: formatDescriptor(descriptor),
+      fingerprint: multi ? undefined : keys[0]!.origin?.fingerprint,
+      multi: multi && { threshold: multi.threshold, fingerprints: keys.map((k) => k.origin?.fingerprint ?? null) },
+    };
   } catch (error) {
     return { error: `${(error as Error).message}.` };
   }
@@ -99,7 +112,8 @@ export function ImportWallet() {
   const network = keyNetwork(text, server ?? wallets.find((w) => w.network !== "mainnet")?.network ?? null);
   const reading = interpret(text, network, scriptType);
   const duplicate = wallets.find((w) => canonical(w) === reading.descriptor);
-  const fallbackName = reading.fingerprint ?? `Wallet ${wallets.length + 1}`;
+  const { multi } = reading;
+  const fallbackName = reading.fingerprint ?? (multi ? `${multi.threshold}-of-${multi.fingerprints.length} multisig` : `Wallet ${wallets.length + 1}`);
   const name = typedName.trim() || fallbackName;
 
   const next = (event: FormEvent) => {
@@ -133,7 +147,7 @@ export function ImportWallet() {
     if (!d.result) return;
     try {
       const found = descriptorsFromUr(d.result);
-      const supported = found.filter((f) => /^(wpkh|tr)\(/.test(f));
+      const supported = found.filter((f) => /^(wpkh|tr|wsh\((sorted)?multi)\(/.test(f));
       if (supported.length > 1) setChoices(supported);
       else take(supported[0] ?? found[0]!);
     } catch (error) {
@@ -196,7 +210,7 @@ export function ImportWallet() {
       <div className="grid content-start gap-4">
         <Field
           label="Descriptor or extended public key"
-          hint="For example wpkh([fingerprint/84h/0h/0h]xpub…/<0;1>/*), or a zpub, vpub, xpub or tpub."
+          hint="For example wpkh([fingerprint/84h/0h/0h]xpub…/<0;1>/*), a wsh(sortedmulti(…)) multisig, or a zpub, vpub, xpub or tpub."
           error={reading.error ?? (duplicate ? `This wallet is already here, as ${duplicate.name}.` : undefined)}
         >
           {(props) => (
@@ -246,6 +260,20 @@ export function ImportWallet() {
           {reading.descriptor ? (
             <>
               <DescriptorText>{reading.descriptor}</DescriptorText>
+              {multi && (
+                <div className="grid gap-1.5">
+                  <p className="m-0 text-sm font-medium">
+                    {multi.threshold} of {multi.fingerprints.length} multisig: spending needs {multi.threshold} of these keys to sign.
+                  </p>
+                  <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
+                    {multi.fingerprints.map((f, i) => (
+                      <li key={i} className="rounded-control border border-rule bg-sunk px-2 py-1 font-mono text-[0.86em]">
+                        {f ?? "no fingerprint"}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <p className="m-0 text-sm text-ink-2">
                 Check the script type and the key match what your signer shows. A wrong guess here gives an empty wallet,
                 not an error.

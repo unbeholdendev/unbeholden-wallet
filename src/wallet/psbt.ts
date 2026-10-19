@@ -1,11 +1,10 @@
 import { hex } from "@scure/base";
 import { HDKey } from "@scure/bip32";
 import { Address, OutScript, Transaction } from "@scure/btc-signer";
-import { p2tr, p2wpkh } from "@scure/btc-signer/payment.js";
 import { equalBytes } from "@scure/btc-signer/utils.js";
 import { outpoint, type Coin } from "./coin";
-import { derivePublicKey } from "./derive";
-import { childPath, HARDENED, type Descriptor } from "./descriptor";
+import { derivePayment } from "./derive";
+import { childPath, HARDENED, type Descriptor, type DescriptorKey } from "./descriptor";
 import { BIP32_VERSIONS } from "./extended-key";
 import { NETWORKS, type Network } from "./network";
 
@@ -58,15 +57,15 @@ const SIGHASH_ALL = 0x01;
 const NO_ORIGIN_WARNING =
   "This wallet was imported without its key origin, so your signer may not recognise these coins or the change as its own. Import the full descriptor, with its [fingerprint/path], to fix this.";
 
-function origin(descriptor: Descriptor, network: Network) {
-  if (descriptor.origin) {
+function origin(key: DescriptorKey, network: Network) {
+  if (key.origin) {
     return {
-      fingerprint: Number.parseInt(descriptor.origin.fingerprint, 16),
-      path: descriptor.origin.path,
+      fingerprint: Number.parseInt(key.origin.fingerprint, 16),
+      path: key.origin.path,
     };
   }
-  const key = HDKey.fromExtendedKey(descriptor.key, BIP32_VERSIONS[network]);
-  return { fingerprint: key.fingerprint, path: [] };
+  const hd = HDKey.fromExtendedKey(key.key, BIP32_VERSIONS[network]);
+  return { fingerprint: hd.fingerprint, path: [] };
 }
 
 /** The output script and the PSBT fields that let a signer recognise it. */
@@ -76,22 +75,21 @@ function derivation(
   chain: number,
   index: number,
 ) {
-  const publicKey = derivePublicKey(descriptor, network, chain, index);
-  const from = origin(descriptor, network);
-  const der = {
-    fingerprint: from.fingerprint,
-    path: [...from.path, ...childPath(descriptor, chain, index)],
-  };
-  const params = NETWORKS[network];
-  if (descriptor.scriptType === "wpkh") {
-    return {
-      script: p2wpkh(publicKey, params).script,
-      fields: { bip32Derivation: [[publicKey, der]] as [Uint8Array, typeof der][] },
-    };
+  const { script, witnessScript, keys } = derivePayment(descriptor, network, chain, index);
+  const ders = descriptor.keys.map((key, i) => {
+    const from = origin(key, network);
+    return [keys[i]!, { fingerprint: from.fingerprint, path: [...from.path, ...childPath(key, chain, index)] }] as [
+      Uint8Array,
+      { fingerprint: number; path: number[] },
+    ];
+  });
+  if (descriptor.scriptType !== "tr") {
+    return { script, fields: { bip32Derivation: ders, ...(witnessScript && { witnessScript }) } };
   }
+  const [[publicKey, der]] = ders as [(typeof ders)[number]];
   const xOnly = publicKey.slice(1);
   return {
-    script: p2tr(xOnly, undefined, params).script,
+    script,
     fields: {
       tapInternalKey: xOnly,
       tapBip32Derivation: [[xOnly, { hashes: [], der }]] as [
@@ -100,6 +98,28 @@ function derivation(
       ][],
     },
   };
+}
+
+/**
+ * PSBT_GLOBAL_XPUB for each multisig key, which signers such as Coldcard need
+ * to tell change from a payment. BIP174 wants the key's depth to equal its
+ * origin path's length, so a key without a full origin is left out.
+ */
+function globalXpubs(descriptor: Descriptor, network: Network) {
+  if (!descriptor.multi) return [];
+  return descriptor.keys.flatMap((key) => {
+    const hd = HDKey.fromExtendedKey(key.key, BIP32_VERSIONS[network]);
+    if (!key.origin || key.origin.path.length !== hd.depth) return [];
+    const xpub = {
+      version: hd.versions.public,
+      depth: hd.depth,
+      parentFingerprint: hd.parentFingerprint,
+      childNumber: hd.index,
+      chainCode: hd.chainCode!,
+      publicKey: hd.publicKey!,
+    };
+    return [[xpub, origin(key, network)] as const];
+  });
 }
 
 function randomBelow(n: number): number {
@@ -181,9 +201,12 @@ export function buildPsbt(request: PsbtRequest): BuiltPsbt {
   if (tx.fee < 0n) {
     throw new Error("The outputs add up to more than the chosen coins hold");
   }
+  const xpubs = globalXpubs(descriptor, network);
+  // Transaction keeps its global map private and offers no setter for it.
+  if (xpubs.length) tx["global"].xpub = xpubs;
   return {
     psbt: tx.toPSBT(),
-    warnings: descriptor.origin ? [] : [NO_ORIGIN_WARNING],
+    warnings: descriptor.keys.every((k) => k.origin) ? [] : [NO_ORIGIN_WARNING],
   };
 }
 
@@ -213,6 +236,54 @@ export function finaliseSigned(
   built: Uint8Array,
   returned: Uint8Array,
 ): Uint8Array {
+  const { ours, theirs } = matching(built, returned);
+  return finalise(theirs, ours);
+}
+
+export type Collected = {
+  /** The built PSBT with every signature so far, to show the next cosigner. */
+  psbt: Uint8Array;
+  /** Fewest signatures on any input, and how many each needs. */
+  signed: number;
+  needed: number;
+  /** Fingerprints of the keys that have signed every input. */
+  signers: string[];
+  /** The transaction to broadcast, once every input has enough. */
+  raw: Uint8Array | null;
+};
+
+/**
+ * For a multisig: checks a PSBT back from one cosigner is the transaction
+ * built, adds its signatures to those collected so far (BIP174's combiner),
+ * and finalises once every input has `needed`. Throws with the reason it was refused.
+ */
+export function collectSigned(built: Uint8Array, collected: Uint8Array, returned: Uint8Array, needed: number): Collected {
+  const { ours, theirs } = matching(built, returned);
+  if (theirs.isFinal) return { psbt: collected, signed: needed, needed, signers: [], raw: finalise(theirs, ours) };
+  const all = parsePsbt(collected);
+  for (let i = 0; i < theirs.inputsLength; i++) {
+    if (theirs.getInput(i).partialSig?.some(([, sig]) => sig.at(-1) !== SIGHASH_ALL)) {
+      throw new Error(`Input ${i + 1} is signed so that whoever relays it could change where it pays`);
+    }
+  }
+  try {
+    all.combine(theirs);
+  } catch {
+    throw new Error("Its details differ from the signatures already collected");
+  }
+  const fingerprints = Array.from({ length: all.inputsLength }, (_, i) => {
+    const sigs = all.getInput(i).partialSig ?? [];
+    return (ours.getInput(i).bip32Derivation ?? [])
+      .filter(([key]) => sigs.some(([signer]) => equalBytes(signer, key)))
+      .map(([, der]) => der.fingerprint.toString(16).padStart(8, "0"));
+  });
+  const signed = Math.min(...fingerprints.map((f) => f.length));
+  const signers = fingerprints[0]!.filter((f) => fingerprints.every((on) => on.includes(f)));
+  const psbt = all.toPSBT();
+  return { psbt, signed, needed, signers, raw: signed >= needed ? finalise(all, ours) : null };
+}
+
+function matching(built: Uint8Array, returned: Uint8Array): { ours: Transaction; theirs: Transaction } {
   const ours = parsePsbt(built);
   const theirs = hasMagic(returned) ? parsePsbt(returned) : withWitnesses(ours, returned);
 
@@ -258,7 +329,7 @@ export function finaliseSigned(
       "The signed transaction differs from the one built in its version, lock time or sequence numbers",
     );
   }
-  return finalise(theirs, ours);
+  return { ours, theirs };
 }
 
 /**
@@ -321,27 +392,29 @@ function signsEverything(witness: Uint8Array[], type: string): boolean {
   if (type === "tr") {
     return witness.length === 1 && (sig.length === 64 || (sig.length === 65 && sig[64] === SIGHASH_ALL));
   }
+  // The empty item CHECKMULTISIG pops, the signatures, then the script.
+  if (type === "wsh") return witness.length > 2 && witness.slice(1, -1).every((s) => s.at(-1) === SIGHASH_ALL);
   return witness.length === 2 && sig.at(-1) === SIGHASH_ALL;
 }
 
-/** Where a derivation path sits under the descriptor, if it does. */
+/** Where a derivation path sits under one of the descriptor's keys, if it does. */
 function locate(
-  descriptor: Descriptor,
+  key: DescriptorKey,
   network: Network,
   fingerprint: number,
   path: number[],
 ): { chain: number; index: number } | null {
-  const from = origin(descriptor, network);
+  const from = origin(key, network);
   if (
     fingerprint !== from.fingerprint ||
-    path.length !== from.path.length + descriptor.path.length ||
+    path.length !== from.path.length + key.path.length ||
     from.path.some((step, i) => path[i] !== step)
   ) {
     return null;
   }
   let chain = 0;
   let index = -1;
-  for (const [i, step] of descriptor.path.entries()) {
+  for (const [i, step] of key.path.entries()) {
     const n = path[from.path.length + i]!;
     if (step === "*") index = n;
     else if (typeof step === "number") {
@@ -366,12 +439,16 @@ function estimateVsize(tx: Transaction): number {
     4 + 4 + varIntLength(tx.inputsLength) + varIntLength(tx.outputsLength);
   let witness = 2;
   for (let i = 0; i < tx.inputsLength; i++) {
-    const script = tx.getInput(i).witnessUtxo?.script;
+    const { witnessUtxo, witnessScript } = tx.getInput(i);
+    const type = witnessUtxo && OutScript.decode(witnessUtxo.script).type;
+    const multi = witnessScript && OutScript.decode(witnessScript);
     bytes += INPUT_BYTES;
     witness +=
-      script && OutScript.decode(script).type === "tr"
+      type === "tr"
         ? WITNESS_WEIGHT.tr
-        : WITNESS_WEIGHT.wpkh;
+        : multi?.type === "ms"
+          ? 1 + 1 + 73 * multi.m + varIntLength(witnessScript!.length) + witnessScript!.length
+          : WITNESS_WEIGHT.wpkh;
   }
   for (let i = 0; i < tx.outputsLength; i++) {
     const length = tx.getOutput(i).script!.length;
@@ -395,7 +472,7 @@ export function reviewPsbt(
       ...(output.tapBip32Derivation ?? []).map(([, { der }]) => der),
     ];
     const at = ders
-      .map((der) => locate(descriptor, network, der.fingerprint, der.path))
+      .flatMap((der) => descriptor.keys.map((key) => locate(key, network, der.fingerprint, der.path)))
       .find(
         (found) =>
           found &&

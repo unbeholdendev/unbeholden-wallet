@@ -6,7 +6,7 @@ import { Amount, groupSats } from "../../ui/amount";
 import { Icon } from "../../ui/icons";
 import { hostText } from "../../ui/format";
 import { Button, Chip, LinkButton, Notice, Panel } from "../../ui/kit";
-import { finaliseExternal, finaliseSigned, parsePsbt, reviewPsbt } from "../../wallet/psbt";
+import { collectSigned, finaliseExternal, finaliseSigned, parsePsbt, reviewPsbt, type Collected } from "../../wallet/psbt";
 import { download, ExportQr } from "./ExportQr";
 import { rateText } from "./fees";
 import { ScanBack } from "./ScanBack";
@@ -82,9 +82,19 @@ export function SignFlow({
   }, [built, descriptor, network, snapshot]);
   const inputs = useMemo(() => parsePsbt(built).inputsLength, [built]);
 
+  const [collected, setCollected] = useState<Collected | null>(null);
+  const toSign = collected?.psbt ?? built;
+  const { multi } = descriptor;
+
   const signed = (psbt: Uint8Array) => {
     try {
-      const final = finaliseSigned(built, psbt);
+      let final: Uint8Array;
+      if (multi) {
+        const next = collectSigned(built, toSign, psbt, multi.threshold);
+        setRefusal(null);
+        if (!next.raw) return setCollected(next);
+        final = next.raw;
+      } else final = finaliseSigned(built, psbt);
       setRaw(final);
       onDone?.(final);
       setRefusal(null);
@@ -156,6 +166,14 @@ export function SignFlow({
     </Panel>
   );
 
+  const cosigners = multi && !external && (
+    <Notice tone={collected ? "ok" : "warn"}>
+      {collected
+        ? `${collected.signed} of ${collected.needed} signatures so far${collected.signers.length ? `, from ${collected.signers.join(", ")}` : ""}. Show this code to another cosigner, or scan a PSBT another cosigner has signed.`
+        : `This needs ${multi.threshold} of ${descriptor.keys.length} signatures. Show this code to one cosigner and scan back what it signs, then the same with the next.`}
+    </Notice>
+  );
+
   const body = (
     <>
       {(stage === "show" || external) && check}
@@ -164,12 +182,13 @@ export function SignFlow({
       >
         {stage === "show" && (
           <>
-            <ExportQr psbt={built} />
+            <ExportQr psbt={toSign} />
+            {cosigners}
             <div className="flex flex-wrap gap-2">
               <Button variant="primary" icon="camera" onClick={() => setStage("scan")}>
                 Signed it, scan it back
               </Button>
-              <Button icon="file" onClick={() => download(built)}>
+              <Button icon="file" onClick={() => download(toSign)}>
                 Save PSBT file
               </Button>
             </div>
@@ -178,6 +197,7 @@ export function SignFlow({
         {stage === "scan" && (
           <>
             <ScanBack onSigned={signed} error={refusal} />
+            {cosigners}
             <div className="flex flex-wrap gap-2">
               <Button onClick={() => setStage("show")}>Back to the code</Button>
             </div>

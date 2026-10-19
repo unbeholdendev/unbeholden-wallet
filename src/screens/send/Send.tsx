@@ -57,7 +57,7 @@ function blocker(drafts: Draft[], valid: boolean[], result: Spend): string | nul
 }
 
 function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnapshot; draft: SendDraft; update: (patch: Partial<SendDraft>) => void; onDiscard?: () => void }) {
-  const { descriptor, network, scriptType } = useWallet();
+  const { descriptor, network, kind } = useWallet();
   const { drafts, fee } = draft;
   const setDrafts = (drafts: Draft[]) => update({ drafts });
   const setFee = (fee: FeeChoice) => update({ fee });
@@ -75,7 +75,7 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
   const own = useMemo(() => new Set([...snapshot.addresses.receive, ...snapshot.addresses.change].map((a) => a.address)), [snapshot]);
   const rate = rateOf(fee, histogram);
   // An unfinished address still has to cost its output's bytes, so it stands in as one of the wallet's own type.
-  const placeholder = scriptType === "wpkh" ? `0014${"00".repeat(20)}` : `5120${"00".repeat(32)}`;
+  const placeholder = kind.scriptType === "wpkh" ? `0014${"00".repeat(20)}` : `${kind.scriptType === "tr" ? "5120" : "0020"}${"00".repeat(32)}`;
   const checks = drafts.map((d) => (d.address.trim() ? checkAddress(d.address, network) : null));
   const addresses = checks.map((c) => (c && "address" in c ? c.address : ""));
   const payment: Payment = {
@@ -84,7 +84,7 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
       return { script: check && "script" in check ? check.script : placeholder, value: d.max ? "max" : (parseAmount(d.amount) ?? 0) };
     }),
     feeRate: rate,
-    scriptType,
+    ...kind,
   };
   const typed = drafts.every((d) => !d.max && parseAmount(d.amount));
   const paymentKey = JSON.stringify(payment);

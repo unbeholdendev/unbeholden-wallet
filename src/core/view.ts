@@ -94,8 +94,9 @@ export const blockTime = (header: Uint8Array) =>
 const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
 
 function pathOf(descriptor: Descriptor, chain: number, index: number): string {
-  const steps = [...(descriptor.origin?.path ?? []), ...childPath(descriptor, chain, index)].map(formatIndex);
-  return (descriptor.origin ? "m/" : "") + steps.join("/");
+  const key = descriptor.keys[0]!;
+  const steps = [...(key.origin?.path ?? []), ...childPath(key, chain, index)].map(formatIndex);
+  return (key.origin ? "m/" : "") + steps.join("/");
 }
 
 export function parseTx(txid: string, bytes: Uint8Array): Parsed {

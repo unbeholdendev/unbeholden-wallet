@@ -9,9 +9,8 @@ import { Icon } from "../ui/icons";
 import { Button, Chip, Empty, linkClass, Panel } from "../ui/kit";
 import { SourceSwatch, sourcesOf, TINT, type Source } from "../ui/sources";
 import { outpoint } from "../wallet/coin";
-import type { ScriptType } from "../wallet/descriptor";
 import { feeTargets, MIN_FEE_RATE } from "../wallet/fees";
-import { spend, spendCost } from "../wallet/select";
+import { spend, spendCost, type WalletKind } from "../wallet/select";
 import { EditableLabel, Opening, SourceTitle } from "./parts";
 import { selectable } from "./send/CoinList";
 import { rateOf, rateText, useFeeHistogram } from "./send/fees";
@@ -58,7 +57,8 @@ function CoinRow({ coin, source, snapshot, picking, rate }: { coin: WalletCoin; 
   const age = tx?.time && snapshot.tip ? ageText(snapshot.tip.time - tx.time) : null;
   const when = (confirmations < 6 || !age ? confText(confirmations) : age).toLowerCase();
   const path = lookup(snapshot).path.get(coin.address);
-  const cost = rate === null ? null : spendCost(coin, rate);
+  const { kind } = useWallet();
+  const cost = rate === null ? null : spendCost(kind, rate);
   const uneconomic = cost !== null && cost >= coin.value;
   const { lead, rest } = btcParts(coin.value);
   return (
@@ -149,12 +149,12 @@ const BUSY_RATE = 50;
  * Per source, its coins that a busy day's fee would take 1% or more of, and
  * what joining them now at `rate` saves over spending them one by one then.
  */
-function joinPlans(sources: Source[], rate: number, scriptType: ScriptType) {
+function joinPlans(sources: Source[], rate: number, kind: WalletKind) {
+  const later = spendCost(kind, BUSY_RATE);
   return sources.flatMap((source) => {
-    const coins = source.coins.filter((c) => sendable(c) && spendCost(c, BUSY_RATE) * 100 >= c.value);
+    const coins = source.coins.filter((c) => sendable(c) && later * 100 >= c.value);
     if (coins.length < 2) return [];
-    const joined = spend(coins, { recipients: [{ script: coins[0]!.script, value: "max" }], feeRate: rate, scriptType });
-    const later = spendCost(coins[0]!, BUSY_RATE);
+    const joined = spend(coins, { recipients: [{ script: coins[0]!.script, value: "max" }], feeRate: rate, ...kind });
     const apart = coins.length * later;
     const saving = apart - joined.fee - later;
     return joined.problem || saving <= 0 ? [] : [{ source, coins, fee: joined.fee, later, apart, saving }];
@@ -162,9 +162,9 @@ function joinPlans(sources: Source[], rate: number, scriptType: ScriptType) {
 }
 
 function Join({ snapshot, sources, rate }: { snapshot: WalletSnapshot; sources: Source[]; rate: number }) {
-  const { scriptType } = useWallet();
+  const { kind } = useWallet();
   const [draft, store] = useSendDraft();
-  const plans = joinPlans(sources, rate, scriptType);
+  const plans = joinPlans(sources, rate, kind);
   if (!plans.length) return null;
   const busy = !!draft && (!!draft.built || draft.drafts.some((d) => d.address.trim()));
   const join = ({ source, coins }: (typeof plans)[number]) => {

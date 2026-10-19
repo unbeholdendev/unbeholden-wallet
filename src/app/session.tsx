@@ -4,6 +4,7 @@ import { openWallet, type WalletSession, type WalletSnapshot } from "../core/wal
 import { walletDescriptor } from "../core/wallets";
 import type { SendDraft } from "../screens/send/Send";
 import type { Store } from "../vault/vault";
+import { walletKind } from "../wallet/select";
 import { useConnection } from "./connection";
 import { useVault } from "./vault";
 
@@ -128,6 +129,6 @@ export function useWallet() {
   const record = wallets.find((w) => w.id === walletId)!;
   return useMemo(() => {
     const descriptor = walletDescriptor(record);
-    return { record, descriptor, network: record.network, scriptType: descriptor.scriptType };
+    return { record, descriptor, network: record.network, kind: walletKind(descriptor) };
   }, [record]);
 }

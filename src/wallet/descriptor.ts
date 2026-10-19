@@ -2,6 +2,7 @@ import { descriptorChecksum, stripChecksum } from "./checksum";
 import { normaliseExtendedKey } from "./extended-key";
 import type { Network } from "./network";
 
+/** The single-key script types. */
 export type ScriptType = "wpkh" | "tr";
 
 export type KeyOrigin = {
@@ -14,12 +15,19 @@ export type KeyOrigin = {
 /** A fixed child index, a BIP389 multipath choice, or the address wildcard. */
 export type PathStep = number | number[] | "*";
 
-export type Descriptor = {
-  scriptType: ScriptType;
+export type DescriptorKey = {
   origin: KeyOrigin | null;
   /** Always a plain `xpub` or `tpub`, whatever prefix it arrived under. */
   key: string;
   path: PathStep[];
+};
+
+export type Descriptor = {
+  scriptType: ScriptType | "wsh";
+  /** One for wpkh and tr; a multisig's in the order written. */
+  keys: DescriptorKey[];
+  /** wsh only: signatures needed, and whether the keys are sorted (BIP67) into the script. */
+  multi?: { threshold: number; sorted: boolean };
 };
 
 // https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
@@ -28,6 +36,10 @@ export const HARDENED = 0x80000000;
 // https://github.com/bitcoin/bips/blob/master/bip-0084.mediawiki
 // https://github.com/bitcoin/bips/blob/master/bip-0086.mediawiki
 const BIP44_PURPOSES: Record<number, ScriptType> = { 84: "wpkh", 86: "tr" };
+
+// Above 16, k and n stop being single opcodes in the script, and no signer
+// this wallet works with goes that far.
+const MAX_KEYS = 16;
 
 function parseIndex(text: string, allowHardened: boolean): number {
   const hardened = text.endsWith("h") || text.endsWith("'");
@@ -89,37 +101,52 @@ function parsePath(steps: string[]): PathStep[] {
   return path;
 }
 
-export function parseDescriptor(text: string, network: Network): Descriptor {
-  const body = stripChecksum(text.trim());
-  const match = /^([a-zA-Z]+)\((.*)\)$/.exec(body);
-  if (!match) throw new Error("This is not a descriptor");
-  const scriptType = match[1]!;
-  const inner = match[2]!;
-  if (scriptType !== "wpkh" && scriptType !== "tr") {
-    throw new Error("This wallet supports only wpkh and tr descriptors");
-  }
-  if (inner.includes(",")) {
-    throw new Error(
-      `${scriptType}() must hold a single key; script trees and multiple keys are not supported`,
-    );
-  }
-
+function parseKey(text: string, network: Network): DescriptorKey {
   let origin: KeyOrigin | null = null;
-  let rest = inner;
+  let rest = text;
   if (rest.startsWith("[")) {
     const close = rest.indexOf("]");
     if (close === -1) throw new Error("Key origin is missing its closing ]");
     origin = parseOrigin(rest.slice(1, close));
     rest = rest.slice(close + 1);
   }
-
   const [key = "", ...steps] = rest.split("/");
   return {
-    scriptType,
     origin,
     key: normaliseExtendedKey(key, network).key,
     path: steps.length ? parsePath(steps) : [[0, 1], "*"],
   };
+}
+
+export function parseDescriptor(text: string, network: Network): Descriptor {
+  const body = stripChecksum(text.trim());
+  const match = /^([a-zA-Z]+)\((.*)\)$/.exec(body);
+  if (!match) throw new Error("This is not a descriptor");
+  const scriptType = match[1]!;
+  const inner = match[2]!;
+  if (scriptType === "wsh") {
+    const multi = /^(multi|sortedmulti)\((\d+),(.*)\)$/.exec(inner);
+    if (!multi) throw new Error("This wallet supports wsh() only around multi() or sortedmulti()");
+    const keys = multi[3]!.split(",").map((key) => parseKey(key, network));
+    const threshold = Number(multi[2]);
+    if (keys.length > MAX_KEYS) throw new Error(`This wallet supports multisig with up to ${MAX_KEYS} keys`);
+    if (threshold < 1 || threshold > keys.length) {
+      throw new Error(`A multisig of ${keys.length} keys needs from 1 to ${keys.length} signatures, not ${threshold}`);
+    }
+    if (new Set(keys.map((k) => k.path.some(Array.isArray))).size > 1) {
+      throw new Error("Either every key in a multisig has a <receive;change> step, or none does");
+    }
+    return { scriptType, keys, multi: { threshold, sorted: multi[1] === "sortedmulti" } };
+  }
+  if (scriptType !== "wpkh" && scriptType !== "tr") {
+    throw new Error("This wallet supports only wpkh, tr and wsh multisig descriptors");
+  }
+  if (inner.includes(",")) {
+    throw new Error(
+      `${scriptType}() must hold a single key; script trees and multiple keys are not supported`,
+    );
+  }
+  return { scriptType, keys: [parseKey(inner, network)] };
 }
 
 /**
@@ -138,9 +165,10 @@ export function descriptorFromExtendedKey(
     const parsed = parseOrigin(origin[1]!);
     const purpose = BIP44_PURPOSES[parsed.path[0]! - HARDENED];
     if (!purpose) {
-      throw new Error("This key's path is not a wpkh (84h) or tr (86h) account, the only kinds this wallet supports");
+      throw new Error("This key's path is not a wpkh (84h) or tr (86h) account. For a multisig, paste its whole descriptor");
     }
-    return { ...descriptorFromExtendedKey(origin[2]!, network, purpose), origin: parsed };
+    const { key, path } = descriptorFromExtendedKey(origin[2]!, network, purpose).keys[0]!;
+    return { scriptType: purpose, keys: [{ origin: parsed, key, path }] };
   }
   const normalised = normaliseExtendedKey(text, network);
   if (
@@ -152,6 +180,9 @@ export function descriptorFromExtendedKey(
       `This key's prefix says ${normalised.scriptType}, but ${scriptType} was asked for`,
     );
   }
+  if (normalised.scriptType === "wsh") {
+    throw new Error("This is one cosigner's key of a multisig. Paste the multisig's whole descriptor instead");
+  }
   const chosen = normalised.scriptType ?? scriptType;
   if (!chosen) {
     throw new Error(
@@ -160,9 +191,7 @@ export function descriptorFromExtendedKey(
   }
   return {
     scriptType: chosen,
-    origin: null,
-    key: normalised.key,
-    path: [[0, 1], "*"],
+    keys: [{ origin: null, key: normalised.key, path: [[0, 1], "*"] }],
   };
 }
 
@@ -170,9 +199,9 @@ export function formatIndex(index: number): string {
   return index >= HARDENED ? `${index - HARDENED}h` : `${index}`;
 }
 
-/** The descriptor's steps below its key, for one chain and address index. */
-export function childPath(descriptor: Descriptor, chain: number, index: number): number[] {
-  return descriptor.path.map((step) => (step === "*" ? index : typeof step === "number" ? step : step[chain]!));
+/** A key's steps below it, for one chain and address index. */
+export function childPath(key: DescriptorKey, chain: number, index: number): number[] {
+  return key.path.map((step) => (step === "*" ? index : typeof step === "number" ? step : step[chain]!));
 }
 
 function formatStep(step: PathStep): string {
@@ -183,12 +212,12 @@ function formatStep(step: PathStep): string {
 
 /** The canonical text of a descriptor, with its BIP380 checksum. */
 export function formatDescriptor(descriptor: Descriptor): string {
-  let origin = "";
-  if (descriptor.origin) {
-    const steps = descriptor.origin.path.map(formatIndex);
-    origin = `[${[descriptor.origin.fingerprint, ...steps].join("/")}]`;
-  }
-  const path = descriptor.path.map((step) => `/${formatStep(step)}`).join("");
-  const body = `${descriptor.scriptType}(${origin}${descriptor.key}${path})`;
+  const keys = descriptor.keys.map(({ origin, key, path }) => {
+    const from = origin ? `[${[origin.fingerprint, ...origin.path.map(formatIndex)].join("/")}]` : "";
+    return `${from}${key}${path.map((step) => `/${formatStep(step)}`).join("")}`;
+  });
+  const { multi } = descriptor;
+  const inner = multi ? `${multi.sorted ? "sortedmulti" : "multi"}(${multi.threshold},${keys.join(",")})` : keys[0];
+  const body = `${descriptor.scriptType}(${inner})`;
   return `${body}#${descriptorChecksum(body)}`;
 }

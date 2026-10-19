@@ -139,7 +139,7 @@ export function assessPrivacy(
 
   let change: string | null = null;
   if (!spend.problem && payment.recipients.length > 0) {
-    const changeKind = payment.scriptType === "wpkh" ? "0014" : "5120";
+    const changeKind = { wpkh: "0014", tr: "5120", wsh: "0020" }[payment.scriptType];
     const reasons = [
       ...(payment.recipients.every((r) => !r.script.startsWith(changeKind))
         ? ["it is the only output of the same address type as the coins spent"]

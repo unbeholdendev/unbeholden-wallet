@@ -29,7 +29,7 @@ function why(problem: BumpProblem): string {
 /** Rebuilds an unconfirmed wallet transaction at a higher fee rate, then the same signing round trip. */
 export function Bump({ txid }: { txid: string }) {
   const snapshot = useWalletSnapshot();
-  const { descriptor, network, scriptType } = useWallet();
+  const { descriptor, network, kind } = useWallet();
   const histogram = useFeeHistogram();
   const [fee, setFee] = useState<FeeChoice>({ preset: "nextBlock" });
   const [built, setBuilt] = useState<Built | null>(null);
@@ -44,7 +44,7 @@ export function Bump({ txid }: { txid: string }) {
       </Empty>
     );
 
-  const wallet = { scriptType, network, nextChange: nextChange(snapshot) };
+  const wallet = { ...kind, network, nextChange: nextChange(snapshot) };
   const floor = planBump(tx, snapshot.coins, rateOf(fee, histogram), wallet).minFeeRate;
   const rate = rateOf(fee, histogram, floor);
   const plan = planBump(tx, snapshot.coins, rate, wallet);

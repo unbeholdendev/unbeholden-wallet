@@ -73,6 +73,24 @@ describe("spend", () => {
     expect(result.vsize).toBe(154);
   });
 
+  it("sizes a 2-of-3 wsh spend, its change a wsh output too", () => {
+    // Weight: 42 overhead; input 164 + witness of count 1, empty item 1, two
+    // signatures 2 × (1 + 72), script length 1 and script 3 + 3 × 34 = 105,
+    // so 418; payment (8 + 1 + 22) × 4 = 124; change (8 + 1 + 34) × 4 = 172.
+    // 756 WU is 189 vB, 1890 sats at 10 sat/vB.
+    const wsh = "0020" + "00".repeat(32);
+    const result = spend([coin(100_000, { script: wsh })], { ...pay(50_000), scriptType: "wsh", multisig: { threshold: 2, keys: 3 } });
+    expect(result).toMatchObject({ vsize: 189, fee: 1890, change: 48_110, problem: null });
+  });
+
+  it("counts the three-byte script length of a multisig of eight or more keys", () => {
+    // Script 3 + 15 × 34 = 513 bytes, after 0xfd and two length bytes. Witness
+    // 1 + 1 + 8 × 73 + 3 + 513 = 1102, input 1266; with 42 and a 124 WU
+    // payment, 1432 WU is 358 vB.
+    const result = spend([coin(100_000)], { ...pay("max", 1), scriptType: "wsh", multisig: { threshold: 8, keys: 15 } });
+    expect(result).toMatchObject({ vsize: 358, fee: 358 });
+  });
+
   it("drops change that would cost more to spend than it holds", () => {
     // 590 sats of change would take 680 sats to spend at 10 sat/vB.
     const result = spend([coin(100_000)], pay(98_000));

@@ -1,13 +1,12 @@
 import { hex } from "@scure/base";
 import { HDKey } from "@scure/bip32";
 import { Transaction } from "@scure/btc-signer";
-import { p2tr, p2wpkh } from "@scure/btc-signer/payment.js";
 import {
   formatDescriptor,
   type Descriptor,
   type ScriptType,
 } from "../../src/wallet/descriptor";
-import { deriveAddress, derivePublicKey } from "../../src/wallet/derive";
+import { deriveAddress, derivePayment, derivePublicKeys } from "../../src/wallet/derive";
 import { BIP32_VERSIONS } from "../../src/wallet/extended-key";
 import { NETWORKS } from "../../src/wallet/network";
 
@@ -59,12 +58,26 @@ function testWallet(scriptType: ScriptType, purpose: number, account: number): T
   const node = master.derive(`m/${purpose}'/1'/${account}'`);
   const descriptor: Descriptor = {
     scriptType,
-    origin: { fingerprint: master.fingerprint.toString(16).padStart(8, "0"), path },
-    key: node.publicExtendedKey,
-    path: [[0, 1], "*"],
+    keys: [{ origin: { fingerprint: master.fingerprint.toString(16).padStart(8, "0"), path }, key: node.publicExtendedKey, path: [[0, 1], "*"] }],
   };
   return { descriptor, text: formatDescriptor(descriptor), account: node };
 }
+
+/** A 2-of-3 sortedmulti on BIP48's wsh account, one master seed per cosigner. https://github.com/bitcoin/bips/blob/master/bip-0048.mediawiki */
+export const MULTISIG = (() => {
+  const masters = [1, 2, 3].map((n) => HDKey.fromMasterSeed(new Uint8Array(16).fill(n), BIP32_VERSIONS.regtest));
+  const cosigners = masters.map((m) => m.derive("m/48'/1'/0'/2'"));
+  const descriptor: Descriptor = {
+    scriptType: "wsh",
+    multi: { threshold: 2, sorted: true },
+    keys: masters.map((m, i) => ({
+      origin: { fingerprint: m.fingerprint.toString(16).padStart(8, "0"), path: [48 + H, 1 + H, H, 2 + H] },
+      key: cosigners[i]!.publicExtendedKey,
+      path: [[0, 1], "*"],
+    })),
+  };
+  return { descriptor, text: formatDescriptor(descriptor), cosigners: cosigners.map((account) => ({ account })) };
+})();
 
 export const BIP84 = testWallet("wpkh", 84, 0);
 export const BIP86 = testWallet("tr", 86, 0);
@@ -72,15 +85,12 @@ export const BIP86 = testWallet("tr", 86, 0);
 export const LARGE = testWallet("wpkh", 84, 1);
 const FAUCET = testWallet("wpkh", 84, 2);
 
-export function address(wallet: TestWallet, chain: number, index: number): string {
+export function address(wallet: Pick<TestWallet, "descriptor">, chain: number, index: number): string {
   return deriveAddress(wallet.descriptor, "regtest", chain, index);
 }
 
-export function script(wallet: TestWallet, chain: number, index: number): Uint8Array {
-  const key = derivePublicKey(wallet.descriptor, "regtest", chain, index);
-  return wallet.descriptor.scriptType === "wpkh"
-    ? p2wpkh(key, NETWORKS.regtest).script
-    : p2tr(key.slice(1), undefined, NETWORKS.regtest).script;
+export function script(wallet: Pick<TestWallet, "descriptor">, chain: number, index: number): Uint8Array {
+  return derivePayment(wallet.descriptor, "regtest", chain, index).script;
 }
 
 export async function mine(blocks = 1): Promise<string[]> {
@@ -115,7 +125,7 @@ export function sign(coins: Coin[], outputs: Output[]): Transaction {
   const tx = new Transaction();
   for (const { txid, vout, amount, wallet, chain, index } of coins) {
     const witnessUtxo = { script: script(wallet, chain, index), amount };
-    const key = derivePublicKey(wallet.descriptor, "regtest", chain, index);
+    const key = derivePublicKeys(wallet.descriptor, "regtest", chain, index)[0]!;
     tx.addInput({
       txid,
       index: vout,
@@ -238,7 +248,7 @@ export async function reorg(depth = 1): Promise<void> {
 }
 
 /** Signs every input of a PSBT the app built for a test wallet, as a signer would, and leaves finalising to the app. */
-export function signPsbt(psbt: Uint8Array, wallet: TestWallet): Uint8Array {
+export function signPsbt(psbt: Uint8Array, wallet: Pick<TestWallet, "account">): Uint8Array {
   const tx = Transaction.fromPSBT(psbt);
   for (let i = 0; i < tx.inputsLength; i++) {
     const input = tx.getInput(i);
