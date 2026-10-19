@@ -6,7 +6,7 @@ import { Amount, groupSats } from "../../ui/amount";
 import { Icon } from "../../ui/icons";
 import { hostText } from "../../ui/format";
 import { Button, Chip, LinkButton, Notice, Panel } from "../../ui/kit";
-import { collectSigned, finaliseExternal, finaliseSigned, parsePsbt, reviewPsbt, type Collected } from "../../wallet/psbt";
+import { adoptExternal, collectSigned, finaliseExternal, finaliseSigned, parsePsbt, reviewPsbt, type Collected } from "../../wallet/psbt";
 import { download, ExportQr } from "./ExportQr";
 import { rateText } from "./fees";
 import { ScanBack } from "./ScanBack";
@@ -46,6 +46,8 @@ export function SignFlow({
   onBack,
   done = null,
   onDone,
+  partial = null,
+  onPartial,
   external = false,
 }: {
   built: Uint8Array;
@@ -60,6 +62,9 @@ export function SignFlow({
   /** The signed transaction already scanned back, to resume at Broadcast. */
   done?: Uint8Array | null;
   onDone?: (raw: Uint8Array) => void;
+  /** A multisig's signatures collected so far, to resume with. */
+  partial?: Uint8Array | null;
+  onPartial?: (psbt: Uint8Array) => void;
   /** `built` was signed elsewhere, so there is nothing to match and the check stays up to broadcast. */
   external?: boolean;
 }) {
@@ -82,9 +87,9 @@ export function SignFlow({
   }, [built, descriptor, network, snapshot]);
   const inputs = useMemo(() => parsePsbt(built).inputsLength, [built]);
 
-  const [collected, setCollected] = useState<Collected | null>(null);
-  const toSign = collected?.psbt ?? built;
   const { multi } = descriptor;
+  const [collected, setCollected] = useState(() => (multi && partial ? collectSigned(built, partial, partial, multi.threshold) : null));
+  const toSign = collected?.psbt ?? built;
 
   const signed = (psbt: Uint8Array) => {
     try {
@@ -92,7 +97,7 @@ export function SignFlow({
       if (multi) {
         const next = collectSigned(built, toSign, psbt, multi.threshold);
         setRefusal(null);
-        if (!next.raw) return setCollected(next);
+        if (!next.raw) return setCollected(next), onPartial?.(next.psbt);
         final = next.raw;
       } else final = finaliseSigned(built, psbt);
       setRaw(final);
@@ -284,15 +289,23 @@ export function SignFlow({
 /** Takes a PSBT signed outside this wallet's own round trip, checks it spends this wallet's coins, and broadcasts it. */
 export function BroadcastSigned() {
   const snapshot = useWalletSnapshot();
+  const { descriptor, network } = useWallet();
+  const { multi } = descriptor;
   const [loaded, setLoaded] = useState<{ psbt: Uint8Array; raw: Uint8Array } | null>(null);
+  const [partial, setPartial] = useState<(Collected & { base: Uint8Array }) | null>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
   const title = "Broadcast a signed transaction";
   if (!snapshot) return <p className="m-0 text-ink-2">Opening this wallet.</p>;
-  if (loaded) return <SignFlow external built={loaded.psbt} done={loaded.raw} title={title} warnings={[]} summary={[]} label="" onBack={() => setLoaded(null)} />;
+  if (loaded) return <SignFlow external built={loaded.psbt} done={loaded.raw} title={title} warnings={[]} summary={[]} label="" onBack={() => (setLoaded(null), setPartial(null))} />;
 
   const signed = (psbt: Uint8Array) => {
     try {
-      setLoaded({ psbt, raw: finaliseExternal(psbt, snapshot.coins) });
+      if (multi) {
+        const base = partial?.base ?? adoptExternal(psbt, snapshot.coins, descriptor, network);
+        const next = collectSigned(base, partial?.psbt ?? base, psbt, multi.threshold);
+        if (next.raw) setLoaded({ psbt: next.psbt, raw: next.raw });
+        else setPartial({ ...next, base });
+      } else setLoaded({ psbt, raw: finaliseExternal(psbt, snapshot.coins) });
       setRefusal(null);
     } catch (e) {
       setRefusal(`This PSBT was refused: ${(e as Error).message}.`);
@@ -300,9 +313,19 @@ export function BroadcastSigned() {
   };
   return (
     <div className="@container grid gap-4">
-      <h1 className="m-0 text-xl font-semibold">{title}</h1>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h1 className="m-0 text-xl font-semibold">{title}</h1>
+        {partial && <LinkButton onClick={() => setPartial(null)}>Start again</LinkButton>}
+      </div>
       <section className="grid justify-items-stretch gap-4 rounded-panel border border-rule bg-sheet p-4 @min-[900px]:grid-cols-[minmax(0,340px)_minmax(0,1fr)] @min-[900px]:items-start @min-[900px]:gap-x-8 @min-[900px]:gap-y-5 @min-[900px]:p-6">
         <ScanBack onSigned={signed} error={refusal} />
+        {multi && (
+          <Notice tone={partial ? "ok" : "warn"}>
+            {partial
+              ? `${partial.signed} of ${partial.needed} signatures so far${partial.signers.length ? `, from ${partial.signers.join(", ")}` : ""}. Scan or load a PSBT another cosigner has signed.`
+              : `This needs ${multi.threshold} of ${descriptor.keys.length} signatures. Scan or load a PSBT with some of them, then the next, until there are enough.`}
+          </Notice>
+        )}
       </section>
     </div>
   );
