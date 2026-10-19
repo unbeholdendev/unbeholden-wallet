@@ -337,6 +337,7 @@ describe("backup", () => {
     const wallet = await createWallet(vault, { name: "Spending", descriptor: BIP84_ZPUB, network: "mainnet" });
     await vault.put(`labels/${wallet.id}`, { "tx:aa": "Rent" });
     await vault.put(`frozen/${wallet.id}`, ["aa:0"]);
+    await vault.put(`requests/${wallet.id}`, [{ address: "bc1qaddress", sats: 1000 }]);
     await vault.put(`cache/${wallet.id}/old`, { tip: 1 });
     vault.lock();
     let file: Blob | undefined;
@@ -356,7 +357,7 @@ describe("backup", () => {
     await waitFor(() => expect(file).toBeDefined());
     const text = await file!.text();
     expect(text).not.toContain("Rent");
-    const kept = [`frozen/${wallet.id}`, `labels/${wallet.id}`, "settings", `wallet/${wallet.id}`];
+    const kept = [`frozen/${wallet.id}`, `labels/${wallet.id}`, `requests/${wallet.id}`, "settings", `wallet/${wallet.id}`];
     expect(Object.keys(await openBackup(text, PASSPHRASE)).sort()).toEqual(kept.sort());
 
     cleanup();
@@ -377,6 +378,7 @@ describe("backup", () => {
     expect(copy).toMatchObject({ name: "Spending", descriptor: BIP84_ZPUB, network: "mainnet" });
     expect(await restored.get(`labels/${copy!.id}`)).toEqual({ "tx:aa": "Rent" });
     expect(await restored.get(`frozen/${copy!.id}`)).toEqual(["aa:0"]);
+    expect(await restored.get(`requests/${copy!.id}`)).toEqual([{ address: "bc1qaddress", sats: 1000 }]);
     expect(await restored.get("settings")).toMatchObject({ server: SERVER, idleMinutes: 5 });
     restored.lock();
   }, 30_000);
