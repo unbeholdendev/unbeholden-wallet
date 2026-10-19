@@ -95,12 +95,19 @@ Fulcrum before they expire, for example from a monthly cron job.
 `bun run dev`, `bun run build`, `bun run typecheck`, `bun run test`,
 `bun run test:e2e`. See `AGENTS.md` and `docs/spec-v1.md`.
 
+The dev server is https only, with a self-signed certificate: the vault
+needs a secure context, and a LAN address over http is not one. Accept the
+certificate warning once. It needs a real Node: Vite on Bun crashes serving
+https. The devcontainer installs one.
+
 ### Try it on regtest
+
+The devcontainer starts this stack, with a fresh chain, every time it starts.
 
 ```sh
 bun run regtest:up        # bitcoind + Fulcrum, prints ws://127.0.0.1:50003
 bun run regtest:fixture   # a funded test wallet; prints its descriptors
-bun run dev               # then connect to ws://127.0.0.1:50003 and import one
+bun run dev               # then connect to wss://<host>:5173/electrum and import one
 ```
 
 `regtest:fund <address> [btc]`, `regtest:mine [n]` and `regtest:reorg [depth]`

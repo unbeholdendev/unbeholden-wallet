@@ -1,5 +1,6 @@
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import basicSsl from "@vitejs/plugin-basic-ssl";
 import { execSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import type { Plugin } from "vite";
@@ -65,8 +66,18 @@ function serviceWorker(): Plugin {
 export default defineConfig({
   base: "./",
   define: { __APP_VERSION__: JSON.stringify(version) },
-  plugins: [react(), tailwindcss(), cspMeta(), serviceWorker()],
-  server: { host: "0.0.0.0", strictPort: true },
+  plugins: [
+    react(),
+    tailwindcss(),
+    cspMeta(),
+    serviceWorker(),
+    { ...basicSsl(), apply: (_, env) => env.command === "serve" && !env.isPreview },
+  ],
+  server: {
+    host: "0.0.0.0",
+    strictPort: true,
+    proxy: { "/electrum": { target: "ws://127.0.0.1:50003", ws: true, rewrite: () => "/" } },
+  },
   preview: { host: "0.0.0.0", headers: { "Content-Security-Policy": csp } },
   test: {
     environment: "jsdom",

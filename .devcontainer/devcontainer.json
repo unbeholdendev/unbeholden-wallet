@@ -1,5 +1,7 @@
 {
   "name": "btc-browser-wallet",
   "image": "oven/bun:1.4",
-  "appPort": ["5173:5173"]
+  "features": { "ghcr.io/devcontainers/features/node:1": {} },
+  "appPort": ["5173:5173"],
+  "postStartCommand": "bun install && bun run regtest:up && bun run regtest:fixture"
 }
