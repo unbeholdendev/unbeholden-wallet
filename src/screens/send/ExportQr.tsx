@@ -85,7 +85,7 @@ export function ExportQr({ psbt }: { psbt: Uint8Array }) {
         </svg>
       </div>
       <div className="grid gap-1">
-        <h2 className="text-md font-semibold">Show this to your signer</h2>
+        <h2 className="text-md font-bold">Show this to your signer</h2>
         <p className="m-0 max-w-[60ch] text-sm text-ink-3">
           On a SeedSigner choose Scan, then hold this screen steady in front of its camera. The code cycles through every part; the signer collects them in any order. A Coldcard Q reads BBQr: choose it under Signer can't read it.
         </p>
@@ -101,7 +101,7 @@ export function ExportQr({ psbt }: { psbt: Uint8Array }) {
           <div aria-hidden="true">
             <div className="grid h-2.5 auto-cols-fr grid-flow-col border border-ink">
               {Array.from({ length: encoder.seqLen }, (_, i) => (
-                <i key={i} className={i + 1 === at ? "bg-route" : i % 2 ? "bg-sheet" : "bg-ink"} />
+                <i key={i} className={i + 1 === at ? "bg-carbon" : i % 2 ? "bg-sheet" : "bg-ink"} />
               ))}
             </div>
             <div className="mt-1 flex justify-between text-xs text-ink-3">
@@ -112,7 +112,7 @@ export function ExportQr({ psbt }: { psbt: Uint8Array }) {
         )}
       </div>
       <details className="grid rounded-control border border-rule p-3">
-        <summary className="cursor-pointer list-none text-sm font-medium text-route [&::-webkit-details-marker]:hidden">Signer can't read it?</summary>
+        <summary className="cursor-pointer list-none text-sm font-medium text-carbon [&::-webkit-details-marker]:hidden">Signer can't read it?</summary>
         <div className="mt-3 grid gap-3.5">
           <div className="grid gap-1.5">
             <span className="text-sm font-medium text-ink-2">Format</span>

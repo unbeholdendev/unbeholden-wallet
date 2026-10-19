@@ -124,7 +124,7 @@ export function Bump({ txid, mode }: { txid: string; mode: BumpMode }) {
   };
 
   const side = (title: string, r: number, sats: number, accent: boolean) => (
-    <div className={`grid gap-1 rounded-control border px-3 py-3 ${accent ? "border-route bg-route-tint" : "border-rule bg-sunk"}`}>
+    <div className={`grid gap-1 rounded-control border px-3 py-3 ${accent ? "border-carbon bg-carbon-tint" : "border-rule bg-sunk"}`}>
       <span className="text-sm font-medium text-ink-2">{title}</span>
       <span className="text-xl font-medium">
         {rateText(r)} <small className="text-sm font-normal text-ink-2">sat/vB</small>
@@ -140,7 +140,7 @@ export function Bump({ txid, mode }: { txid: string; mode: BumpMode }) {
   return (
     <div className="@container grid gap-4">
       <div className="grid gap-1">
-        <h1 className="m-0 text-xl font-semibold">{copy.heading}</h1>
+        <h1 className="m-0 text-xl font-bold">{copy.heading}</h1>
         <p className="m-0 max-w-[60ch] text-ink-2">
           {tx.label ? `${tx.label}. ` : ""}
           {copy.intro}
@@ -156,7 +156,7 @@ export function Bump({ txid, mode }: { txid: string; mode: BumpMode }) {
           <dl className="m-0 grid text-sm [&>div]:flex [&>div]:justify-between [&>div]:gap-3 [&>div]:border-b [&>div]:border-dotted [&>div]:border-rule-2 [&>div]:py-1.5 [&_dt]:text-ink-2 [&_dd]:m-0">
             <div>
               <dt>Extra cost</dt>
-              <dd className="font-semibold">{groupSats(Math.max(extra, 0))} sats</dd>
+              <dd className="font-bold">{groupSats(Math.max(extra, 0))} sats</dd>
             </div>
             {mode !== "cpfp" && (
               <div>

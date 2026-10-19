@@ -20,7 +20,7 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
       {open && (
         <div className="grid gap-4 p-4 pb-[calc(16px+env(safe-area-inset-bottom))] min-[720px]:p-6">
           <div className="flex items-start justify-between gap-3">
-            <h2 className="text-lg font-semibold">{title}</h2>
+            <h2 className="text-lg font-bold">{title}</h2>
             <button type="button" onClick={onClose} aria-label="Close" className="-m-1.5 grid size-9 place-items-center rounded-control text-ink-2 hover:bg-sunk">
               <Icon name="close" />
             </button>

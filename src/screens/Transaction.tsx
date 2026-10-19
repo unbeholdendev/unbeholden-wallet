@@ -43,7 +43,7 @@ function Endpoints({ title, count, children }: { title: string; count: number; c
   return (
     <section className="min-w-0 rounded-panel border border-rule bg-sheet">
       <div className="flex items-baseline justify-between gap-3 px-4 pt-4 pb-3">
-        <h2 className="text-md font-semibold">{title}</h2>
+        <h2 className="text-md font-bold">{title}</h2>
         <span className="text-sm text-ink-3">{count}</span>
       </div>
       <ul className="m-0 list-none p-0">{children}</ul>
@@ -100,7 +100,7 @@ export function Transaction({ txid }: { txid: string | undefined }) {
       <div className="grid items-start gap-6 @min-[900px]/app:grid-cols-[minmax(0,1fr)_360px]">
         <section className="grid gap-4 rounded-panel border border-rule bg-sheet p-4 @min-[900px]/app:col-start-2 @min-[900px]/app:row-start-1">
           <div className="grid gap-1">
-            <h1 className="m-0 text-lg font-semibold">
+            <h1 className="m-0 text-lg font-bold">
               <EditableLabel type="tx" target={tx.txid} value={tx.label} placeholder={`${txFallback(tx)}, add a label`} />
             </h1>
             <span className="text-2xl font-medium tracking-[-0.01em]">

@@ -82,15 +82,15 @@ function Section({ histogram, rate }: { histogram: FeeBucket[]; rate: number }) 
           <path d={d} />
         </clipPath>
       </defs>
-      <path d={d} className="fill-relief" />
+      <path d={d} className="fill-sunk" />
       <g clipPath={`url(#${clip})`}>
         {CONTOURS.map((r) => (
-          <line key={r} x1={L} x2={W} y1={ly(r)} y2={ly(r)} className="stroke-contour stroke-[0.7] opacity-55" />
+          <line key={r} x1={L} x2={W} y1={ly(r)} y2={ly(r)} className="stroke-rule-2 stroke-[0.7] opacity-55" />
         ))}
       </g>
-      <path d={d.replace(/L[^L]*Z$/, "")} className="fill-none stroke-contour stroke-[1.6]" />
+      <path d={d.replace(/L[^L]*Z$/, "")} className="fill-none stroke-rule-2 stroke-[1.6]" />
       {CONTOURS.map((r) => (
-        <text key={r} x={L - 4} y={ly(r) + 3} textAnchor="end" className="fill-contour text-[9px] font-semibold">
+        <text key={r} x={L - 4} y={ly(r) + 3} textAnchor="end" className="fill-ink-3 text-[9px] font-bold">
           {r}
         </text>
       ))}
@@ -102,14 +102,14 @@ function Section({ histogram, rate }: { histogram: FeeBucket[]; rate: number }) 
           </text>
         </g>
       ))}
-      <line x1={hx} x2={hx} y1={10} y2={H - B} className="stroke-route stroke-[1.6] [stroke-dasharray:4_3]" />
-      <text x={flip ? hx - 5 : hx + 5} y={18} textAnchor={flip ? "end" : "start"} className="fill-route text-[10px] font-semibold">
+      <line x1={hx} x2={hx} y1={10} y2={H - B} className="stroke-carbon stroke-[1.6] [stroke-dasharray:4_3]" />
+      <text x={flip ? hx - 5 : hx + 5} y={18} textAnchor={flip ? "end" : "start"} className="fill-carbon text-[10px] font-bold">
         You are here{ahead > maxX ? ", further down" : ""}
       </text>
       <text x={W - 6} y={H - 1} textAnchor="end" className="fill-ink-3 text-[9px]">
         MvB ahead of you, about one block each
       </text>
-      <text x={2} y={9} className="fill-contour text-[9px] font-semibold">
+      <text x={2} y={9} className="fill-ink-3 text-[9px] font-bold">
         sat/vB, log scale
       </text>
     </svg>
@@ -175,9 +175,9 @@ export function FeePanel({
                 type="button"
                 aria-pressed={"preset" in choice && choice.preset === p.key}
                 onClick={() => onChange({ preset: p.key })}
-                className="grid gap-px rounded-control border border-rule-2 bg-sheet px-2.5 py-2 text-left hover:bg-sunk aria-pressed:border-route aria-pressed:bg-route-tint aria-pressed:shadow-[inset_0_0_0_1px_var(--route)]"
+                className="grid gap-px rounded-control border border-rule-2 bg-sheet px-2.5 py-2 text-left hover:bg-sunk aria-pressed:border-carbon aria-pressed:bg-carbon-tint aria-pressed:shadow-[inset_0_0_0_1px_var(--carbon)]"
               >
-                <b className="text-sm font-semibold">{p.name}</b>
+                <b className="text-sm font-bold">{p.name}</b>
                 <span className="text-base font-medium">{rateText(rates[i]!)} sat/vB</span>
                 <span className="text-xs text-ink-3">{eta(blocks(rates[i]!))}</span>
               </button>
@@ -205,7 +205,7 @@ export function FeePanel({
               const n = Number(e.target.value.replace(",", "."));
               if (n >= floor && n <= MAX_FEE_RATE) onChange({ manual: n });
             }}
-            className="min-h-10 w-16 border-x border-rule bg-transparent text-center tabular-nums outline-none focus:bg-route-tint"
+            className="min-h-10 w-16 border-x border-rule bg-transparent text-center tabular-nums outline-none focus:bg-carbon-tint"
           />
           <button type="button" aria-label="Raise fee rate" className={stepper} onClick={() => set(rate + 1)}>
             +

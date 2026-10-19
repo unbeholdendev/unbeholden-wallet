@@ -9,7 +9,7 @@ export function Page({ children, aside }: { children: ReactNode; aside?: ReactNo
     <div className="@container min-h-dvh bg-paper">
       <div className="mx-auto grid w-full max-w-[1040px] gap-8 px-4 pt-6 pb-10 @min-[720px]:px-12 @min-[720px]:pt-10">
         <header className="flex items-center justify-between gap-4">
-          <a href="#/" className="flex items-center gap-2.5 text-md font-semibold text-ink no-underline">
+          <a href="#/" className="flex items-center gap-2.5 text-md font-bold text-ink no-underline">
             <Mark />
             Watch-only wallet
           </a>
@@ -40,7 +40,7 @@ export function Footer() {
 export function Heading({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <div className="grid gap-2">
-      <h1 className="m-0 text-xl font-semibold tracking-[-0.01em] text-balance text-ink">{title}</h1>
+      <h1 className="m-0 text-xl font-bold tracking-[-0.01em] text-balance text-ink">{title}</h1>
       {children && <p className="m-0 max-w-[52ch] text-ink-2">{children}</p>}
     </div>
   );
@@ -78,7 +78,7 @@ export function InstallPrompt() {
     <aside className="flex items-start gap-3 rounded-panel border border-warn/40 bg-warn-tint px-4 py-3 text-sm text-warn">
       <Icon name="share" className="mt-0.5 size-5" />
       <div className="grid flex-1 gap-1">
-        <p className="m-0 font-semibold">Add this app to your Home Screen</p>
+        <p className="m-0 font-bold">Add this app to your Home Screen</p>
         <p className="m-0 text-ink">
           Safari deletes this site's stored data after seven days without a visit, and that includes your encrypted
           wallets. An app on the Home Screen is kept. Tap Share, then Add to Home Screen.

@@ -127,7 +127,7 @@ export function Recipients({
                     <Icon name="scan" />
                   </button>
                   {usable.length > 0 && (
-                    <button type="button" aria-label="Choose a saved address" onClick={() => setChoosing(i)} className="min-h-11 flex-none rounded-control border border-rule-2 bg-sheet px-3 text-sm font-semibold text-ink-2 hover:bg-sunk">
+                    <button type="button" aria-label="Choose a saved address" onClick={() => setChoosing(i)} className="min-h-11 flex-none rounded-control border border-rule-2 bg-sheet px-3 text-sm font-bold text-ink-2 hover:bg-sunk">
                       Saved
                     </button>
                   )}
@@ -160,7 +160,7 @@ export function Recipients({
                     type="button"
                     aria-pressed={draft.max}
                     onClick={() => update(i, { max: !draft.max })}
-                    className="min-h-11 flex-none rounded-control border border-rule-2 bg-sheet px-3 text-sm font-semibold text-ink-2 hover:bg-sunk aria-pressed:border-route aria-pressed:bg-route aria-pressed:text-route-ink"
+                    className="min-h-11 flex-none rounded-control border border-rule-2 bg-sheet px-3 text-sm font-bold text-ink-2 hover:bg-sunk aria-pressed:border-carbon aria-pressed:bg-carbon aria-pressed:text-carbon-ink"
                   >
                     Max
                   </button>
