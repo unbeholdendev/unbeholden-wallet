@@ -1,116 +1,255 @@
-# Design: Survey
+---
+name: Unbeholden Wallet
+description: Watch-only Bitcoin wallet that shows the case file a chain analyst would write before you sign.
+colors:
+  paper: "#fbfbf8"
+  sheet: "#ffffff"
+  sunk: "#f3f2ed"
+  ink: "#111214"
+  ink-2: "#45474d"
+  ink-3: "#64666c"
+  rule: "#e4e3dd"
+  rule-2: "#cfcdc4"
+  manila: "#e9dcb6"
+  manila-2: "#f5eedb"
+  manila-ink: "#5e4f22"
+  carbon: "#2a3f9a"
+  carbon-ink: "#ffffff"
+  carbon-tint: "#edf0f9"
+  carbon-hover: "#22337f"
+  tamper: "#cf2330"
+  tamper-ink: "#ffffff"
+  ok: "#2c6a37"
+  ok-tint: "#e5f0e3"
+  warn: "#7c5300"
+  warn-tint: "#faefd2"
+  bad: "#a6271e"
+  bad-tint: "#f9e3e0"
+  check: "#8d9096"
+  qr: "#ffffff"
+  qr-ink: "#101214"
+typography:
+  display:
+    fontFamily: "Hanken Grotesk, system-ui, sans-serif"
+    fontSize: "40px"
+    fontWeight: 500
+    lineHeight: 1
+    letterSpacing: "-0.01em"
+    fontFeature: "tnum"
+  headline:
+    fontFamily: "Hanken Grotesk, system-ui, sans-serif"
+    fontSize: "28px"
+    fontWeight: 700
+    lineHeight: 1.1
+  title:
+    fontFamily: "Hanken Grotesk, system-ui, sans-serif"
+    fontSize: "17px"
+    fontWeight: 700
+    lineHeight: 1.3
+  body:
+    fontFamily: "Hanken Grotesk, system-ui, sans-serif"
+    fontSize: "15px"
+    fontWeight: 400
+    lineHeight: 1.45
+    fontFeature: "tnum"
+  small:
+    fontFamily: "Hanken Grotesk, system-ui, sans-serif"
+    fontSize: "13px"
+    fontWeight: 400
+    lineHeight: 1.4
+  label:
+    fontFamily: "Hanken Grotesk, system-ui, sans-serif"
+    fontSize: "12px"
+    fontWeight: 700
+    lineHeight: 1.35
+  mono:
+    fontFamily: "ui-monospace, SF Mono, Menlo, Consolas, monospace"
+    fontSize: "0.86em"
+rounded:
+  chip: "3px"
+  check: "4px"
+  control: "6px"
+  panel: "8px"
+spacing:
+  unit: "4px"
+  panel: "16px"
+  gutter-phone: "16px"
+  gutter-desktop: "24px"
+components:
+  button-primary:
+    backgroundColor: "{colors.carbon}"
+    textColor: "{colors.carbon-ink}"
+    rounded: "{rounded.control}"
+    padding: "8px 16px"
+    height: "44px"
+  button-primary-hover:
+    backgroundColor: "{colors.carbon-hover}"
+  button-default:
+    backgroundColor: "{colors.sheet}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.control}"
+    padding: "8px 16px"
+    height: "44px"
+  button-default-hover:
+    backgroundColor: "{colors.sunk}"
+  button-danger:
+    backgroundColor: "{colors.sheet}"
+    textColor: "{colors.bad}"
+    rounded: "{rounded.control}"
+  button-small:
+    padding: "4px 10px"
+    height: "32px"
+    typography: "{typography.small}"
+  input:
+    backgroundColor: "{colors.sheet}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.control}"
+    padding: "10px 12px"
+    height: "44px"
+  panel:
+    backgroundColor: "{colors.sheet}"
+    rounded: "{rounded.panel}"
+    padding: "16px"
+  chip-neutral:
+    backgroundColor: "{colors.sunk}"
+    textColor: "{colors.ink-2}"
+    rounded: "{rounded.chip}"
+    typography: "{typography.label}"
+    padding: "1px 8px"
+  chip-join:
+    backgroundColor: "{colors.tamper}"
+    textColor: "{colors.tamper-ink}"
+    rounded: "{rounded.chip}"
+    typography: "{typography.label}"
+    padding: "1px 8px"
+  source-tag:
+    backgroundColor: "{colors.manila}"
+    textColor: "{colors.manila-ink}"
+    height: "22px"
+  source-tag-large:
+    backgroundColor: "{colors.manila}"
+    textColor: "{colors.manila-ink}"
+    height: "26px"
+  source-tag-picked:
+    backgroundColor: "{colors.carbon}"
+    textColor: "{colors.carbon-ink}"
+  source-header:
+    backgroundColor: "{colors.manila-2}"
+    textColor: "{colors.manila-ink}"
+    padding: "10px 16px"
+  coin-row-selected:
+    backgroundColor: "{colors.carbon-tint}"
+    textColor: "{colors.ink}"
+  tab-bar:
+    backgroundColor: "{colors.sheet}"
+    textColor: "{colors.ink-2}"
+    height: "56px"
+---
 
-The wallet looks like an Ordnance Survey sheet: map paper, a navy legend bar,
-one magenta for routes and selection, and a pale territory tint for each
-source of coins. The map lends type, palette, density and one signature move.
-Navigation, controls and layout are ordinary web app ones.
+# Design: Exhibit
 
-Prototype: `docs/design/variants/survey/index.html`. Chosen over two other
-directions, whitepaper and graphite, which git history keeps.
+The wallet shows the case file a chain analyst would write about a
+transaction before you hand it to them. Evidence-white paper, near-black ink,
+manila tags on every source, carbon blue for what you chose, and tamper red
+only where separate sources get joined. Navigation, controls and layout are
+ordinary web app ones.
+
+Prototype: `docs/design/variants/exhibit/index.html`. Exhibit replaced Survey,
+the Ordnance Survey map direction, because Survey was too playful, a map worn
+as a costume, and not distinctive enough. Git history keeps Survey's prototype.
 
 ## Rationale
 
 - The product's one distinct claim is "this selection links these sources".
-  A map is the native picture of linkage: regions, borders, a route across
-  them. The privacy panel draws it and the coin list wears the same shapes,
-  so the user learns one key and reads it everywhere.
-- Colour is quarantined. Territory tints appear only where they mean a source.
-  Magenta means route: selection, the primary action, the current tab. State
-  colours (ok, warn, bad) mean state. Everything else is ink on paper.
+  An analyst's custody log is the native record of that: numbered entries,
+  who already knows you, and the moment they get joined. The coin list, the
+  custody log and the Sign recap all carry the same manila tag per source, so
+  the user learns one mark and reads it everywhere.
+- Colour is quarantined. Manila means a source: its tag and its group header.
+  Carbon means your choice: selection, the one primary action, the current
+  tab, focus. Tamper red appears only where sources get joined: the seam, the
+  tape and the Joins chip. State colours (ok, warn, bad) mean state.
+  Everything else is ink on paper.
 - Light is primary: checking a balance on a phone in daylight, or a desk by a
-  window. Dark is a night map, same roles, every token redefined.
-- Barlow Semi Condensed fits a BTC amount, its age and its confirmations on
-  one 390 px row and has tabular figures.
+  window. Dark has the same roles, every token redefined.
+- Hanken Grotesk is a plain, firm grotesque with tabular figures, so a BTC
+  amount, its age and its cost to spend fit one 390 px row and line up in
+  columns. System mono only for addresses, outpoints and derivation paths.
 
 ## Amounts
 
 - BTC with the eight decimals grouped as sats: `0.12 000 000`. Sparrow users
-  already read this. Leading zeros take `ink-3`, so the significant digits
-  stand out without changing width.
-- Fees in sats (`1 662 sats`) and rates in sat/vB (`6 sat/vB`).
+  already read this. Leading zeros take `ink-3` at weight 400, so the
+  significant digits stand out without changing width.
+- The BTC unit, when shown, is 0.62 em, bold, `ink-3`.
+- Fees in sats (`1 662 sats`, grouped with a narrow no-break space) and rates
+  in sat/vB (`6 sat/vB`).
+- Signed amounts: incoming `ok` with `+`, outgoing `ink` with a true minus
+  sign.
 - Every number uses `tabular-nums`. Columns never reflow when values change;
-  a changed summary value flashes once instead.
+  a changed summary value flashes `carbon-tint` once instead.
 - No fiat anywhere.
 
 ## Tokens
 
-Paste into `src/index.css`. Fonts come from `@fontsource/barlow-semi-condensed`
-(weights 400, 500, 600), bundled by Vite and served from the app's own origin.
+The frontmatter above carries the light values for tools. This block is
+`src/index.css` as built. Fonts come from `@fontsource/hanken-grotesk`
+(Latin subset, weights 400, 500, 700), bundled by Vite and served from the
+app's own origin.
 
 ```css
 @import "tailwindcss";
-@import "@fontsource/barlow-semi-condensed/400.css";
-@import "@fontsource/barlow-semi-condensed/500.css";
-@import "@fontsource/barlow-semi-condensed/600.css";
+@import "@fontsource/hanken-grotesk/latin-400.css";
+@import "@fontsource/hanken-grotesk/latin-500.css";
+@import "@fontsource/hanken-grotesk/latin-700.css";
 
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
 :root {
-  --paper: #f5f3ec; --sheet: #fffefa; --sunk: #eeebe1;
-  --ink: #1b2a2e; --ink-2: #445356; --ink-3: #5a686b;
-  --rule: #dcd7ca; --rule-2: #c6bfad;
-  --legend: #163847; --legend-ink: #f2eee3; --legend-ink-2: #afc4cd;
-  --legend-rule: #2b5062; --legend-hi: #23495b;
-  --route: #ad1a68; --route-ink: #ffffff; --route-tint: #f8e6ef; --route-tint-2: #ebc3d7;
-  --contour: #a8642a; --relief: #efe5d0; --relief-2: #e3d3b2;
-  --ok: #2b7238; --ok-tint: #e1efdd;
-  --warn: #7f5300; --warn-tint: #fbebc6;
-  --bad: #a8261d; --bad-tint: #f8dfda;
-  --src-1: #d2e7f1; --src-1-edge: #2b78a0;
-  --src-2: #d5e8c2; --src-2-edge: #4a812f;
-  --src-3: #f1e1b4; --src-3-edge: #8f6410;
-  --src-4: #e7dbf1; --src-4-edge: #74509e;
-  --src-5: #cde9e1; --src-5-edge: #267a6a;
-  --src-6: #f5d5cc; --src-6-edge: #a84434;
-  --src-none: #e5e2da; --src-none-edge: #6f6c64;
-  --elevation: 0 1px 2px rgb(27 42 46 / 0.06), 0 6px 18px -6px rgb(27 42 46 / 0.14);
+  --paper: #fbfbf8; --sheet: #ffffff; --sunk: #f3f2ed;
+  --ink: #111214; --ink-2: #45474d; --ink-3: #64666c;
+  --rule: #e4e3dd; --rule-2: #cfcdc4;
+  --manila: #e9dcb6; --manila-2: #f5eedb; --manila-ink: #5e4f22;
+  --carbon: #2a3f9a; --carbon-ink: #ffffff; --carbon-tint: #edf0f9; --carbon-hover: #22337f;
+  --tamper: #cf2330; --tamper-ink: #ffffff;
+  --ok: #2c6a37; --ok-tint: #e5f0e3;
+  --warn: #7c5300; --warn-tint: #faefd2;
+  --bad: #a6271e; --bad-tint: #f9e3e0;
+  --check: #8d9096;
+  --elevation: 0 1px 2px rgb(17 18 20 / .06), 0 10px 24px -10px rgb(17 18 20 / .22);
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --paper: #0f171a; --sheet: #152125; --sunk: #0b1215;
-    --ink: #e9e6dc; --ink-2: #b5bfbe; --ink-3: #95a2a2;
-    --rule: #26363a; --rule-2: #36494e;
-    --legend: #0a2230; --legend-ink: #edeae0; --legend-ink-2: #98b2be;
-    --legend-rule: #1e3d4d; --legend-hi: #143447;
-    --route: #f06bae; --route-ink: #22091a; --route-tint: #3a1a2b; --route-tint-2: #5c2745;
-    --contour: #d49559; --relief: #2a261c; --relief-2: #3a3324;
-    --ok: #82c98d; --ok-tint: #17301d;
-    --warn: #e6b95a; --warn-tint: #33280f;
-    --bad: #f2948a; --bad-tint: #3b1b18;
-    --src-1: #17394a; --src-1-edge: #74badd;
-    --src-2: #1f3b1b; --src-2-edge: #8cc56e;
-    --src-3: #3a3014; --src-3-edge: #ddb258;
-    --src-4: #2f2541; --src-4-edge: #b99dde;
-    --src-5: #133a33; --src-5-edge: #66c5af;
-    --src-6: #41231d; --src-6-edge: #ec9483;
-    --src-none: #2a2926; --src-none-edge: #a3a096;
-    --elevation: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 20px -8px rgb(0 0 0 / 0.5);
+    --paper: #121317; --sheet: #191b20; --sunk: #0e0f12;
+    --ink: #ecebe6; --ink-2: #b8b9bd; --ink-3: #9a9ca2;
+    --rule: #2a2c33; --rule-2: #3a3d45;
+    --manila: #6e5c2f; --manila-2: #29241a; --manila-ink: #f3e7c4;
+    --carbon: #9aaeff; --carbon-ink: #10152e; --carbon-tint: #1d2340; --carbon-hover: #b6c4ff;
+    --tamper: #c9353e; --tamper-ink: #ffffff;
+    --ok: #86c891; --ok-tint: #17291b;
+    --warn: #e8bc5e; --warn-tint: #2f2610;
+    --bad: #ff8a80; --bad-tint: #3b1b18;
+    --check: #6c6f77;
+    --elevation: 0 1px 2px rgb(0 0 0 / .3), 0 12px 28px -10px rgb(0 0 0 / .6);
     color-scheme: dark;
   }
 }
 
 /* Same values as the media query: an explicit choice beats the system. */
 :root[data-theme="dark"] {
-  --paper: #0f171a; --sheet: #152125; --sunk: #0b1215;
-  --ink: #e9e6dc; --ink-2: #b5bfbe; --ink-3: #95a2a2;
-  --rule: #26363a; --rule-2: #36494e;
-  --legend: #0a2230; --legend-ink: #edeae0; --legend-ink-2: #98b2be;
-  --legend-rule: #1e3d4d; --legend-hi: #143447;
-  --route: #f06bae; --route-ink: #22091a; --route-tint: #3a1a2b; --route-tint-2: #5c2745;
-  --contour: #d49559; --relief: #2a261c; --relief-2: #3a3324;
-  --ok: #82c98d; --ok-tint: #17301d;
-  --warn: #e6b95a; --warn-tint: #33280f;
-  --bad: #f2948a; --bad-tint: #3b1b18;
-  --src-1: #17394a; --src-1-edge: #74badd;
-  --src-2: #1f3b1b; --src-2-edge: #8cc56e;
-  --src-3: #3a3014; --src-3-edge: #ddb258;
-  --src-4: #2f2541; --src-4-edge: #b99dde;
-  --src-5: #133a33; --src-5-edge: #66c5af;
-  --src-6: #41231d; --src-6-edge: #ec9483;
-  --src-none: #2a2926; --src-none-edge: #a3a096;
-  --elevation: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 20px -8px rgb(0 0 0 / 0.5);
+  --paper: #121317; --sheet: #191b20; --sunk: #0e0f12;
+  --ink: #ecebe6; --ink-2: #b8b9bd; --ink-3: #9a9ca2;
+  --rule: #2a2c33; --rule-2: #3a3d45;
+  --manila: #6e5c2f; --manila-2: #29241a; --manila-ink: #f3e7c4;
+  --carbon: #9aaeff; --carbon-ink: #10152e; --carbon-tint: #1d2340; --carbon-hover: #b6c4ff;
+  --tamper: #c9353e; --tamper-ink: #ffffff;
+  --ok: #86c891; --ok-tint: #17291b;
+  --warn: #e8bc5e; --warn-tint: #2f2610;
+  --bad: #ff8a80; --bad-tint: #3b1b18;
+  --check: #6c6f77;
+  --elevation: 0 1px 2px rgb(0 0 0 / .3), 0 12px 28px -10px rgb(0 0 0 / .6);
   color-scheme: dark;
 }
 
@@ -124,31 +263,22 @@ Paste into `src/index.css`. Fonts come from `@fontsource/barlow-semi-condensed`
   --color-ink-3: var(--ink-3);
   --color-rule: var(--rule);
   --color-rule-2: var(--rule-2);
-  --color-legend: var(--legend);
-  --color-legend-ink: var(--legend-ink);
-  --color-legend-ink-2: var(--legend-ink-2);
-  --color-legend-rule: var(--legend-rule);
-  --color-legend-hi: var(--legend-hi);
-  --color-route: var(--route);
-  --color-route-ink: var(--route-ink);
-  --color-route-tint: var(--route-tint);
-  --color-route-tint-2: var(--route-tint-2);
-  --color-contour: var(--contour);
-  --color-relief: var(--relief);
-  --color-relief-2: var(--relief-2);
+  --color-manila: var(--manila);
+  --color-manila-2: var(--manila-2);
+  --color-manila-ink: var(--manila-ink);
+  --color-carbon: var(--carbon);
+  --color-carbon-ink: var(--carbon-ink);
+  --color-carbon-tint: var(--carbon-tint);
+  --color-carbon-hover: var(--carbon-hover);
+  --color-tamper: var(--tamper);
+  --color-tamper-ink: var(--tamper-ink);
   --color-ok: var(--ok);
   --color-ok-tint: var(--ok-tint);
   --color-warn: var(--warn);
   --color-warn-tint: var(--warn-tint);
   --color-bad: var(--bad);
   --color-bad-tint: var(--bad-tint);
-  --color-src-1: var(--src-1); --color-src-1-edge: var(--src-1-edge);
-  --color-src-2: var(--src-2); --color-src-2-edge: var(--src-2-edge);
-  --color-src-3: var(--src-3); --color-src-3-edge: var(--src-3-edge);
-  --color-src-4: var(--src-4); --color-src-4-edge: var(--src-4-edge);
-  --color-src-5: var(--src-5); --color-src-5-edge: var(--src-5-edge);
-  --color-src-6: var(--src-6); --color-src-6-edge: var(--src-6-edge);
-  --color-src-none: var(--src-none); --color-src-none-edge: var(--src-none-edge);
+  --color-check: var(--check);
   --color-qr: #ffffff;
   --color-qr-ink: #101214;
   --color-white: #ffffff;
@@ -161,7 +291,7 @@ Paste into `src/index.css`. Fonts come from `@fontsource/barlow-semi-condensed`
 
 @theme {
   --font-*: initial;
-  --font-sans: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-sans: "Hanken Grotesk", system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   --text-*: initial;
@@ -176,7 +306,7 @@ Paste into `src/index.css`. Fonts come from `@fontsource/barlow-semi-condensed`
   --font-weight-*: initial;
   --font-weight-normal: 400;
   --font-weight-medium: 500;
-  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
 
   --spacing: 4px;
 
@@ -186,71 +316,100 @@ Paste into `src/index.css`. Fonts come from `@fontsource/barlow-semi-condensed`
   --radius-control: 6px;
   --radius-panel: 8px;
 
-  --ease-map: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-snap: cubic-bezier(0.2, 0.8, 0.2, 1);
   --default-transition-duration: 160ms;
   --default-transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --animate-route-draw: route-draw 500ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-entry-in: entry-in 300ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-seam: seam 300ms cubic-bezier(0.2, 0.8, 0.2, 1);
   --animate-value-flash: value-flash 600ms cubic-bezier(0.2, 0.8, 0.2, 1);
 
-  @keyframes route-draw {
-    from { stroke-dashoffset: var(--route-length, 200); }
-    to { stroke-dashoffset: 0; }
+  @keyframes entry-in {
+    from { clip-path: inset(0 0 100% 0); }
+    to { clip-path: inset(0); }
+  }
+  @keyframes seam {
+    from { transform: scaleY(var(--from, 0)); }
+    to { transform: scaleY(1); }
   }
   @keyframes value-flash {
-    from { background-color: var(--route-tint-2); }
+    from { background-color: var(--carbon-tint); }
     to { background-color: transparent; }
   }
 }
 
 @layer base {
-  html { background: var(--paper); color: var(--ink); font-family: var(--font-sans); }
+  html { background: var(--paper); color: var(--ink); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
   body { font-size: var(--text-base); line-height: 1.45; font-variant-numeric: tabular-nums; }
-  ::selection { background: var(--route-tint-2); color: var(--ink); }
-  :focus-visible { outline: 2px solid var(--route); outline-offset: 2px; }
+  ::selection { background: var(--carbon-tint); color: var(--ink); }
+  :focus-visible { outline: 2px solid var(--carbon); outline-offset: 2px; }
   * { scrollbar-width: thin; scrollbar-color: var(--rule-2) transparent; }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
   }
 }
+
+@keyframes march {
+  to { stroke-dashoffset: -18; }
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+}
+
+@layer base {
+  body { margin: 0; background: var(--paper); caret-color: var(--carbon); }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+}
 ```
 
 Notes on the tokens:
 
-- Spacing steps in use: 1, 2, 3, 4, 6, 8, 12 (4 to 48 px). Panel padding 4
-  (16 px), page gutter 6 (24 px) on desktop and 4 on phone.
-- Sources get `src-1` to `src-6` in the order the wallet first saw them, and
-  `src-none` for frozen or unknown deposits. A seventh source reuses `src-1`
-  with a dashed edge.
+- Spacing is a 4 px unit. Panel padding 16 px; page gutter 16 px on a phone
+  and 24 px from 720 px; 16 px between the panels of a screen, 24 px between
+  page sections.
+- Weights: 400 for body, 500 for values and emphasis inside a line, 700 for
+  headings, labels, buttons, chips and tags. No 600.
+- Text sizes: 12 (chips, tags, column headers), 13 (secondary lines), 15
+  (body), 17 (panel titles, coin values), 21 (Coins heading), 28 (page
+  titles, QR part counter), 40 (balance).
+- `check` is the unticked checkbox border only, never text.
 - QR colours are fixed in both themes. Scanners read dark on light.
 - Text contrast: `ink-3` is the lightest text colour and passes 4.5:1 on
-  `paper` and `sheet` in both themes. Do not set text in `rule` colours.
-- Shadow only on surfaces that float: menus, the phone summary dock, the
-  pinned desktop summary. Panels sit flat with a 1 px `rule` border.
+  `paper`, `sunk` and `manila-2` in light, and on `paper`, `sheet` and
+  `manila-2` in dark. Do not set text in `rule` or `check`.
+- Shadow only on surfaces that float: the wallet menu, the bottom sheet,
+  toasts, and the phone docks on Send and Coins. Panels sit flat with a 1 px
+  `rule` border.
 
 ## Layout and navigation
 
-**Desktop (720 px container and up).** A 56 px `legend` bar across the top:
-wallet switcher on the left (name, script type, network badge for signet and
-regtest), then tabs Home, Send, Receive, Coins, Addresses, with a 3 px
-`route` underline on the current one. Connection status and Lock on the
-right. Content sits on `paper` in `sheet` panels, 24 px gutter.
+**Desktop (app container 720 px and up).** A 56 px `sheet` top bar with a
+`rule` hairline beneath: wallet switcher on the left (name, script type,
+network badge for signet and regtest), then tabs Home, Send, Receive, Coins.
+The current tab is bold `ink` with a 2 px `carbon` underline; the others are
+`ink-2` at 500. Connection status, Settings and Lock on the right. Content on
+`paper` in `sheet` panels, at most 1280 px wide.
 
-- Home: balance panel left (confirmed large, unconfirmed and frozen beneath,
-  sync line), history panel right.
-- Send: two columns. Left about 60 %: Pay to, then the coin table grouped by
-  source. Right: What this links (the map and the sentence), then the
-  summary pinned to the bottom of the column with Review and sign.
-- Sign: three steps across the top (show to signer, scan back, broadcast),
-  QR or viewfinder centre, controls to the side.
+- Home: balance panel, then transactions with search and filters.
+- Send (two columns from 900 px): left is Pay to and amount, Fee, then Coins
+  grouped by source. Right is a 440 px column that sticks under the top bar
+  and scrolls on its own: Custody log, then Summary with Review and sign at
+  its foot.
+- Sign: the three steps as a segmented strip (show to signer, scan back,
+  broadcast), the stage body on the left, and the recap in a 340 px column on
+  the right at every stage.
 
-**Phone (under 720 px).** The `legend` bar shrinks to wallet switcher, tip
-height and Lock. A 56 px `legend` tab bar at the bottom: Home, Send,
-Receive, Coins. Everything is one column.
+**Phone (under 720 px).** The top bar keeps the wallet switcher, a short
+status (tip height, or Connecting, or Offline), Settings and Lock. A 56 px
+`sheet` tab bar at the bottom: Home, Send, Receive, Coins; the current item
+has a 2 px `carbon` top edge, a `carbon` icon and a bold `ink` label.
+Everything is one column.
 
-- Send: Pay to, then coins grouped by source, full width rows with 44 px tap
-  targets. A summary dock sticks above the tab bar: coin count, inputs, fee,
-  change, a "Links 3 sources" chip that scrolls to the map, and Review.
-- The map sits below the coin list. The dock's chip is the shortcut to it.
+- Send: Pay to, Fee, Coins, then Custody log and Summary. A dock sticks above
+  the tab bar: coin count, amount in, fee, change, a "Joins 3 sources" chip
+  that scrolls to the custody log, and Review.
+- Sign: the recap follows the stage body.
 
 Layout follows container width (`@container`), not the window, so a panel
 can move without a rewrite.
@@ -259,26 +418,30 @@ can move without a rewrite.
 
 | Component | Notes and states |
 |---|---|
-| Legend bar | Desktop top bar and phone top bar. Current tab: `legend-ink` text, `route` underline. |
-| Tab bar (phone) | Four items, icon and label. Current: `legend-ink`, icon stroke `route-tint-2`. |
-| Wallet switcher | `<details>` menu on `sheet` with `float` shadow. Rows: name, script type, network badge. Current row `route-tint`. Regtest and signet badges in `warn`. |
-| Connection status | Dot and text: connected (`ok`), connecting (`warn`, text says what it is doing), disconnected (`bad`). Always names the server and tip height. |
-| Button | Default: `sheet`, `rule-2` border. Primary: `route` fill, `route-ink` text, one per screen. Small: 13 px. Disabled: `rule` fill, `ink-3`. Hover darkens 12 %. Destructive (Remove wallet, Discard): default style with `bad` text, set apart by space. |
-| Link button | `route`, underlined 1 px at 3 px offset. |
-| Input | 44 px min height, `rule-2` border, `route` focus outline. Error: `bad` border plus a hint line that names the problem. Valid address: `ok` hint with a tick. |
-| Chip | 12 px, 3 px radius. Variants: neutral, ok, warn, bad, route. Used for "Links 3 sources", "Own change", "From someone else, can still be replaced", "Frozen", "Replaceable". |
-| Amount | Tabular, leading zeros `ink-3`, unit at 0.62 em in `ink-3`. Incoming `ok`, outgoing `ink` with a minus sign. |
-| Balance panel | Confirmed at `text-2xl`; unconfirmed and frozen as rows below; sync line at the foot. |
-| History row | Label, date, confirmations ("unconfirmed", "2 conf", "3 309 conf"), signed amount. Unconfirmed outgoing: Replaceable chip and Bump fee. Unconfirmed incoming from others: warn chip. Hover `sunk`. |
-| Source group header | Territory chip (the source's shape at 22 px), name, what it means ("Exchange with your identity on file"), coin count, total. Background is the source tint. |
-| Coin row | Checkbox, value, age, confirmations, label. Selected: `route-tint` row, filled `route` checkbox. Frozen: lock icon, `ink-3`, not selectable. Own change unconfirmed: chip, selectable. From others unconfirmed: warn chip, selectable with a warning. Unconfirmed parents: excluded, says why. |
-| Linkage map | One territory per source (the same shape as its chip), tinted fill and darker edge. Coins are dots; selected dots are `route`. Dashed `route` lines run from each selected coin to a "This transaction" mark. Unlinked territories fade. Lines that are new draw in over 500 ms. The sentence below names the sources and who already knows the user's identity. When one cheaper-to-privacy alternative exists, a button offers it ("Use only Kraken and Payroll coins"). |
-| Fee chart | Mempool from the node as a cross-section: fee rate on a log scale up, MvB of transactions ahead along. Contour lines at 2, 5, 10, 20, 50 sat/vB in `contour`, ground in `relief`. A "You are here" mark at the chosen rate. Presets beneath with rate and estimated wait, and a manual sat/vB stepper. |
-| Summary | Coins in, sending, fee (sats, rate, vB), change with its derivation path, total leaving the wallet, RBF note. Values flash once on change. |
-| Connection failure | Panel with `bad` header naming the cause. Numbered steps; for a rejected certificate: open the https URL in a new tab, check and accept the warning, expect a blank page, come back and retry. Then the certificate guide and the local container note. A route diagram shows where the connection broke. |
-| QR export | White plate, dark modules, always. "Part 12 of 40" over a map scale bar of alternating segments, current part in `route`. Speed (2, 4, 6, 8 per second) and density (low, medium, high, with the part count each gives) as segmented controls. Save PSBT file as the fallback. |
-| Scan back | Viewfinder with corner marks; a grid with one cell per part, filled as captured, in whatever order they arrive; "27 of 40 parts". Load signed file instead. |
-| Verified | Checklist: outputs match, fee matches, all inputs signed. Broadcast through your node as the primary action. Node rejection shows the node's own reason. |
+| Top bar | `sheet`, `rule` hairline below, 56 px, sticky. Square 40 px icon buttons for Settings and Lock, `rule-2` border. |
+| Tab bar (phone) | Four items, icon over label, 56 px. Current: `carbon` top edge and icon, bold `ink` label. |
+| Wallet switcher | `<details>` menu on `sheet` with `float` shadow and `rule-2` border. Rows: name, script type, network badge. Current row `carbon-tint`. Then Addresses and Add a wallet (`carbon`). |
+| Network badge | 11 px bold capitals, `warn` on `warn-tint`. Signet and regtest only. |
+| Connection status | Dot and text: connected (`ok`), connecting or retrying (`warn`, pulsing, says what it is doing), not connected (`bad`). Names the server and tip height. |
+| Button | Bold, 6 px radius, 44 px tall. Default: `sheet`, `rule-2` border, hover `sunk`. Primary: `carbon` fill, `carbon-ink` text, hover `carbon-hover`, one per screen. Danger: default style with `bad` text, hover `bad-tint`. Small: 32 px, 13 px. Disabled: `rule` fill, `ink-3`. |
+| Link button | Bold `carbon`, 1 px underline at 3 px offset, 2 px on hover. |
+| Input | 44 px min height, `rule-2` border, `carbon` caret and 2 px focus outline. Error: `bad` border plus a hint line that names the problem. Valid: `ok` hint with a tick. |
+| Segmented | Joined options in one `rule-2` box. Pressed: `carbon-tint`, bold `carbon`. Used for QR format, speed and density. |
+| Chip | 12 px bold, 3 px radius. Tones: neutral, ok, warn, bad, carbon, join. Join is `tamper` fill with the join icon, and only ever says "Joins N". |
+| Source tag | A manila luggage tag carrying the source's name: notched left point, a punched hole, bold text with 0.03 em tracking. 22 px small, 26 px large. `manila` on `manila-ink`; `carbon` once any of its coins is picked; `sunk` with `ink-3` when all its coins are frozen. Never a letter or a code. |
+| Source group header | `manila-2` band, sticky under the top bar. Large source tag (editable label), the source's note ("First seen in block 812 044, already linked on-chain") and a "Knows who I am" switch, `warn-tint` when on. Right: picked count, total, Select all. |
+| Coin row | Checkbox, value, age, label or mono address, cost to spend, History link, state chips. Hover a light `carbon-tint` wash; selected `carbon-tint` row, filled `carbon` checkbox. Not selectable: dashed checkbox, `ink-3` value. Frozen, own change, someone else's unconfirmed, waiting on an unconfirmed parent and uneconomic each get a chip. |
+| Custody log | The signature. A 1 px `ink` rule over numbered entries (01, 02), one per source the picked coins come from: large source tag, "Knows who you are" or "Not marked as knowing who you are", coins picked, amount. With two or more entries a 3 px `tamper` seam runs down the numbers, and a `tamper` tape with diagonal stripes and notched ends reads "Joined in one transaction". A new entry unrolls over 300 ms and the seam extends to it. One entry: an `ok` note, "No new links". Below it the privacy sentence and, where one exists, a cheaper alternative with a button. |
+| Fee panel | Mempool from the node as a cross-section: fee rate up, MvB ahead along, `sunk` fill, `rule-2` lines, a dashed `carbon` mark at the chosen rate. Presets as pressable cards (name, sat/vB, wait), and a sat/vB stepper. The chart folds away on a phone. |
+| Summary | Coins in, sending, fee (sats, rate, vB), change with its mono derivation path, total leaving the wallet; dotted `rule-2` leaders between rows. Values flash once on change. |
+| Steps | Numbered ink circles for instructions, as on the connection failure panel. |
+| Notice | Tinted block with icon: `ok`, `warn` or `bad`. |
+| Connection failure | `bad-tint` header naming the cause in `bad`, numbered steps, and a line from this tab to the server, dashed `carbon` where it reached and a `bad` cross where it broke. |
+| QR export | White plate, dark modules, always. "Part 12 of 40" over a bar of alternating `ink` and `sheet` segments, current part `carbon`. Format, speed and density as segmented controls inside "Signer can't read it?". |
+| Scan back | Viewfinder; "27 of 40 parts captured" over a ten-column grid, one cell per part, filled as captured in any order. Load signed file, under "No camera?". |
+| Sign recap | `sheet` panel titled with the payment's label: sending, to (mono), fee, change, then the custody log as it stood when Review was pressed, without motion. Shown at every stage. |
+| Verified | Checklist with `ok` ticks: outputs match, fee matches, all inputs signed. Broadcast through your node as the primary action. A node rejection shows the node's own reason in mono. |
+| Empty | Dashed `rule-2` panel, title and one line of what to do. |
 
 ## Copy
 

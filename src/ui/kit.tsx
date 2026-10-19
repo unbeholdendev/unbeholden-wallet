@@ -144,11 +144,6 @@ export function Steps({ children }: { children: ReactNode }) {
 export function Empty({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <div className="grid justify-items-start gap-2 rounded-panel border border-dashed border-rule-2 px-5 py-8">
-      <svg viewBox="0 0 120 40" aria-hidden="true" className="h-10 w-30 fill-none stroke-rule-2 stroke-[1.2]">
-        <path d="M2 34c14-2 18-14 34-14s22 10 36 8 22-16 46-16" />
-        <path d="M2 38c16-1 22-9 36-9s24 7 38 6 22-10 42-10" />
-        <path d="M14 30c8-3 12-10 22-10" />
-      </svg>
       <h2 className="text-md font-bold">{title}</h2>
       {children && <div className="max-w-[60ch] text-ink-2">{children}</div>}
     </div>

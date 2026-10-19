@@ -106,12 +106,12 @@ export function Icon({ name, className = "size-[18px]" }: { name: IconName; clas
   );
 }
 
-/** The app's mark: a survey triangulation pillar with a carbon dot. */
+/** The app's mark: a manila exhibit tag with its punched hole. */
 export function Mark({ className = "size-[26px]" }: { className?: string }) {
   return (
     <svg viewBox="0 0 26 26" aria-hidden="true" className={className}>
-      <path d="M13 3l10 18H3z" className="fill-none stroke-ink stroke-2 [stroke-linejoin:round]" />
-      <circle cx="13" cy="15" r="2.6" className="fill-carbon" />
+      <path d="M9 6h15v14H9l-6-7z" className="fill-manila" />
+      <circle cx="8.5" cy="13" r="1.8" className="fill-paper" />
     </svg>
   );
 }
