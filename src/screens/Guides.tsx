@@ -89,35 +89,43 @@ export function Guide() {
       title="Reaching your node"
       lede="A browser will not open wss:// to a self-signed certificate, and an https:// page cannot open ws:// at all. Two ways through."
     >
-      <h2>Tailscale, from any device</h2>
-      <p>Tailscale gives your node a real certificate on a private name, reachable from any of your devices with no port forwarding.</p>
+      <h2>A certificate your browser trusts</h2>
+      <p>Any way of getting one works. The common ones:</p>
+      <ul className="m-0 grid list-disc gap-2 pl-5">
+        <li>
+          <strong>Your own domain with Let's Encrypt.</strong> A DNS challenge needs no open port, and the name can point at
+          a home network address.
+        </li>
+        <li>
+          <strong>A private network that issues certificates</strong>, such as Tailscale with{" "}
+          <span className={c}>tailscale cert</span>. Reachable from your devices anywhere, with no port forwarding.
+        </li>
+        <li>
+          <strong>Your own certificate authority</strong>, such as mkcert, trusted on each device you use.
+        </li>
+        <li>
+          <strong>A self-signed certificate, accepted once on each device.</strong> The connection screen walks you through
+          it.
+        </li>
+      </ul>
       <Steps>
-        <li>
-          <p>Install Tailscale on the node and on your devices, and enable HTTPS certificates in the Tailscale admin console.</p>
-        </li>
-        <li>
-          <div className="grid gap-2">
-            <p>On the node, issue a certificate for its name:</p>
-            <Code>tailscale cert node.your-tailnet.ts.net</Code>
-          </div>
-        </li>
         <li>
           <div className="grid gap-2">
             <p>
-              Point Fulcrum at it and open a secure WebSocket port, in <span className={c}>fulcrum.conf</span>:
+              Point Fulcrum at the certificate and open a secure WebSocket port, in <span className={c}>fulcrum.conf</span>:
             </p>
-            <Code>{`wss = 0.0.0.0:50004\ncert = /path/to/node.your-tailnet.ts.net.crt\nkey = /path/to/node.your-tailnet.ts.net.key`}</Code>
+            <Code>{`wss = 0.0.0.0:50004\ncert = /path/to/node.example.com.crt\nkey = /path/to/node.example.com.key`}</Code>
           </div>
         </li>
         <li>
           <p>
-            Restart Fulcrum and connect the wallet to <span className={c}>wss://node.your-tailnet.ts.net:50004</span>.
+            Restart Fulcrum and connect the wallet to <span className={c}>wss://node.example.com:50004</span>.
           </p>
         </li>
       </Steps>
       <p>
-        Tailscale certificates last 90 days. Re-run <span className={c}>tailscale cert</span> and restart Fulcrum before they
-        expire, for example from a monthly cron job.
+        Let's Encrypt and Tailscale certificates last 90 days. Renew and restart Fulcrum before they expire, for example
+        from a monthly cron job.
       </p>
 
       <h2>The local container, at home</h2>
