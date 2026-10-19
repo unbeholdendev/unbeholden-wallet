@@ -339,9 +339,25 @@ function matching(built: Uint8Array, returned: Uint8Array): { ours: Transaction;
  */
 export function finaliseExternal(psbt: Uint8Array, coins: Coin[]): Uint8Array {
   const tx = parsePsbt(psbt);
+  spent(tx, coins);
+  return finalise(tx, tx);
+}
+
+/**
+ * For a multisig: checks a PSBT from elsewhere spends only the given coins, as
+ * `finaliseExternal` does, and returns it with this wallet's derivations and
+ * witness scripts, to collect cosigners' signatures on with `collectSigned`.
+ */
+export function adoptExternal(psbt: Uint8Array, coins: Coin[], descriptor: Descriptor, network: Network): Uint8Array {
+  const tx = parsePsbt(psbt);
+  spent(tx, coins).forEach((coin, i) => tx.updateInput(i, derivation(descriptor, network, coin.chain, coin.index).fields, true));
+  return tx.toPSBT();
+}
+
+function spent(tx: Transaction, coins: Coin[]): Coin[] {
   const owned = new Map(coins.map((c) => [outpoint(c), c]));
   if (!tx.inputsLength) throw new Error("It spends no coins");
-  for (let i = 0; i < tx.inputsLength; i++) {
+  return Array.from({ length: tx.inputsLength }, (_, i) => {
     const input = tx.getInput(i);
     const coin = owned.get(outpoint({ txid: hex.encode(input.txid!), vout: input.index! }));
     if (!coin) throw new Error(`Input ${i + 1} is not one of this wallet's unspent coins`);
@@ -349,8 +365,8 @@ export function finaliseExternal(psbt: Uint8Array, coins: Coin[]): Uint8Array {
     if (!utxo || hex.encode(utxo.script) !== coin.script || utxo.amount !== BigInt(coin.value)) {
       throw new Error(`Input ${i + 1} describes its coin differently from your server`);
     }
-  }
-  return finalise(tx, tx);
+    return coin;
+  });
 }
 
 /** A transaction the signer finished itself, as the PSBT built with its witnesses. */

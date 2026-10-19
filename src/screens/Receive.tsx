@@ -135,8 +135,7 @@ export function Receive() {
           {multi && (
             <p className="m-0 text-sm text-ink-2">
               A {multi.threshold}-of-{keys.length} multisig address. Check it on a cosigner device before you share it, so a
-              tampered page cannot hand out an address the multisig does not control. It is at{" "}
-              <span className="font-mono text-[0.86em]">{next.path}</span>.
+              tampered page cannot hand out an address the multisig does not control.
             </p>
           )}
         </div>
@@ -169,8 +168,8 @@ export function Receive() {
           </Button>
         )}
         <dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-1.5 border-t border-rule pt-3 text-sm">
-          <dt className="text-ink-2">Derivation path</dt>
-          <dd className="m-0 text-right font-mono">{next.path}</dd>
+          <dt className="text-ink-2">{multi ? "Each cosigner's path" : "Derivation path"}</dt>
+          <dd className="m-0 text-right font-mono break-words">{next.path}</dd>
           <dt className="text-ink-2">Index</dt>
           <dd className="m-0 text-right">Receive #{next.index}</dd>
         </dl>

@@ -13,21 +13,25 @@ const DraftContext = createContext<[SendDraft | null, Dispatch<SetStateAction<Se
 const SkipContext = createContext(new Map<string, string>());
 const FailedContext = createContext<{ message: string; retry(): void } | null>(null);
 
-type Saved = Omit<SendDraft, "built"> & { built: Omit<NonNullable<SendDraft["built"]>, "psbt" | "signed"> & { psbt: string; signed?: string } };
+type Saved = Omit<SendDraft, "built"> & {
+  built: Omit<NonNullable<SendDraft["built"]>, "psbt" | "signed" | "partial"> & { psbt: string; signed?: string; partial?: string };
+};
 
 /** Keeps a send with a built PSBT in the vault, so it outlasts a lock or a reload, and forgets one without. */
 async function saveSend(vault: Store, walletId: string, draft: SendDraft | null): Promise<void> {
   const built = draft?.built;
   if (!built) return vault.delete(`send/${walletId}`);
   const signed = built.signed && hex.encode(built.signed);
-  await vault.put(`send/${walletId}`, { ...draft, built: { ...built, psbt: hex.encode(built.psbt), signed } });
+  const partial = built.partial && hex.encode(built.partial);
+  await vault.put(`send/${walletId}`, { ...draft, built: { ...built, psbt: hex.encode(built.psbt), signed, partial } });
 }
 
 async function loadSend(vault: Store, walletId: string): Promise<SendDraft | null> {
   const saved = await vault.get<Saved>(`send/${walletId}`);
   if (!saved) return null;
-  const { psbt, signed, ...built } = saved.built;
-  return { ...saved, built: { ...built, psbt: hex.decode(psbt), signed: signed ? hex.decode(signed) : undefined } };
+  const { psbt, signed, partial, ...built } = saved.built;
+  const bytes = (text?: string) => (text ? hex.decode(text) : undefined);
+  return { ...saved, built: { ...built, psbt: hex.decode(psbt), signed: bytes(signed), partial: bytes(partial) } };
 }
 
 /**

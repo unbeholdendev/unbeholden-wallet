@@ -620,9 +620,36 @@ describe("a 2-of-3 multisig wallet", () => {
     fixture.blocks = [[faucet], [tx([[id(faucet), 5]], [[script(MULTISIG, 0, 0), 400_000], [theirs, 99_599_000]])]];
   });
 
-  it("asks to check a receive address on a cosigner device", async () => {
+  it("asks to check a receive address on a cosigner device, giving each cosigner's path", async () => {
     await start("#/receive", [], MULTISIG.text);
     expect(await screen.findByText(/A 2-of-3 multisig address\. Check it on a cosigner device/)).toBeTruthy();
+    const [a, b] = MULTISIG.descriptor.keys.map((k) => k.origin!.fingerprint);
+    expect(screen.getByText("Each cosigner's path").nextElementSibling!.textContent).toBe(`m/48h/1h/0h/2h/0/1 on ${a}, ${b}, ${c}`);
+  });
+
+  it("collects cosigners' signatures on a PSBT made elsewhere, saying whose, then broadcasts at two", async () => {
+    const user = await start("#/send", [], MULTISIG.text);
+    await payTo(user, PAYEE, "0.001");
+    await user.click(screen.getByRole("button", { name: "Review and sign" }));
+    let blob: Blob | null = null;
+    URL.createObjectURL = (x: Blob) => ((blob = x), "blob:psbt");
+    URL.revokeObjectURL = () => {};
+    await user.click(await screen.findByRole("button", { name: "Save PSBT file" }));
+    const built = new Uint8Array(await blob!.arrayBuffer());
+    await user.click(screen.getByRole("button", { name: "Back to coins" }));
+    await user.click(screen.getByRole("button", { name: "Discard this send" }));
+    location.hash = "#/broadcast";
+    expect(await screen.findByText(/This needs 2 of 3 signatures/)).toBeTruthy();
+
+    // Another wallet's PSBT need not say which keys or script its inputs use.
+    const bare = Transaction.fromPSBT(signPsbt(built, MULTISIG.cosigners[2]!));
+    bare.updateInput(0, { bip32Derivation: undefined, witnessScript: undefined }, true);
+    await upload(user, bare.toPSBT());
+    expect(await screen.findByText(`1 of 2 signatures so far, from ${c}. Scan or load a PSBT another cosigner has signed.`)).toBeTruthy();
+    await upload(user, signPsbt(built, MULTISIG.cosigners[0]!));
+    expect(await screen.findByRole("heading", { name: "Check before you broadcast" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Broadcast through your server" }));
+    expect(await screen.findByText(Transaction.fromPSBT(built).id)).toBeTruthy();
   });
 
   it("collects one cosigner's signatures at a time, saying whose, then broadcasts at two", async () => {
@@ -638,7 +665,10 @@ describe("a 2-of-3 multisig wallet", () => {
     await user.click(screen.getByRole("button", { name: "Signed it, scan it back" }));
     await upload(user, signPsbt(built, MULTISIG.cosigners[2]!));
     expect(await screen.findByText(`1 of 2 signatures so far, from ${c}. Show this code to another cosigner, or scan a PSBT another cosigner has signed.`)).toBeTruthy();
-    await user.click(screen.getByRole("button", { name: "Back to the code" }));
+    await user.click(screen.getByRole("button", { name: "Lock" }));
+    await user.type(await screen.findByLabelText("Passphrase"), PASSPHRASE);
+    await user.click(screen.getByRole("button", { name: "Unlock" }));
+    expect(await screen.findByText(/^1 of 2 signatures so far, from /)).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Save PSBT file" }));
     const partly = new Uint8Array(await blob!.arrayBuffer());
     expect(Transaction.fromPSBT(partly).getInput(0).partialSig).toHaveLength(1);
