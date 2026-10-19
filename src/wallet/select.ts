@@ -51,7 +51,7 @@ export type Spend = {
 // https://bitcoinops.org/en/tools/calc-size/
 const OVERHEAD_WEIGHT = 42;
 const INPUT_WEIGHT: Record<ScriptType, number> = { wpkh: 272, tr: 230 };
-const CHANGE_SCRIPT_BYTES: Record<WalletKind["scriptType"], number> = { wpkh: 22, tr: 34, wsh: 34 };
+export const CHANGE_SCRIPT_BYTES: Record<WalletKind["scriptType"], number> = { wpkh: 22, tr: 34, wsh: 34 };
 
 // Core's search budget for branch and bound, and the change SRD aims for.
 // https://github.com/bitcoin/bitcoin/blob/master/src/wallet/coinselection.cpp
@@ -63,7 +63,7 @@ const CHANGE_LOWER = 50_000;
 // 67 vB input to spend a witness output and 148 vB for anything else.
 // https://github.com/bitcoin/bitcoin/blob/master/src/policy/policy.cpp
 // https://github.com/bitcoin/bitcoin/blob/master/src/policy/policy.h
-const dust = (scriptBytes: number, witness: boolean) =>
+export const dust = (scriptBytes: number, witness: boolean) =>
   (8 + 1 + scriptBytes + (witness ? 67 : 148)) * 3;
 
 const isWitness = (script: string) =>

@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { deriveAddress } from "../wallet/derive";
 import { descriptorFromExtendedKey } from "../wallet/descriptor";
 import { BIP84_ZPUB } from "../wallet/vectors";
-import { planBump } from "./bump";
+import { planBump, planCpfp } from "./bump";
 import type { AddressInfo, WalletCoin, WalletTx } from "./wallet";
 
 const descriptor = descriptorFromExtendedKey(BIP84_ZPUB, "mainnet");
@@ -102,5 +102,86 @@ describe("fee bump", () => {
     const plan = planBump(noChange, [extra], 10, { ...wallet, nextChange: { chain: 0, index: 7 } });
     expect(plan.problem).toBeNull();
     expect(plan.change).toMatchObject({ chain: 0, index: 7 });
+  });
+});
+
+describe("cancel", () => {
+  it("spends the same coins back to the wallet and pays for the replacement's size", () => {
+    const tx = walletTx(100_000, 49_718);
+    const change = [coin(tx.txid, 1, 49_718, mine(1, 0), "own-change")];
+    // One wpkh input and one wpkh output: 42 + 272 + 124 WU is 110 vB. The old
+    // fee is 282 sats at 2 sat/vB, so a replacement pays at least 282 + 110 sats,
+    // 3.56 sat/vB, rounded up to 3.6. At 10 sat/vB it pays 1 100 sats.
+    const plan = planBump(tx, change, 10, wallet, true);
+    expect(plan.problem).toBeNull();
+    expect(plan.recipients).toEqual([]);
+    expect(plan.minFeeRate).toBe(3.6);
+    expect(plan.spend.fee).toBe(1_100);
+    expect(plan.change).toEqual({ chain: 1, index: 0, value: 98_900 });
+    expect(planBump(tx, change, 3.5, wallet, true).problem).toEqual({ kind: "below-minimum", minFeeRate: 3.6 });
+  });
+});
+
+describe("child pays for parent", () => {
+  function incoming(fee: number | null): WalletTx {
+    const to = mine(0, 0);
+    return {
+      ...walletTx(0, 0),
+      net: 50_000,
+      fee,
+      inputs: [{ txid: "bb".repeat(32), vout: 0, value: fee === null ? null : 60_000 + fee, address: PAYEE, mine: null }],
+      outputs: [
+        { vout: 0, script: script(to.address), value: 50_000, address: to.address, mine: to, label: null, kyc: false },
+        { vout: 1, script: script(PAYEE), value: 10_000, address: PAYEE, mine: null, label: null, kyc: false },
+      ],
+    };
+  }
+  const paid = (tx: WalletTx, value = 50_000) => [coin(tx.txid, 0, value, mine(0, 0), "foreign-unconfirmed")];
+
+  it("pays enough that parent and child together come to the chosen rate", () => {
+    const tx = incoming(141);
+    // The child, one wpkh input and one wpkh output, is 110 vB. At 10 sat/vB the
+    // pair of 141 + 110 vB owes 2 510 sats; the parent paid 141, so the child pays 2 369.
+    const plan = planCpfp(tx, paid(tx), 10, wallet);
+    expect(plan.problem).toBeNull();
+    expect(plan.spend.fee).toBe(2_369);
+    expect(plan.spend.vsize).toBe(110);
+    expect(plan.coins.map((c) => `${c.txid}:${c.vout}`)).toEqual([`${tx.txid}:0`]);
+    expect(plan.change).toEqual({ chain: 1, index: 5, value: 47_631 });
+    expect(plan.minFeeRate).toBe(1.1);
+  });
+
+  it("sizes a multisig child by the wallet's k and n, not the coin", () => {
+    const tx = incoming(141);
+    const multisig = { ...wallet, scriptType: "wsh" as const, multisig: { threshold: 2, keys: 3 } };
+    // A 2-of-3 wsh input is 164 + 1 + 1 + 2 × 73 + 1 + 105 = 418 WU; with a
+    // 172 WU wsh output and 42 WU overhead, 632 WU is 158 vB. At 10 sat/vB the
+    // pair of 141 + 158 vB owes 2 990 sats, less the parent's 141 is 2 849.
+    const plan = planCpfp(tx, paid(tx), 10, multisig);
+    expect(plan.spend.vsize).toBe(158);
+    expect(plan.spend.fee).toBe(2_849);
+  });
+
+  it("makes the child pay 1 sat/vB on its own even when the pair needs less", () => {
+    const tx = incoming(14);
+    // At 0.2 sat/vB the pair owes 50.2, so 51 sats, less 14 is 37: under the
+    // child's own 110 vB at 1 sat/vB, so it pays 110.
+    expect(planCpfp(tx, paid(tx), 0.2, wallet).spend.fee).toBe(110);
+  });
+
+  it("says when what it pays the wallet cannot cover the child's fee", () => {
+    const tx = incoming(141);
+    // 2 369 sats of fee plus a 294-sat change output, the wpkh dust limit at
+    // 3 sat/vB of (8 + 1 + 22 + 67) bytes, is 663 more than 2 000.
+    expect(planCpfp(tx, paid(tx, 2_000), 10, wallet).problem).toEqual({ kind: "insufficient", missing: 663 });
+  });
+
+  it("will not guess when the parent's fee is unknown", () => {
+    const tx = incoming(null);
+    expect(planCpfp(tx, paid(tx), 10, wallet).problem).toEqual({ kind: "fee-unknown" });
+  });
+
+  it("needs an unspent coin from the parent", () => {
+    expect(planCpfp(incoming(141), [], 10, wallet).problem).toEqual({ kind: "nothing-to-spend" });
   });
 });
