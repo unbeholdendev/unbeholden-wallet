@@ -4,9 +4,11 @@ import { navigate } from "../../app/route";
 import { useWallet, useWalletSession, useWalletSnapshot } from "../../app/session";
 import { Amount, groupSats } from "../../ui/amount";
 import { Icon } from "../../ui/icons";
-import { hostText } from "../../ui/format";
+import { hostText, shortId } from "../../ui/format";
 import { Button, Chip, LinkButton, Notice, Panel } from "../../ui/kit";
+import { sourcesOf } from "../../ui/sources";
 import { adoptExternal, collectSigned, finaliseExternal, finaliseSigned, parsePsbt, reviewPsbt, type Collected } from "../../wallet/psbt";
+import { CustodyLog } from "./CustodyLog";
 import { download, ExportQr } from "./ExportQr";
 import { rateText } from "./fees";
 import { ScanBack } from "./ScanBack";
@@ -43,6 +45,7 @@ export function SignFlow({
   summary,
   label,
   names = {},
+  inputs,
   onBack,
   done = null,
   onDone,
@@ -58,6 +61,8 @@ export function SignFlow({
   label: string;
   /** Address book names by address, for the outputs that pay them. */
   names?: Record<string, string>;
+  /** The coins it spends, for the custody log; left out when they are not all known. */
+  inputs?: string[];
   onBack: () => void;
   /** The signed transaction already scanned back, to resume at Broadcast. */
   done?: Uint8Array | null;
@@ -85,7 +90,8 @@ export function SignFlow({
     const outputs = review.outputs.map((o) => (o.address && paths.has(o.address) ? { ...o, mine: true, change: change.has(o.address) } : o));
     return { ...review, outputs };
   }, [built, descriptor, network, snapshot]);
-  const inputs = useMemo(() => parsePsbt(built).inputsLength, [built]);
+  const inputCount = useMemo(() => parsePsbt(built).inputsLength, [built]);
+  const sources = useMemo(() => (snapshot && inputs ? sourcesOf(snapshot) : []), [snapshot, inputs]);
 
   const { multi } = descriptor;
   const [collected, setCollected] = useState(() => (multi && partial ? collectSigned(built, partial, partial, multi.threshold) : null));
@@ -171,6 +177,21 @@ export function SignFlow({
     </Panel>
   );
 
+  const change = review.outputs.filter((o) => o.change).reduce((a, o) => a + o.value, 0);
+  const recap = (
+    <Panel title={label || "This payment"} className="@min-[900px]:sticky @min-[900px]:top-20">
+      <Facts
+        rows={[
+          ["Sending", <Amount sats={leaving} unit />],
+          ["To", payments.length === 1 ? <span className="font-mono">{payments[0]!.address ? shortId(payments[0]!.address, 10, 8) : "A script with no address"}</span> : `${payments.length} recipients`],
+          ["Fee", `${groupSats(review.fee)} sats, ${rateText(review.feeRate)} sat/vB`],
+          ["Change", change ? <Amount sats={change} /> : "None"],
+        ]}
+      />
+      {inputs && <CustodyLog sources={sources} selected={new Set(inputs)} still />}
+    </Panel>
+  );
+
   const cosigners = multi && !external && (
     <Notice tone={collected ? "ok" : "warn"}>
       {collected
@@ -216,9 +237,9 @@ export function SignFlow({
             </div>
             <ul className="m-0 grid list-none gap-2.5 p-0">
               {[
-                ["Every input carries a signature", `${inputs} of ${inputs}`],
+                ["Every input carries a signature", `${inputCount} of ${inputCount}`],
                 ...(external
-                  ? [["Every input is one of your coins", `${inputs} of ${inputs}`]]
+                  ? [["Every input is one of your coins", `${inputCount} of ${inputCount}`]]
                   : [
                       ["Outputs match what you built", `${review.outputs.length} of ${review.outputs.length}`],
                       ["Fee matches", `${groupSats(review.fee)} sats`],
@@ -281,7 +302,10 @@ export function SignFlow({
           </button>
         ))}
       </nav>
-      {body}
+      <div className="grid gap-4 @min-[900px]:grid-cols-[minmax(0,1fr)_340px] @min-[900px]:items-start">
+        <div className="grid min-w-0 gap-4">{body}</div>
+        {recap}
+      </div>
     </div>
   );
 }

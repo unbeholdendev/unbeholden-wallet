@@ -4,7 +4,7 @@ import { Amount } from "../ui/amount";
 import { dateText, shortId, txFallback } from "../ui/format";
 import { Icon } from "../ui/icons";
 import { Chip, Empty, linkClass } from "../ui/kit";
-import { SourceSwatch, sourcesOf, TINT } from "../ui/sources";
+import { sourcesOf } from "../ui/sources";
 import { outpoint } from "../wallet/coin";
 import { Opening, SourceTitle } from "./parts";
 
@@ -95,11 +95,8 @@ export function CoinHistory({ point }: { point: string | undefined }) {
           What the chain already shows about this coin. Spending it tells whoever you pay all of this too.
         </p>
       </div>
-      <section aria-label="Source" className={`grid gap-3 rounded-panel border border-rule-2 p-4 ${TINT[source.tone]}`}>
-        <span className="flex min-w-0 items-center gap-2.5">
-          <SourceSwatch source={source} className="h-[22px] w-9" />
-          <SourceTitle source={source} />
-        </span>
+      <section aria-label="Source" className="grid gap-3 rounded-panel border border-rule bg-manila-2 p-4">
+        <SourceTitle source={source} />
         {others.length ? (
           <div className="grid gap-1.5 text-sm">
             <span>
