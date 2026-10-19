@@ -25,7 +25,7 @@
     --paper: #121317; --sheet: #191b20; --sunk: #0e0f12;
     --ink: #ecebe6; --ink-2: #b8b9bd; --ink-3: #9a9ca2;
     --rule: #2a2c33; --rule-2: #3a3d45;
-    --manila: #8a7442; --manila-2: #29241a; --manila-ink: #f3e7c4;
+    --manila: #6e5c2f; --manila-2: #29241a; --manila-ink: #f3e7c4;
     --carbon: #9aaeff; --carbon-ink: #10152e; --carbon-tint: #1d2340; --carbon-hover: #b6c4ff;
     --tamper: #c9353e; --tamper-ink: #ffffff;
     --ok: #86c891; --ok-tint: #17291b;
@@ -42,7 +42,7 @@
   --paper: #121317; --sheet: #191b20; --sunk: #0e0f12;
   --ink: #ecebe6; --ink-2: #b8b9bd; --ink-3: #9a9ca2;
   --rule: #2a2c33; --rule-2: #3a3d45;
-  --manila: #8a7442; --manila-2: #29241a; --manila-ink: #f3e7c4;
+  --manila: #6e5c2f; --manila-2: #29241a; --manila-ink: #f3e7c4;
   --carbon: #9aaeff; --carbon-ink: #10152e; --carbon-tint: #1d2340; --carbon-hover: #b6c4ff;
   --tamper: #c9353e; --tamper-ink: #ffffff;
   --ok: #86c891; --ok-tint: #17291b;
@@ -116,7 +116,7 @@
   --radius-control: 6px;
   --radius-panel: 8px;
 
-  --ease-map: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-snap: cubic-bezier(0.2, 0.8, 0.2, 1);
   --default-transition-duration: 160ms;
   --default-transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
   --animate-entry-in: entry-in 300ms cubic-bezier(0.2, 0.8, 0.2, 1);
