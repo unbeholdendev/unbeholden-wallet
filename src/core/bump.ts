@@ -19,10 +19,14 @@ export type BumpProblem =
   /** No unspent, unfrozen output of it is this wallet's. */
   | { kind: "nothing-to-spend" }
   | { kind: "below-minimum"; minFeeRate: number }
+  /** A cancellation whose coins, less the fee, are too small to send back. */
+  | { kind: "nothing-left" }
   | { kind: "insufficient"; missing: number };
 
 export type BumpPlan = {
+  /** For a child, the parent and its unconfirmed ancestors together. */
   oldFee: number;
+  oldVsize: number;
   oldFeeRate: number;
   /** The lowest rate a node will accept as a replacement. */
   minFeeRate: number;
@@ -31,6 +35,8 @@ export type BumpPlan = {
   recipients: Recipient[];
   change: ChangeOutput | null;
   problem: BumpProblem | null;
+  /** An unconfirmed ancestor may be missing from the wallet, so the package rate may be lower. */
+  partial?: boolean;
 };
 
 /**
@@ -110,12 +116,15 @@ export function planBump(
             ? { kind: "unsupported-output" }
           : feeRate < minFeeRate || result.fee < oldFee + result.vsize
             ? { kind: "below-minimum", minFeeRate }
-            : result.problem?.kind === "insufficient"
-              ? { kind: "insufficient", missing: result.problem.missing }
+          : result.problem?.kind === "insufficient"
+            ? { kind: "insufficient", missing: result.problem.missing }
+            : cancel && !result.change
+              ? { kind: "nothing-left" }
               : null;
 
   return {
     oldFee,
+    oldVsize: tx.vsize,
     oldFeeRate,
     minFeeRate,
     spend: result,
@@ -131,26 +140,43 @@ export function planBump(
 /**
  * Plans a child that spends the wallet's unspent outputs of an unconfirmed
  * transaction back to the wallet, paying enough that parent and child together
- * come to `feeRate`, and the child alone at least 1 sat/vB.
+ * come to `feeRate`, and the child alone at least 1 sat/vB. The parent's
+ * unconfirmed ancestors among `transactions` count as part of the parent, as
+ * miners count them.
  */
 export function planCpfp(
   tx: WalletTx,
+  transactions: WalletTx[],
   coins: WalletCoin[],
   feeRate: number,
   wallet: WalletKind & { nextChange: { chain: number; index: number } },
 ): BumpPlan {
-  const oldFee = tx.fee ?? 0;
-  const oldFeeRate = oldFee / tx.vsize;
+  const pkg = new Map<string, WalletTx>();
+  let partial = false;
+  const add = (t: WalletTx) => {
+    if (pkg.has(t.txid)) return;
+    pkg.set(t.txid, t);
+    for (const input of t.inputs) {
+      const parent = transactions.find((p) => p.txid === input.txid);
+      if (parent?.height === null) add(parent);
+      else if (!parent && t.unconfirmedParents) partial = true;
+    }
+  };
+  add(tx);
+  const family = [...pkg.values()];
+  const oldFee = family.reduce((a, t) => a + (t.fee ?? 0), 0);
+  const oldVsize = family.reduce((a, t) => a + t.vsize, 0);
+  const oldFeeRate = oldFee / oldVsize;
   const minFeeRate = Math.floor(oldFeeRate * 10) / 10 + 0.1;
   const mine = coins.filter((c) => c.txid === tx.txid && !c.frozen);
   const sized = spend(mine, { recipients: [], feeRate: 0, scriptType: wallet.scriptType, multisig: wallet.multisig });
-  const fee = Math.max(Math.ceil(feeRate * (tx.vsize + sized.vsize)) - oldFee, sized.vsize);
+  const fee = Math.max(Math.ceil(feeRate * (oldVsize + sized.vsize)) - oldFee, sized.vsize);
   const available = mine.reduce((a, c) => a + c.value, 0);
   const missing = fee + dust(CHANGE_SCRIPT_BYTES[wallet.scriptType], true) - available;
   const problem: BumpProblem | null =
     tx.height !== null
       ? { kind: "confirmed" }
-      : tx.fee === null
+      : family.some((t) => t.fee === null)
         ? { kind: "fee-unknown" }
         : mine.length === 0
           ? { kind: "nothing-to-spend" }
@@ -161,6 +187,7 @@ export function planCpfp(
               : null;
   return {
     oldFee,
+    oldVsize,
     oldFeeRate,
     minFeeRate,
     spend: { ...sized, fee, change: available - fee, total: fee },
@@ -168,5 +195,6 @@ export function planCpfp(
     recipients: [],
     change: { ...wallet.nextChange, value: available - fee },
     problem,
+    partial,
   };
 }

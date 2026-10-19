@@ -1,13 +1,14 @@
 import { useState } from "react";
-import { useWallet, useWalletSnapshot } from "../../app/session";
+import { navigate } from "../../app/route";
+import { useSendDraft, useWallet, useWalletSnapshot } from "../../app/session";
 import { planBump, planCpfp, type BumpProblem } from "../../core/bump";
 import { nextChange } from "../../core/view";
 import { Amount, groupSats } from "../../ui/amount";
-import { Button, Empty, Notice, Panel } from "../../ui/kit";
+import { Button, Empty, linkClass, Notice, Panel } from "../../ui/kit";
+import { outpoint } from "../../wallet/coin";
 import { buildPsbt } from "../../wallet/psbt";
 import { FeePanel, rateOf, rateText, useFeeHistogram, type FeeChoice } from "./fees";
-import type { Built } from "./Send";
-import { SignFlow } from "./Sign";
+import { blankDraft, stillPending } from "./Send";
 
 export type BumpMode = "speed" | "cancel" | "cpfp";
 
@@ -56,6 +57,8 @@ function why(problem: BumpProblem, mode: BumpMode): string {
       return mode === "cpfp"
         ? `It already pays about that. Choose at least ${rateText(problem.minFeeRate)} sat/vB.`
         : `A replacement has to pay at least ${rateText(problem.minFeeRate)} sat/vB, or your node will refuse it.`;
+    case "nothing-left":
+      return "At this rate the fee takes nearly all of its coins, leaving too little to send back to you, so it cannot be cancelled at this rate.";
     case "insufficient":
       return mode === "cpfp"
         ? `What this transaction pays you is ${groupSats(problem.missing)} sats short of the child's fee.`
@@ -69,7 +72,7 @@ export function Bump({ txid, mode }: { txid: string; mode: BumpMode }) {
   const { descriptor, network, kind } = useWallet();
   const histogram = useFeeHistogram();
   const [fee, setFee] = useState<FeeChoice>({ preset: "nextBlock" });
-  const [built, setBuilt] = useState<Built | null>(null);
+  const [draft, store] = useSendDraft();
   const [error, setError] = useState<string | null>(null);
 
   if (!snapshot) return <p className="m-0 text-ink-2">Opening this wallet.</p>;
@@ -84,7 +87,7 @@ export function Bump({ txid, mode }: { txid: string; mode: BumpMode }) {
   const copy = COPY[mode];
   const wallet = { ...kind, network, nextChange: nextChange(snapshot) };
   const planAt = (rate: number) =>
-    mode === "cpfp" ? planCpfp(tx, snapshot.coins, rate, wallet) : planBump(tx, snapshot.coins, rate, wallet, mode === "cancel");
+    mode === "cpfp" ? planCpfp(tx, snapshot.transactions, snapshot.coins, rate, wallet) : planBump(tx, snapshot.coins, rate, wallet, mode === "cancel");
   const plan = planAt(rateOf(fee, histogram, planAt(rateOf(fee, histogram)).minFeeRate));
   const added = mode === "cpfp" ? [] : plan.coins.slice(tx.inputs.length);
   const changeOut = (o: { mine: { chain: number } | null }) => o.mine?.chain === 1;
@@ -92,22 +95,29 @@ export function Bump({ txid, mode }: { txid: string; mode: BumpMode }) {
   const payments = tx.outputs.filter((o) => !changeOut(o)).reduce((a, o) => a + (o.value ?? 0), 0);
   const extra = mode === "cpfp" ? plan.spend.fee : plan.spend.fee - plan.oldFee;
 
-  if (built)
-    return <SignFlow built={built.psbt} title={copy.sign} warnings={built.warnings} summary={built.summary} label={built.label} onBack={() => setBuilt(null)} />;
+  const busy = !!draft?.built && stillPending(draft.built, snapshot);
 
   const build = () => {
     try {
       const { psbt, warnings } = buildPsbt({ descriptor, network, coins: plan.coins, recipients: plan.recipients, change: plan.change, tip: snapshot.tip });
       setError(null);
-      setBuilt({
-        psbt,
-        warnings,
-        label: tx.label ?? "",
-        summary: [
-          [copy.link, <span className="font-mono text-[0.86em]">{`${txid.slice(0, 10)}…${txid.slice(-6)}`}</span>],
-          ["Extra cost", `${groupSats(extra)} sats`],
-        ],
-      });
+      store((d) => ({
+        ...(d ?? blankDraft()),
+        built: {
+          psbt,
+          warnings,
+          title: copy.sign,
+          label: tx.label ?? "",
+          // Kept in the vault as JSON, so text only.
+          summary: [
+            [copy.link, `${txid.slice(0, 10)}…${txid.slice(-6)}`],
+            ["Extra cost", `${groupSats(extra)} sats`],
+          ],
+          inputs: (mode === "cpfp" ? plan.coins : added).map(outpoint),
+          replaces: mode === "cpfp" ? undefined : txid,
+        },
+      }));
+      navigate("/send");
     } catch (e) {
       setError((e as Error).message);
     }
@@ -124,7 +134,7 @@ export function Bump({ txid, mode }: { txid: string; mode: BumpMode }) {
   );
   const after =
     mode === "cpfp"
-      ? side(copy.after, (plan.oldFee + plan.spend.fee) / (tx.vsize + plan.spend.vsize), plan.oldFee + plan.spend.fee, true)
+      ? side(copy.after, (plan.oldFee + plan.spend.fee) / (plan.oldVsize + plan.spend.vsize), plan.oldFee + plan.spend.fee, true)
       : side(copy.after, plan.spend.fee / plan.spend.vsize, plan.spend.fee, true);
 
   return (
@@ -168,7 +178,13 @@ export function Bump({ txid, mode }: { txid: string; mode: BumpMode }) {
           {mode === "cpfp" && (
             <p className="m-0 text-sm text-ink-2">
               The child alone pays {rateText(plan.spend.fee / plan.spend.vsize)} sat/vB. Your node takes it only if that meets its minimum relay fee, or if it supports package relay and takes the two together. If the original is replaced, the child goes with it.
+              {plan.oldVsize > tx.vsize && " The original spends coins from other unconfirmed transactions of yours, so those count too, as miners count them."}
             </p>
+          )}
+          {plan.partial && (
+            <Notice tone="warn">
+              It, or a transaction before it, spends coins from one this wallet does not have, and your server says something it spends from is not in a block yet. Miners count that too, so the rate with the child may be lower than shown.
+            </Notice>
           )}
           {added.length > 0 && (
             <Notice tone="warn">
@@ -184,7 +200,12 @@ export function Bump({ txid, mode }: { txid: string; mode: BumpMode }) {
           )}
           {plan.problem && <Notice tone="bad">{why(plan.problem, mode)}</Notice>}
           {error && <Notice tone="bad">{error}</Notice>}
-          <Button variant="primary" wide disabled={!!plan.problem} onClick={build}>
+          {busy && (
+            <Notice tone="warn">
+              Another transaction is built and waiting to be signed or broadcast. <a className={linkClass} href="#/send">Finish or discard it</a> first.
+            </Notice>
+          )}
+          <Button variant="primary" wide disabled={!!plan.problem || busy} onClick={build}>
             {copy.build}
           </Button>
         </Panel>
