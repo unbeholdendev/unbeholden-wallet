@@ -67,7 +67,7 @@ export function Receive() {
   const skips = useReceiveSkips();
   const { vault } = useVault();
   const toast = useToast();
-  const { id } = useWallet().record;
+  const { record: { id }, descriptor: { keys, multi } } = useWallet();
   const [from, setFrom] = useState(() => skips.get(id) ?? "");
   const [amount, setAmount] = useState("");
   const [withLabel, setWithLabel] = useState(false);
@@ -132,6 +132,13 @@ export function Receive() {
                   setFrom(after.address);
                 }}>Use a new address</LinkButton>}
           </span>
+          {multi && (
+            <p className="m-0 text-sm text-ink-2">
+              A {multi.threshold}-of-{keys.length} multisig address. Check it on a cosigner device before you share it, so a
+              tampered page cannot hand out an address the multisig does not control. It is at{" "}
+              <span className="font-mono text-[0.86em]">{next.path}</span>.
+            </p>
+          )}
         </div>
         <div className="grid gap-1 border-t border-rule pt-3">
           <span className="text-sm text-ink-2">Who is paying, or what for</span>

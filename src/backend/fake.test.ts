@@ -4,7 +4,7 @@ import { p2wpkh } from "@scure/btc-signer/payment.js";
 import { sha256 } from "@scure/btc-signer/utils.js";
 import { describe, expect, it } from "vitest";
 import { descriptorFromExtendedKey } from "../wallet/descriptor";
-import { derivePublicKey } from "../wallet/derive";
+import { derivePublicKeys } from "../wallet/derive";
 import { BIP84_ZPUB } from "../wallet/vectors";
 import { BroadcastError, ConnectionError, scriptHash } from "./backend";
 import { fakeBackend, fakeEsplora, type FakeBackend } from "./fake";
@@ -47,7 +47,7 @@ function blockTime(header: Uint8Array): number {
 const descriptor = descriptorFromExtendedKey(BIP84_ZPUB, "mainnet");
 
 function walletScript(chain: number, index: number): Uint8Array {
-  return p2wpkh(derivePublicKey(descriptor, "mainnet", chain, index)).script;
+  return p2wpkh(derivePublicKeys(descriptor, "mainnet", chain, index)[0]!).script;
 }
 
 const RECEIVE = walletScript(0, 0);

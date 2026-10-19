@@ -6,7 +6,7 @@ import type { WalletBackend } from "../backend/backend";
 import { fakeBackend, fakeEsplora, type FakeBackend } from "../backend/fake";
 import { createVault, destroyVault, type Vault } from "../vault/vault";
 import { descriptorFromExtendedKey, parseDescriptor } from "../wallet/descriptor";
-import { derivePublicKey } from "../wallet/derive";
+import { derivePublicKeys } from "../wallet/derive";
 import { selectCoins } from "../wallet/select";
 import { BIP84_ZPUB, BIP86_XPUB } from "../wallet/vectors";
 import { parseBip329 } from "./bip329";
@@ -32,8 +32,8 @@ const ours = parseDescriptor(DESCRIPTOR, "mainnet");
 const others = descriptorFromExtendedKey(BIP86_XPUB, "mainnet", "wpkh");
 
 const mine = (chain: number, index: number) =>
-  p2wpkh(derivePublicKey(ours, "mainnet", chain, index)).script;
-const theirs = (index: number) => p2wpkh(derivePublicKey(others, "mainnet", 0, index)).script;
+  p2wpkh(derivePublicKeys(ours, "mainnet", chain, index)[0]!).script;
+const theirs = (index: number) => p2wpkh(derivePublicKeys(others, "mainnet", 0, index)[0]!).script;
 
 function tx(inputs: [string, number][], outputs: [Uint8Array, number][]): Uint8Array {
   const t = new Transaction(PARSE);

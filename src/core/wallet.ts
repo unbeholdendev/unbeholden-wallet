@@ -90,7 +90,7 @@ export async function openWallet(
   const record = await getWallet(vault, id);
   const descriptor = walletDescriptor(record);
   const network = NETWORKS[record.network];
-  const chains = descriptor.path.some(Array.isArray) ? 2 : 1;
+  const chains = descriptor.keys[0]!.path.some(Array.isArray) ? 2 : 1;
   const origin = bip329Origin(descriptor);
 
   let cache =

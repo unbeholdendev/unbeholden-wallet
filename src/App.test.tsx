@@ -219,6 +219,17 @@ describe("onboarding", () => {
     await user.click(screen.getByRole("button", { name: "Taproot, tr" }));
     expect(screen.getByText(/^tr\(xpub/)).toBeTruthy();
   });
+
+  it("shows a multisig's k of n and each key's fingerprint", async () => {
+    await existingVault({ server: SERVER });
+    const user = renderApp();
+    await unlock(user);
+    await user.click(await screen.findByLabelText("Descriptor or extended public key"));
+    await user.paste(`wsh(sortedmulti(2,[d34db33f/48h/0h/0h/2h]${asVersion(BIP84_ZPUB, VERSION.xpub)},${BIP86_XPUB},[0badc0de/48h/0h/0h/2h]${BIP86_XPUB}/<2;3>/*))`);
+    expect(screen.getByText("2 of 3 multisig: spending needs 2 of these keys to sign.")).toBeTruthy();
+    expect(screen.getAllByRole("listitem").map((li) => li.textContent)).toEqual(["d34db33f", "no fingerprint", "0badc0de"]);
+    expect(screen.getByLabelText("Name").getAttribute("placeholder")).toBe("2-of-3 multisig");
+  });
 });
 
 describe("scanning a descriptor", () => {
@@ -247,7 +258,7 @@ describe("scanning a descriptor", () => {
     await unlock(user);
     await user.click(await screen.findByRole("button", { name: "Scan a QR code" }));
     act(() => camera.scan!(PKH_OUTPUT));
-    expect(await screen.findByText("This wallet supports only wpkh and tr descriptors.")).toBeTruthy();
+    expect(await screen.findByText("This wallet supports only wpkh, tr and wsh multisig descriptors.")).toBeTruthy();
   });
 });
 

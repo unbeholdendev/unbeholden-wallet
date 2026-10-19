@@ -5,7 +5,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { INVALID, VALID } from "./bip174-vectors";
 import type { Coin } from "./coin";
 import { descriptorFromExtendedKey, parseDescriptor } from "./descriptor";
-import { buildPsbt, finaliseExternal, finaliseSigned, parsePsbt, reviewPsbt } from "./psbt";
+import * as regtest from "../../scripts/regtest/fixture";
+import { derivePayment } from "./derive";
+import { buildPsbt, collectSigned, finaliseExternal, finaliseSigned, parsePsbt, reviewPsbt } from "./psbt";
 import { asVersion, BIP84_ZPUB, BIP86_XPUB, VERSION } from "./vectors";
 
 describe("BIP174 vectors", () => {
@@ -361,5 +363,85 @@ describe("building", () => {
         recipients: [{ address: signetAddress, value: 9_000 }],
       }),
     ).toThrow("is not a valid mainnet address");
+  });
+});
+
+describe("a 2-of-3 multisig wallet", () => {
+  const { descriptor, cosigners } = regtest.MULTISIG;
+  const fingerprints = descriptor.keys.map((k) => k.origin!.fingerprint);
+  const multiCoin = (index: number, value: number): Coin => ({
+    txid: `${index + 1}`.repeat(64),
+    vout: index,
+    value,
+    script: hex.encode(regtest.script(regtest.MULTISIG, 0, index)),
+    address: regtest.address(regtest.MULTISIG, 0, index),
+    chain: 0,
+    index,
+    height: 800000,
+    status: "confirmed",
+    frozen: false,
+  });
+  const build = () =>
+    buildPsbt({
+      descriptor,
+      network: "regtest",
+      tip: null,
+      coins: [multiCoin(0, 60_000), multiCoin(1, 50_000)],
+      recipients: [{ address: regtest.address(regtest.BIP84, 0, 0), value: 70_000 }],
+      change: { chain: 1, index: 0, value: 38_000 },
+    }).psbt;
+
+  it("gives every input and the change its witness script and every cosigner's derivation, and the xpubs globally", () => {
+    const tx = parsePsbt(build());
+    for (const [i, index] of [0, 1].entries()) {
+      const input = tx.getInput(i);
+      expect(input.witnessScript).toEqual(derivePayment(descriptor, "regtest", 0, index).witnessScript);
+      expect(input.bip32Derivation!.map(([, der]) => der.fingerprint.toString(16).padStart(8, "0")).sort()).toEqual([...fingerprints].sort());
+      expect(input.bip32Derivation!.every(([, der]) => der.path.join() === [48 + H, 1 + H, H, 2 + H, 0, index].join())).toBe(true);
+    }
+    const change = [0, 1].map((i) => tx.getOutput(i)).find((o) => o.witnessScript)!;
+    expect(change.witnessScript).toEqual(derivePayment(descriptor, "regtest", 1, 0).witnessScript);
+    expect(change.bip32Derivation).toHaveLength(3);
+    const xpubs: [{ depth: number }, { fingerprint: number }][] = tx["global"].xpub;
+    expect(xpubs.map(([, der]) => der.fingerprint.toString(16).padStart(8, "0"))).toEqual(fingerprints);
+    expect(xpubs.map(([xpub]) => xpub.depth)).toEqual([4, 4, 4]);
+  });
+
+  it("collects one cosigner's signatures, then another's, and finalises at two", () => {
+    const built = build();
+    const first = collectSigned(built, built, regtest.signPsbt(built, cosigners[2]!), 2);
+    expect(first).toMatchObject({ signed: 1, needed: 2, signers: [fingerprints[2]], raw: null });
+    const again = collectSigned(built, first.psbt, regtest.signPsbt(first.psbt, cosigners[2]!), 2);
+    expect(again).toMatchObject({ signed: 1, raw: null });
+    const done = collectSigned(built, first.psbt, regtest.signPsbt(built, cosigners[0]!), 2);
+    expect(done.raw).not.toBeNull();
+    const final = Transaction.fromRaw(done.raw!);
+    expect(final.getInput(0).finalScriptWitness).toHaveLength(4);
+    expect(reviewPsbt(built, descriptor, "regtest").vsize - final.vsize).toBeGreaterThanOrEqual(0);
+    expect(reviewPsbt(built, descriptor, "regtest").vsize - final.vsize).toBeLessThanOrEqual(1);
+  });
+
+  it("finalises a PSBT that already carries both signatures, and marks the change", () => {
+    const built = build();
+    const both = regtest.signPsbt(regtest.signPsbt(built, cosigners[0]!), cosigners[1]!);
+    expect(collectSigned(built, built, both, 2).raw).not.toBeNull();
+    expect(reviewPsbt(built, descriptor, "regtest").outputs.filter((o) => o.change)).toHaveLength(1);
+  });
+
+  it("refuses a cosigner's signature that does not commit to every output", () => {
+    const built = build();
+    const tx = Transaction.fromPSBT(built);
+    for (let i = 0; i < tx.inputsLength; i++) {
+      tx.updateInput(i, { sighashType: SigHash.NONE });
+      tx.signIdx(cosigners[0]!.account.deriveChild(0).deriveChild(i).privateKey!, i, [SigHash.NONE]);
+    }
+    expect(() => collectSigned(built, built, tx.toPSBT(), 2)).toThrow(/Input 1 is signed so that whoever relays it/);
+  });
+
+  it("refuses a cosigner's PSBT that pays somewhere else", () => {
+    const built = build();
+    const tx = Transaction.fromPSBT(built);
+    tx.updateOutput(0, { amount: 1n });
+    expect(() => collectSigned(built, built, tx.toPSBT(), 2)).toThrow(/Output 1 pays 1 sats/);
   });
 });

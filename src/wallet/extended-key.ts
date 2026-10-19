@@ -18,7 +18,7 @@ export const BIP32_VERSIONS: Record<Network, typeof MAINNET> = {
   testnet4: TESTNET,
 };
 
-type Kind = ScriptType | "unspecified" | "sh-wpkh" | "multisig";
+type Kind = ScriptType | "wsh" | "unspecified" | "sh-wpkh" | "sh-wsh";
 
 // Version bytes and their script types come from the SLIP-132 registry:
 // https://github.com/satoshilabs/slips/blob/master/slip-0132.md
@@ -26,20 +26,20 @@ const VERSIONS = new Map<number, { class: VersionClass; kind: Kind }>([
   [0x0488b21e, { class: "mainnet", kind: "unspecified" }], // xpub
   [0x049d7cb2, { class: "mainnet", kind: "sh-wpkh" }], // ypub
   [0x04b24746, { class: "mainnet", kind: "wpkh" }], // zpub
-  [0x0295b43f, { class: "mainnet", kind: "multisig" }], // Ypub
-  [0x02aa7ed3, { class: "mainnet", kind: "multisig" }], // Zpub
+  [0x0295b43f, { class: "mainnet", kind: "sh-wsh" }], // Ypub
+  [0x02aa7ed3, { class: "mainnet", kind: "wsh" }], // Zpub
   [0x043587cf, { class: "test", kind: "unspecified" }], // tpub
   [0x044a5262, { class: "test", kind: "sh-wpkh" }], // upub
   [0x045f1cf6, { class: "test", kind: "wpkh" }], // vpub
-  [0x024289ef, { class: "test", kind: "multisig" }], // Upub
-  [0x02575483, { class: "test", kind: "multisig" }], // Vpub
+  [0x024289ef, { class: "test", kind: "sh-wsh" }], // Upub
+  [0x02575483, { class: "test", kind: "wsh" }], // Vpub
 ]);
 
 export type NormalisedKey = {
   /** The same key under the standard `xpub` or `tpub` version. */
   key: string;
-  /** Null when the prefix does not imply one, as for a bare `xpub`. */
-  scriptType: ScriptType | null;
+  /** Null when the prefix does not imply one, as for a bare `xpub`; wsh for one cosigner of a multisig. */
+  scriptType: ScriptType | "wsh" | null;
 };
 
 /**
@@ -71,9 +71,9 @@ export function normaliseExtendedKey(
       "This is a wrapped SegWit key, a script type this wallet does not support",
     );
   }
-  if (version.kind === "multisig") {
+  if (version.kind === "sh-wsh") {
     throw new Error(
-      "This is a multisig key, which this wallet does not support",
+      "This is a wrapped SegWit multisig key, a script type this wallet does not support",
     );
   }
 

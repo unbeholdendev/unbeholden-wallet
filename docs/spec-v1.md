@@ -168,7 +168,7 @@ the user's own node.
 ### Bitcoin layer
 
 - `@scure/btc-signer` and `@scure/bip32` as the primary libraries: audited, minimal transitive dependencies, native taproot, PSBT support. `bitcoinjs-lib` may be used where it already solves a specific problem well rather than reimplementing it.
-- Descriptor support is limited to `wpkh` and `tr`. A small BIP380 parser is written in-project for that subset rather than pulling in a general descriptor library.
+- Descriptor support is limited to `wpkh`, `tr`, and `wsh(multi(...))` or `wsh(sortedmulti(...))` of up to 16 extended keys, with key origins and `/<0;1>/*` or a single `/*` chain; the PSBT carries each cosigner's derivation and xpub, and cosigners' signatures are combined until k. No taproot or wrapped multisig. A small BIP380 parser is written in-project for that subset rather than pulling in a general descriptor library.
 - Extended public keys are accepted and normalised to descriptors. SLIP-132 prefixes (`zpub`, `vpub`, `ypub` and testnet equivalents) determine the script type automatically. A `[fingerprint/path]` key origin takes its script type from the BIP44 purpose (84h, 86h). A bare `xpub` requires the user to choose once. The inferred descriptor is always shown back to the user.
 - Network parameters (mainnet, signet, regtest) are a configuration value threaded through derivation, address encoding and validation, never a module-level constant.
 
@@ -278,9 +278,7 @@ SeedSigner on a real phone before the surrounding UI is built.
 
 Explicitly excluded from v1. None of these get an issue opened until v1 ships.
 
-- Multisig in any form. This is the one that will be requested first and sounds
-  like a small addition. It is not: it roughly doubles the PSBT and descriptor
-  complexity, and Sparrow already does it well.
+- Taproot multisig, wrapped `sh(wsh(...))` multisig and miniscript.
 - Hardware wallets over WebUSB or WebHID (Ledger, Trezor). The QR and file paths
   cover air-gapped signers with no vendor-specific code.
 - CPFP fee bumping.

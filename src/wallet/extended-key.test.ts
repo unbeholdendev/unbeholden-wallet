@@ -55,17 +55,14 @@ describe("normaliseExtendedKey", () => {
     ).toThrow(/wrapped segwit/i);
   });
 
-  it("rejects multisig keys as an unsupported script type", () => {
-    for (const version of [VERSION.Ypub, VERSION.Zpub]) {
-      expect(() =>
-        normaliseExtendedKey(asVersion(BIP84_ZPUB, version), "mainnet"),
-      ).toThrow(/multisig/i);
-    }
-    for (const version of [VERSION.Upub, VERSION.Vpub]) {
-      expect(() =>
-        normaliseExtendedKey(asVersion(BIP84_ZPUB, version), "signet"),
-      ).toThrow(/multisig/i);
-    }
+  it("rejects wrapped multisig keys as an unsupported script type", () => {
+    expect(() => normaliseExtendedKey(asVersion(BIP84_ZPUB, VERSION.Ypub), "mainnet")).toThrow(/wrapped segwit multisig/i);
+    expect(() => normaliseExtendedKey(asVersion(BIP84_ZPUB, VERSION.Upub), "signet")).toThrow(/wrapped segwit multisig/i);
+  });
+
+  it("reads a native multisig key as one wsh cosigner", () => {
+    expect(normaliseExtendedKey(asVersion(BIP84_ZPUB, VERSION.Zpub), "mainnet").scriptType).toBe("wsh");
+    expect(normaliseExtendedKey(asVersion(BIP84_ZPUB, VERSION.Vpub), "signet").scriptType).toBe("wsh");
   });
 
   it("refuses a private key", () => {

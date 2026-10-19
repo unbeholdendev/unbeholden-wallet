@@ -5,6 +5,7 @@ import { Button, Chip } from "../../ui/kit";
 import { SourceSwatch, TINT, type Source } from "../../ui/sources";
 import { outpoint } from "../../wallet/coin";
 import { spendCost } from "../../wallet/select";
+import { useWallet } from "../../app/session";
 import { rateText } from "./fees";
 import { SourceTitle } from "../parts";
 
@@ -41,7 +42,7 @@ function CoinRow({ coin, source, tip, rate, on, onToggle }: { coin: WalletCoin; 
   const s = status(coin);
   const { lead, rest } = btcParts(coin.value);
   const when = age(coin, tip);
-  const cost = spendCost(coin, rate);
+  const cost = spendCost(useWallet().kind, rate);
   const uneconomic = cost >= coin.value ? `Uneconomic at ${rateText(rate)} sat/vB` : null;
   return (
     <div
