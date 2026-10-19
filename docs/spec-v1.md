@@ -205,6 +205,7 @@ the user's own node.
 - Fee rate options are derived from the mempool fee histogram obtained from the user's own server, not from `blockchain.estimatefee`. The current mempool is visualised so a fee choice can be seen in context. A manual sat/vB entry is always available.
 - All transactions signal RBF.
 - Fee bumping is in v1: it reconstructs the transaction, re-selects coins if change cannot absorb the increase, and goes through the same signing round trip.
+- Cancelling (a replacement paying everything back to the wallet) and CPFP (a child that pays for its unconfirmed parent) use the same planner, fee panel and signing round trip.
 
 ### Signing transport
 
@@ -281,7 +282,6 @@ Explicitly excluded from v1. None of these get an issue opened until v1 ships.
 - Taproot multisig, wrapped `sh(wsh(...))` multisig and miniscript.
 - Hardware wallets over WebUSB or WebHID (Ledger, Trezor). The QR and file paths
   cover air-gapped signers with no vendor-specific code.
-- CPFP fee bumping.
 - Tor.
 - Coinjoin and payjoin.
 - BIP47 payment codes and silent payments. A watch-only sender needs the signer

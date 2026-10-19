@@ -559,6 +559,25 @@ describe("fee bump", () => {
     await user.click(screen.getByRole("button", { name: "Build the replacement" }));
     expect(await screen.findByRole("heading", { name: "Sign the replacement" })).toBeTruthy();
   });
+
+  it("cancels a payment by sending its coins back, and says it can still lose the race", async () => {
+    const user = await start(`#/tx/${id(outgoing)}`, [outgoing]);
+    await user.click(await screen.findByRole("button", { name: "Cancel transaction" }));
+    expect(await screen.findByRole("heading", { name: "Cancel this transaction" })).toBeTruthy();
+    expect(screen.getByText(/if the original confirms before it, the payment stands/)).toBeTruthy();
+    expect(screen.getByText("Payments, cancelled").nextElementSibling!.textContent).toMatch(/^0\.00 200 000/);
+    await user.click(screen.getByRole("button", { name: "Build the cancellation" }));
+    expect(await screen.findByRole("heading", { name: "Sign the cancellation" })).toBeTruthy();
+  });
+
+  it("pays for an unconfirmed incoming payment with a child", async () => {
+    const user = await start(`#/tx/${id(foreign)}`);
+    await user.click(await screen.findByRole("button", { name: "Speed up with a child" }));
+    expect(await screen.findByRole("heading", { name: "Speed up with a child transaction" })).toBeTruthy();
+    expect(screen.getByText(/supports package relay/)).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Build the child" }));
+    expect(await screen.findByRole("heading", { name: "Sign the child transaction" })).toBeTruthy();
+  });
 });
 
 describe("coin economics", () => {
