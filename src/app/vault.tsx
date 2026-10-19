@@ -38,8 +38,10 @@ export const IDLE_DEFAULT_MINUTES = 15;
 
 type Open = {
   vault: Store;
-  /** Set up in memory only, until `create` gives it a passphrase. */
+  /** Set up in memory only, until `create` saves it. */
   draft: boolean;
+  /** Without one, it opens by itself and never locks. */
+  passphrase: boolean;
   settings: Settings;
   wallets: WalletRecord[];
   walletId: string | null;
@@ -54,14 +56,14 @@ type VaultState =
 type VaultApi = {
   state: VaultState;
   persistence: Persistence | null;
-  /** Encrypts the draft into a new vault. */
-  create(passphrase: string): Promise<void>;
+  /** Saves the draft into a new vault; `null` for no passphrase. */
+  create(passphrase: string | null): Promise<void>;
   /** @throws {WrongPassphrase} */
   unlock(passphrase: string): Promise<void>;
   lock(): void;
   destroy(): Promise<void>;
-  changePassphrase(old: string, next: string): Promise<void>;
-  /** @throws {WrongPassphrase} when it is not the vault's. */
+  changePassphrase(old: string | null, next: string | null): Promise<void>;
+  /** @throws {WrongPassphrase} when the vault has a passphrase and this is not it. */
   exportBackup(passphrase: string): Promise<string>;
   /** Merges into the vault, or on first run makes one with the backup's passphrase. */
   restoreBackup(file: string, passphrase: string): Promise<Merged>;
@@ -108,21 +110,24 @@ async function load(vault: Store): Promise<Open> {
   const wallets = await listWallets(vault);
   const settings: Settings = await getSettings(vault);
   const walletId = (wallets.find((w) => w.id === settings.walletId) ?? wallets[0])?.id ?? null;
-  return { vault, draft: !(vault instanceof Vault), settings, wallets, walletId, restored: 0 };
+  const draft = !(vault instanceof Vault);
+  return { vault, draft, passphrase: !draft && vault.hasPassphrase, settings, wallets, walletId, restored: 0 };
 }
 
 export function VaultProvider({ kdf = DEFAULT_KDF, children }: { kdf?: KdfParams; children: ReactNode }) {
   const [state, setState] = useState<VaultState>({ phase: "loading" });
   const [persistence, setPersistence] = useState<Persistence | null>(null);
 
-  useEffect(() => {
-    vaultExists().then(async (exists) => setState(exists ? { phase: "locked" } : { phase: "open", ...(await load(memoryStore())) }));
-  }, []);
-
   const open = useCallback(async (vault: Vault) => {
     setState({ phase: "open", ...(await load(vault)) });
     requestPersistence().then(setPersistence, () => setPersistence("unsupported"));
   }, []);
+
+  useEffect(() => {
+    unlockVault(null).then(open, async () =>
+      setState((await vaultExists()) ? { phase: "locked" } : { phase: "open", ...(await load(memoryStore())) }),
+    );
+  }, [open]);
 
   const vault = state.phase === "open" && state.vault instanceof Vault ? state.vault : null;
   const lock = useCallback(() => {
@@ -130,7 +135,7 @@ export function VaultProvider({ kdf = DEFAULT_KDF, children }: { kdf?: KdfParams
     setState({ phase: "locked" });
   }, [vault]);
 
-  const idleMinutes = vault && state.phase === "open" ? (state.settings.idleMinutes ?? IDLE_DEFAULT_MINUTES) : null;
+  const idleMinutes = state.phase === "open" && state.passphrase ? (state.settings.idleMinutes ?? IDLE_DEFAULT_MINUTES) : null;
   useEffect(() => {
     if (idleMinutes === null) return;
     const idle = idleLock(idleMinutes * 60_000, Date.now, lock);
@@ -148,7 +153,7 @@ export function VaultProvider({ kdf = DEFAULT_KDF, children }: { kdf?: KdfParams
   }, [idleMinutes, lock]);
 
   const api = useMemo<VaultApi>(() => {
-    const create = async (passphrase: string) => {
+    const create = async (passphrase: string | null) => {
       if (state.phase !== "open" || !state.draft) throw new Error("A vault already exists in this browser");
       const created = await createVault(passphrase, kdf);
       try {
@@ -171,9 +176,12 @@ export function VaultProvider({ kdf = DEFAULT_KDF, children }: { kdf?: KdfParams
         await destroyVault();
         setState({ phase: "open", ...(await load(memoryStore())) });
       },
-      changePassphrase: (old, next) => vault!.changePassphrase(old, next, kdf),
+      changePassphrase: async (old, next) => {
+        await vault!.changePassphrase(old, next, kdf);
+        if (state.phase === "open") setState({ ...state, passphrase: next !== null });
+      },
       exportBackup: async (passphrase) => {
-        await vault!.verify(passphrase);
+        if (vault!.hasPassphrase) await vault!.verify(passphrase);
         return sealBackup(passphrase, await backupRecords(vault!), kdf);
       },
       restoreBackup: async (file, passphrase) => {

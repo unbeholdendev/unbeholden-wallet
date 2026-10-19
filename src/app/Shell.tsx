@@ -112,7 +112,7 @@ const barButton = "grid size-[34px] flex-none place-items-center rounded-control
 
 /** The signed-in frame: legend bar on top, tab bar at the bottom on a phone. */
 export function Shell({ tab, children }: { tab: Tab | null; children: ReactNode }) {
-  const { lock } = useVault();
+  const { lock, passphrase } = useVault();
   usePaymentNotifications();
   return (
     <div className="@container/app flex min-h-dvh flex-col bg-paper">
@@ -134,9 +134,11 @@ export function Shell({ tab, children }: { tab: Tab | null; children: ReactNode 
         <a href="#/settings" aria-label="Settings" className={barButton}>
           <Icon name="settings" />
         </a>
-        <button type="button" aria-label="Lock" onClick={lock} className={barButton}>
-          <Icon name="lock" />
-        </button>
+        {passphrase && (
+          <button type="button" aria-label="Lock" onClick={lock} className={barButton}>
+            <Icon name="lock" />
+          </button>
+        )}
       </header>
       <main className="mx-auto grid w-full max-w-[1280px] flex-1 content-start gap-6 p-4 @min-[720px]/app:p-6">
         <InstallPrompt />

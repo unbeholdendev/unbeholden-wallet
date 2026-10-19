@@ -5,7 +5,7 @@ import { Icon } from "../ui/icons";
 import { Button, buttonClass, Field, Notice } from "../ui/kit";
 import { useToast } from "../ui/toast";
 import { WrongPassphrase } from "../vault/vault";
-import { PassphraseInput } from "./passphrase";
+import { PassphraseInput, Strength, strength } from "./passphrase";
 
 export function download(body: string, type: string, name: string) {
   const link = document.createElement("a");
@@ -29,19 +29,24 @@ function report({ added, skipped, labels, kept }: Merged) {
 }
 
 export function ExportBackup() {
-  const { exportBackup } = useVault();
+  const { exportBackup, passphrase: vaultHas } = useVault();
   const toast = useToast();
   const [passphrase, setPassphrase] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const score = strength(passphrase);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (!vaultHas && (score.level === 0 || confirm !== passphrase))
+      return setError(score.level === 0 ? "Use at least 10 characters." : "The two passphrases are different.");
     setBusy(true);
     setError(null);
     try {
       download(await exportBackup(passphrase), "application/json", "wallet-backup.json");
       setPassphrase("");
+      setConfirm("");
       toast("Backup saved");
     } catch (e) {
       setError(e instanceof WrongPassphrase ? "That is not the vault passphrase." : (e as Error).message);
@@ -52,12 +57,23 @@ export function ExportBackup() {
   return (
     <form onSubmit={submit} className="grid gap-3" noValidate>
       <p className="m-0 text-sm text-ink-2">
-        Every wallet's descriptor with its labels, frozen coins and your settings, in one file encrypted with the vault
-        passphrase. History is left out; your server sends it again.
+        Every wallet's descriptor with its labels, frozen coins and your settings, in one file encrypted with{" "}
+        {vaultHas ? "the vault passphrase" : "a passphrase you choose for it"}. History is left out; your server sends it again.
       </p>
-      <Field label="Vault passphrase, to confirm" error={error ?? undefined}>
-        {(props) => <PassphraseInput {...props} autoComplete="current-password" value={passphrase} onChange={setPassphrase} />}
-      </Field>
+      {vaultHas ? (
+        <Field label="Vault passphrase, to confirm" error={error ?? undefined}>
+          {(props) => <PassphraseInput {...props} autoComplete="current-password" value={passphrase} onChange={setPassphrase} />}
+        </Field>
+      ) : (
+        <>
+          <Field label="Backup passphrase" hint={<Strength score={score} />} error={error ?? undefined}>
+            {(props) => <PassphraseInput {...props} autoComplete="new-password" value={passphrase} onChange={setPassphrase} />}
+          </Field>
+          <Field label="Type it again">
+            {(props) => <PassphraseInput {...props} autoComplete="new-password" value={confirm} onChange={setConfirm} />}
+          </Field>
+        </>
+      )}
       <Button type="submit" icon="download" className="justify-self-start" disabled={busy || !passphrase}>
         {busy ? "Encrypting" : "Download backup"}
       </Button>
