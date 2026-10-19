@@ -9,7 +9,7 @@ import { shortId } from "../../ui/format";
 import { Icon } from "../../ui/icons";
 import { Button, Chip, LinkButton, linkClass, Notice } from "../../ui/kit";
 import { Sheet } from "../../ui/sheet";
-import { sourcesOf } from "../../ui/sources";
+import { sourcesOf, type Source } from "../../ui/sources";
 import { outpoint } from "../../wallet/coin";
 import { assessPrivacy } from "../../wallet/privacy";
 import { buildPsbt } from "../../wallet/psbt";
@@ -166,6 +166,13 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
     ) : (
       <Chip tone={linked > 2 ? "bad" : "warn"}><Icon name="warn" className="size-3.5" />Links {linked} sources</Chip>
     );
+  const group = (source: Source) => {
+    const open = source.coins.filter(take).map(outpoint);
+    const next = new Set(selected);
+    if (open.every((k) => next.has(k))) open.forEach((k) => next.delete(k));
+    else open.forEach((k) => next.add(k));
+    setSelected(next);
+  };
   const primary = (size: "sm" | "md") => (
     <Button variant="primary" size={size} wide={size === "md"} disabled={!!stop} onClick={review}>
       {size === "sm" ? "Review" : (stop ?? "Review and sign")}
@@ -199,13 +206,7 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
             rate={rate}
             selected={selected}
             onToggle={toggle}
-            onGroup={(source) => {
-              const open = source.coins.filter(take).map(outpoint);
-              const next = new Set(selected);
-              if (open.every((k) => next.has(k))) open.forEach((k) => next.delete(k));
-              else open.forEach((k) => next.add(k));
-              setSelected(next);
-            }}
+            onGroup={group}
             onPick={() => update({ picked: null })}
             onClear={() => update({ picked: [] })}
             picking={!draft.picked || !snapshot.coins.some(selectable)}
@@ -213,15 +214,15 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
           />
         </div>
         <div className="grid min-w-0 content-start gap-4 @min-[900px]:sticky @min-[900px]:top-20 @min-[900px]:max-h-[calc(100dvh-96px)] @min-[900px]:overflow-y-auto">
-          <section ref={map} aria-label="What this links" aria-live="polite" className="scroll-mt-20 rounded-panel border border-rule bg-sheet">
+          <section ref={map} aria-label="What this links" className="scroll-mt-20 rounded-panel border border-rule bg-sheet">
             <div className="flex items-center justify-between gap-3 px-4 pt-4">
               <h2 className="text-md font-semibold">What this links</h2>
               {badge}
             </div>
             <div className="px-4 pt-3 pb-1">
-              <PrivacyMap sources={sources} selected={selected} />
+              <PrivacyMap sources={sources} selected={selected} onGroup={group} />
             </div>
-            <div className="grid gap-2.5 px-4 pb-4">
+            <div aria-live="polite" className="grid gap-2.5 px-4 pb-4">
               <p className="m-0 max-w-[60ch]">
                 {linked === 0
                   ? draft.picked
@@ -246,7 +247,7 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
               )}
             </div>
           </section>
-          <section aria-label="Summary" className="rounded-panel border border-rule bg-sheet @min-[900px]:sticky @min-[900px]:bottom-0 @min-[900px]:shadow-[0_-10px_20px_-14px_rgb(0_0_0/0.35)]">
+          <section aria-label="Summary" className="rounded-panel border border-rule bg-sheet">
             <div className="flex items-baseline justify-between gap-3 px-4 pt-4">
               <h2 className="text-md font-semibold">Summary</h2>
               <span className="text-sm text-ink-3">Replaceable (RBF)</span>
@@ -293,7 +294,7 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
           <b className="font-semibold text-ink">{chosen.length} coin{chosen.length === 1 ? "" : "s"}</b>, <Amount sats={result.coins.reduce((a, c) => a + c.value, 0)} /> in &middot; fee {groupSats(result.fee)} sats
         </span>
         {primary("sm")}
-        <button type="button" onClick={() => map.current?.scrollIntoView({ behavior: "smooth" })} className="justify-self-start" aria-label="Show what this links">
+        <button type="button" onClick={() => map.current?.scrollIntoView({ behavior: "smooth" })} className="justify-self-start">
           {badge}
         </button>
         <span className="text-right text-sm text-ink-2">{stop ?? (result.change ? <>Change <Amount sats={result.change} /></> : "No change")}</span>

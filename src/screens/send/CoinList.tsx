@@ -79,7 +79,7 @@ function CoinRow({ coin, source, tip, rate, on, onToggle }: { coin: WalletCoin; 
           <span className={`min-w-0 ${coin.label ? "text-ink group-data-off:text-ink-3" : "truncate font-mono text-[0.86em]"}`}>{coin.label ?? coin.address}</span>
         )}
         <span className="whitespace-nowrap @min-[900px]:hidden">{when}</span>
-        <span className="whitespace-nowrap">{groupSats(cost)} sats to spend</span>
+        <span className="whitespace-nowrap">Costs {groupSats(cost)} sats to spend</span>
         <a href={`#/coin/${outpoint(coin)}`} aria-label={`History of ${lead}${rest} BTC`} className="relative z-[1] text-route underline decoration-1 underline-offset-3">
           History
         </a>

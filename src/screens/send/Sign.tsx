@@ -135,9 +135,9 @@ export function SignFlow({
       : warnings;
 
   const check = (
-    <Panel title={external ? "Check before you broadcast" : "Check before you sign"} aside={`${review.outputs.length} output${review.outputs.length === 1 ? "" : "s"}`}>
+    <Panel title={external || stage === "verified" ? "Check before you broadcast" : "Check before you sign"} aside={`${review.outputs.length} output${review.outputs.length === 1 ? "" : "s"}`}>
       <ul className="m-0 grid list-none gap-2 p-0">
-        {review.outputs.map((o, i) => (
+        {[...review.outputs].sort((a, b) => Number(a.change) - Number(b.change)).map((o, i) => (
           <li key={i} className={`grid gap-1 rounded-control border px-3 py-2.5 ${o.change ? "border-rule bg-sunk" : "border-rule-2"}`}>
             <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
               <span className="text-sm font-medium text-ink-2">
@@ -181,7 +181,7 @@ export function SignFlow({
 
   const body = (
     <>
-      {(stage === "show" || external) && check}
+      {stage !== "scan" && check}
       <section
         className={`grid justify-items-stretch gap-4 rounded-panel border border-rule bg-sheet p-4 @min-[900px]:items-start @min-[900px]:gap-x-8 @min-[900px]:gap-y-5 @min-[900px]:p-6 ${stage === "show" ? "@min-[900px]:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] @min-[900px]:grid-rows-[repeat(4,auto)_1fr]" : "@min-[900px]:grid-cols-[minmax(0,340px)_minmax(0,1fr)]"}`}
       >
