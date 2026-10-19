@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "btc-browser-wallet",
+      "name": "unbeholden-wallet",
       "dependencies": {
         "@fontsource/barlow-semi-condensed": "^5.3.0",
         "@noble/hashes": "^2.4.0",
