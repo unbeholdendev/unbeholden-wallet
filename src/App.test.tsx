@@ -122,6 +122,23 @@ describe("onboarding", () => {
     expect(settings).toEqual({ server: SERVER, walletId: wallet!.id });
   }, 30_000);
 
+  it("offers the container's bridge as the server when it has one", async () => {
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ url: "ws://localhost:8080/electrum" }));
+    renderApp();
+    await waitFor(() => expect((screen.getByLabelText("Server address") as HTMLInputElement).value).toBe("ws://localhost:8080/electrum"));
+    expect(fetch).toHaveBeenCalledWith("electrum.json");
+    fetch.mockRestore();
+  });
+
+  it("leaves the server empty where the page fallback answers instead", async () => {
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("<!doctype html>"));
+    renderApp();
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    await act(() => Promise.resolve());
+    expect((screen.getByLabelText("Server address") as HTMLInputElement).value).toBe("");
+    fetch.mockRestore();
+  });
+
   it("takes the network from the key and the server's genesis block, and warns when they disagree", async () => {
     render(<App kdf={CHEAP} factory={() => ({ ...fakeBackend(), blockHeaders: async () => [REGTEST_GENESIS] })} />);
     const user = userEvent.setup();

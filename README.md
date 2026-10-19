@@ -34,7 +34,8 @@ Read this before trusting a hosted copy with real money.
   background but only runs when you choose to reload into it, or after every
   tab of the app has been closed. The running version is always shown.
 - **It does protect you from leaking to third parties.** The app makes no
-  requests to anyone except the server you enter. There is no default
+  requests to anyone except the server you enter, and the origin it was
+  loaded from, to look for a container's bridge. There is no default
   server, no analytics, no CDN and no remote fonts. A strict Content
   Security Policy blocks every other kind of request, but it cannot name
   your server in advance, so it allows a WebSocket or an HTTP request to
@@ -59,6 +60,21 @@ you reach a node on your own network without a certificate.
 ```sh
 docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -t unbeholden-wallet .
 docker run --rm -p 127.0.0.1:8080:8080 unbeholden-wallet
+```
+
+An Electrum server without WebSocket, such as electrs, is reached through the
+container: give it the server's TCP port, and the wallet offers
+`ws://localhost:8080/electrum` on its connection screen.
+
+```sh
+docker run --rm -p 127.0.0.1:8080:8080 -e ELECTRUM=192.168.1.20:50001 unbeholden-wallet
+```
+
+Or with Compose, which keeps it running across restarts. Leave `ELECTRUM`
+out if your server speaks WebSocket.
+
+```sh
+GIT_COMMIT=$(git rev-parse --short HEAD) ELECTRUM=192.168.1.20:50001 docker compose up -d --build
 ```
 
 ## Verify a build
