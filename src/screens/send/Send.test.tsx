@@ -394,6 +394,7 @@ describe("signing and broadcasting", () => {
     await waitFor(() => expect(camera.frames).toHaveLength(0));
     camera.frames.push(frame(signPsbt(built, BIP84)));
     expect(await screen.findByText("Signed and checked")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Check before you broadcast" })).toBeTruthy();
   });
 
   it("shows BBQr for a Coldcard Q and takes back the transaction it finished, part by part", async () => {
@@ -603,7 +604,7 @@ describe("coin economics", () => {
     // A wpkh input is 68 vB, so 680 sats at the 10 sat/vB the send starts on.
     expect(await coin(/0\.00 000 600 BTC.*Uneconomic at 10 sat\/vB/)).toBeTruthy();
     expect(screen.getAllByText(/^Uneconomic at/)).toHaveLength(1);
-    expect(screen.getAllByText("680 sats to spend").length).toBeGreaterThan(1);
+    expect(screen.getAllByText("Costs 680 sats to spend").length).toBeGreaterThan(1);
 
     location.hash = "#/coins";
     expect(await screen.findByText("Uneconomic at 10 sat/vB")).toBeTruthy();

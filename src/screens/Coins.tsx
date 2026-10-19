@@ -93,7 +93,7 @@ function CoinRow({ coin, source, snapshot, picking, rate }: { coin: WalletCoin; 
           <span className="@min-[720px]:hidden">{when}</span>
           <span className="font-mono">{shortId(coin.address, 10, 6)}</span>
           {path && <span className="font-mono">{path}</span>}
-          {cost !== null && <span>{groupSats(cost)} sats to spend</span>}
+          {cost !== null && <span>Costs {groupSats(cost)} sats to spend</span>}
         </span>
         {(coin.frozen || statusChip[coin.status] || uneconomic) && (
           <span className="flex flex-wrap gap-1.5">
