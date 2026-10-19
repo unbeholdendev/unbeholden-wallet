@@ -4,6 +4,8 @@ import { childPath, HARDENED, type Descriptor } from "./descriptor";
 import { BIP32_VERSIONS } from "./extended-key";
 import { NETWORKS, type Network } from "./network";
 
+const chains = new Map<string, HDKey>();
+
 /** The public keys a descriptor derives for one chain and address index, in the order its keys are written. */
 export function derivePublicKeys(
   descriptor: Descriptor,
@@ -26,11 +28,17 @@ export function derivePublicKeys(
   }
 
   return descriptor.keys.map((key) => {
-    // Version bytes differ per network, so this also rejects a key belonging to
-    // a different one.
-    let node = HDKey.fromExtendedKey(key.key, BIP32_VERSIONS[network]);
-    for (const step of childPath(key, chain, index)) node = node.deriveChild(step);
-    return node.publicKey!;
+    const steps = childPath(key, chain, index).slice(0, -1);
+    const id = `${network} ${key.key}/${steps.join("/")}`;
+    let node = chains.get(id);
+    if (!node) {
+      // Version bytes differ per network, so this also rejects a key belonging to
+      // a different one.
+      node = HDKey.fromExtendedKey(key.key, BIP32_VERSIONS[network]);
+      for (const step of steps) node = node.deriveChild(step);
+      chains.set(id, node);
+    }
+    return node.deriveChild(index).publicKey!;
   });
 }
 
