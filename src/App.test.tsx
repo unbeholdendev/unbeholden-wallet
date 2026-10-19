@@ -339,6 +339,7 @@ describe("backup", () => {
     await vault.put(`frozen/${wallet.id}`, ["aa:0"]);
     await vault.put(`requests/${wallet.id}`, [{ address: "bc1qaddress", sats: 1000 }]);
     await vault.put(`cache/${wallet.id}/old`, { tip: 1 });
+    await vault.put("book", [{ address: "address A", name: "Landlord" }]);
     vault.lock();
     let file: Blob | undefined;
     vi.spyOn(URL, "createObjectURL").mockImplementation((blob) => ((file = blob as Blob), "blob:backup"));
@@ -357,7 +358,7 @@ describe("backup", () => {
     await waitFor(() => expect(file).toBeDefined());
     const text = await file!.text();
     expect(text).not.toContain("Rent");
-    const kept = [`frozen/${wallet.id}`, `labels/${wallet.id}`, `requests/${wallet.id}`, "settings", `wallet/${wallet.id}`];
+    const kept = ["book", `frozen/${wallet.id}`, `labels/${wallet.id}`, `requests/${wallet.id}`, "settings", `wallet/${wallet.id}`];
     expect(Object.keys(await openBackup(text, PASSPHRASE)).sort()).toEqual(kept.sort());
 
     cleanup();
@@ -379,6 +380,7 @@ describe("backup", () => {
     expect(await restored.get(`labels/${copy!.id}`)).toEqual({ "tx:aa": "Rent" });
     expect(await restored.get(`frozen/${copy!.id}`)).toEqual(["aa:0"]);
     expect(await restored.get(`requests/${copy!.id}`)).toEqual([{ address: "bc1qaddress", sats: 1000 }]);
+    expect(await restored.get("book")).toEqual([{ address: "address A", name: "Landlord" }]);
     expect(await restored.get("settings")).toMatchObject({ server: SERVER, idleMinutes: 5 });
     restored.lock();
   }, 30_000);
@@ -389,12 +391,14 @@ describe("backup", () => {
     await other.put(`labels/${spending.id}`, { "tx:aa": "From the backup", "tx:bb": "Coffee" });
     await createWallet(other, { name: "Savings", descriptor: BIP86_XPUB, network: "mainnet", scriptType: "tr" });
     await other.put("settings", { server: "wss://other.example:50004" });
+    await other.put("book", [{ address: "address A", name: "From the backup" }, { address: "address B", name: "Plumber" }]);
     const backup = await sealBackup("another passphrase", await backupRecords(other), CHEAP);
 
     const vault = await createVault(PASSPHRASE, CHEAP);
     await vault.put("settings", { server: SERVER });
     const daily = await createWallet(vault, { name: "Daily", descriptor: BIP84_ZPUB, network: "mainnet" });
     await vault.put(`labels/${daily.id}`, { "tx:aa": "Rent" });
+    await vault.put("book", [{ address: "address A", name: "Landlord" }]);
     vault.lock();
     location.hash = "#/settings";
     const user = renderApp();
@@ -418,12 +422,14 @@ describe("backup", () => {
       ),
     ).toBeTruthy();
     expect(screen.getByText("2 in this vault")).toBeTruthy();
+    expect(await screen.findByText("2 saved")).toBeTruthy();
     await waitFor(() => expect(screen.getByRole<HTMLButtonElement>("button", { name: "Export labels" }).disabled).toBe(false));
 
     const reopened = await unlockVault(PASSPHRASE);
     expect((await listWallets(reopened)).map((w) => w.name).sort()).toEqual(["Daily", "Savings"]);
     expect(await reopened.get(`labels/${daily.id}`)).toEqual({ "tx:aa": "Rent", "tx:bb": "Coffee" });
     expect(await reopened.get("settings")).toMatchObject({ server: SERVER });
+    expect(await reopened.get("book")).toEqual([{ address: "address A", name: "Landlord" }, { address: "address B", name: "Plumber" }]);
     reopened.lock();
   }, 30_000);
 });
