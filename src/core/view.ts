@@ -38,6 +38,8 @@ export type WalletTx = {
   time: number | null;
   /** When this wallet first saw it unconfirmed, by the injected clock. */
   seenAt: number | null;
+  /** The server says it spends an output not yet in a block. */
+  unconfirmedParents: boolean;
   /** Into the wallet, negative when sats left it. */
   net: number;
   /** Null when an input's value is unknown, as for a coinbase. */
@@ -274,6 +276,7 @@ export function deriveView(source: ViewSource) {
         confirmations: height === null || !tip ? 0 : tip.height - height + 1,
         time: height === null ? null : (cache.times[height] ?? null),
         seenAt: cache.seen[tx.txid] ?? null,
+        unconfirmedParents: entries.get(tx.txid)!.unconfirmedParents,
         net: ownValue(outputs) - ownValue(inputs),
         fee: inputs.every((i) => i.value !== null)
           ? sum(inputs.map((i) => i.value!)) - outTotal

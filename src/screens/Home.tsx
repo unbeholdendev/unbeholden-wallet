@@ -9,10 +9,10 @@ import { Amount, btcParts, groupSats } from "../ui/amount";
 import { confText, dateText, hostText, timeText, txFallback } from "../ui/format";
 import { Icon } from "../ui/icons";
 import { Button, Chip, Empty, LinkButton, linkClass, Segmented } from "../ui/kit";
-import { outpoint } from "../wallet/coin";
 import { reasons } from "./Connect";
 import { Opening } from "./parts";
 import { parseAmount } from "./send/Recipients";
+import { stillPending } from "./send/Send";
 
 const stages = { history: "Checking addresses", transactions: "Fetching transactions", blocks: "Fetching block times" };
 
@@ -258,8 +258,7 @@ export function Home() {
   const [draft] = useSendDraft();
   if (!snapshot) return <Opening title="Home" />;
   const fresh = !snapshot.transactions.length;
-  const unspent = new Set(snapshot.coins.map(outpoint));
-  const waiting = draft?.built?.inputs.every((k) => unspent.has(k)) ? draft.built : null;
+  const waiting = draft?.built && stillPending(draft.built, snapshot) ? draft.built : null;
   return (
     <div className="grid content-start items-start gap-6 @min-[900px]/app:grid-cols-[360px_minmax(0,1fr)]">
       <h1 className="sr-only">Home</h1>
