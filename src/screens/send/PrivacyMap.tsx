@@ -8,12 +8,25 @@ const ROW = 74;
 const BAND = 48;
 const MAX_SHOWN = 12;
 const MAX_DOTS = 6;
+// Rough width of an 11px capital with the tracking the labels use; SVG text cannot wrap itself.
+const CHAR = 7.5;
+
+/** A label in at most two lines that fit `width`, the second taking whatever is left. */
+function lines(text: string, width: number) {
+  const fit = Math.max(1, Math.floor(width / CHAR));
+  const out: string[] = [];
+  for (const word of text.split(" ")) {
+    if (out.length && `${out.at(-1)} ${word}`.length <= fit) out[out.length - 1] += ` ${word}`;
+    else out.push(word);
+  }
+  return out.length > 2 ? [out[0]!, out.slice(1).join(" ")] : out;
+}
 
 /**
  * One territory per source, the selection drawn as routes from each chosen
- * coin to this transaction. Sources the selection does not touch fade, and only touched ones are named.
+ * coin to this transaction. Sources the selection does not touch fade.
  */
-export function PrivacyMap({ sources, selected }: { sources: Source[]; selected: Set<string> }) {
+export function PrivacyMap({ sources, selected, onGroup }: { sources: Source[]; selected: Set<string>; onGroup: (source: Source) => void }) {
   const id = useId().replace(/\W/g, "");
   const linked = new Set(sources.filter((s) => s.coins.some((c) => selected.has(outpoint(c)))).map((s) => s.id));
   const shown = (sources.length > MAX_SHOWN
@@ -39,19 +52,22 @@ export function PrivacyMap({ sources, selected }: { sources: Source[]; selected:
       x: cx + (k - (all.length - 1) / 2) * Math.min(14, (cell * 0.7) / all.length),
       y: cy + 8,
     }));
-    return { source, cx, cy, rx: Math.min(cell * 0.44, 66), ry: 29, dots, more: coins.length - dots.length };
+    const rx = Math.min(cell * 0.44, 66);
+    return { source, cx, cy, rx, ry: 29, label: lines(source.short, rx * 2), dots, more: coins.length - dots.length };
   });
 
   return (
-    <svg viewBox={`0 0 ${W} ${height}`} role="img" aria-label="Map of your coin sources. Selected coins are joined by routes to this transaction." className="block h-auto w-full">
-      {places.map(({ source, cx, cy, rx, ry }) => (
-        <g key={source.id} className={`transition-opacity ${linked.size && !linked.has(source.id) ? "opacity-[0.38]" : ""}`}>
+    <svg viewBox={`0 0 ${W} ${height}`} role="img" aria-label={linked.size ? `Map of your coin sources. This transaction joins ${sources.filter((s) => linked.has(s.id)).map((s) => s.name).join(", ")}.` : "Map of your coin sources. Nothing selected yet."} className="block h-auto w-full">
+      {places.map(({ source, cx, cy, rx, ry, label }) => (
+        <g key={source.id} onClick={() => onGroup(source)} className={`cursor-pointer transition-opacity ${linked.size && !linked.has(source.id) ? "opacity-[0.38]" : ""}`}>
           <path d={blob(cx, cy, rx, ry, source.seed)} className={`${FILL[source.tone]} ${EDGE[source.tone]} stroke-[1.4] ${source.dashed ? "[stroke-dasharray:4_3]" : ""}`} />
-          {linked.has(source.id) && (
-            <text x={cx} y={cy - ry * 0.4} textAnchor="middle" className={`${INK[source.tone]} text-[9px] font-semibold tracking-[0.06em] uppercase`}>
-              {source.short}
-            </text>
-          )}
+          <text y={cy - ry * 0.4 - (label.length - 1) * 6} textAnchor="middle" className={`${INK[source.tone]} text-[11px] font-semibold tracking-[0.06em] uppercase`}>
+            {label.map((line, k) => (
+              <tspan key={k} x={cx} dy={k ? 12 : 0} textLength={line.length * CHAR > rx * 2 ? rx * 2 : undefined} lengthAdjust="spacingAndGlyphs">
+                {line}
+              </tspan>
+            ))}
+          </text>
         </g>
       ))}
       {places.flatMap(({ dots, cx }) =>
@@ -61,7 +77,7 @@ export function PrivacyMap({ sources, selected }: { sources: Source[]; selected:
             const d = `M${x} ${y}Q${(x + tx.x) / 2 + (cx < tx.x ? -12 : 12)} ${(y + tx.y) / 2} ${tx.x} ${tx.y}`;
             const mask = `${id}${outpoint(coin).replace(/\W/g, "")}`;
             return (
-              <g key={outpoint(coin)}>
+              <g key={outpoint(coin)} className="pointer-events-none">
                 <mask id={mask} maskUnits="userSpaceOnUse">
                   <path d={d} pathLength={200} className="animate-route-draw fill-none stroke-white stroke-[6] [stroke-dasharray:200]" />
                 </mask>
@@ -71,7 +87,7 @@ export function PrivacyMap({ sources, selected }: { sources: Source[]; selected:
           }),
       )}
       {places.map(({ source, dots, more, cx, cy }) => (
-        <g key={source.id}>
+        <g key={source.id} className="pointer-events-none">
           {dots.map(({ coin, x, y }) => {
             const on = selected.has(outpoint(coin));
             return (
@@ -85,7 +101,7 @@ export function PrivacyMap({ sources, selected }: { sources: Source[]; selected:
             );
           })}
           {more > 0 && (
-            <text x={cx} y={cy + 24} textAnchor="middle" className="fill-ink-2 text-[9px]">
+            <text x={cx} y={cy + 24} textAnchor="middle" className="fill-ink-2 text-[10px]">
               and {more} more
             </text>
           )}
@@ -99,7 +115,7 @@ export function PrivacyMap({ sources, selected }: { sources: Source[]; selected:
         This transaction
       </text>
       {sources.length > shown.length && (
-        <text x={W - 4} y={height - 2} textAnchor="end" className="fill-ink-3 text-[9px]">
+        <text x={W - 4} y={height - 2} textAnchor="end" className="fill-ink-3 text-[10px]">
           {sources.length - shown.length} more sources not drawn
         </text>
       )}

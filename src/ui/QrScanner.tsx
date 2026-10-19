@@ -11,7 +11,7 @@ const INTERVAL_MS = 80;
  * Reads QR codes from the camera. Calls `onResult` for every frame it decodes,
  * repeats included, so an animated UR can be collected part by part.
  */
-export function QrScanner({ onResult }: { onResult: (text: string) => void }) {
+export function QrScanner({ onResult, onBlocked }: { onResult: (text: string) => void; onBlocked?: (blocked: boolean) => void }) {
   const video = useRef<HTMLVideoElement>(null);
   const latest = useRef(onResult);
   const [state, setState] = useState<State>("starting");
@@ -66,6 +66,7 @@ export function QrScanner({ onResult }: { onResult: (text: string) => void }) {
   }, [attempt]);
 
   const blocked = state === "denied" || state === "no-camera";
+  useEffect(() => onBlocked?.(blocked), [blocked]);
   return (
     <div data-keep-unlocked={state === "live" || undefined} className="grid gap-3">
       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-panel bg-[radial-gradient(120%_90%_at_50%_40%,#33413f_0%,#151c1d_70%)]">

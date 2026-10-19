@@ -55,6 +55,19 @@ export function ExportQr({ psbt }: { psbt: Uint8Array }) {
     const timer = setInterval(() => setPart(encoder.nextPart()), 1000 / prefs.fps);
     return () => clearInterval(timer);
   }, [encoder, prefs.fps]);
+  useEffect(() => {
+    let lock: WakeLockSentinel | undefined;
+    let gone = false;
+    // The browser drops the lock whenever the tab is hidden, so take it again on return.
+    const take = () => navigator.wakeLock?.request("screen").then((l) => void (gone ? l.release() : (lock = l)), () => {});
+    take();
+    document.addEventListener("visibilitychange", take);
+    return () => {
+      gone = true;
+      lock?.release();
+      document.removeEventListener("visibilitychange", take);
+    };
+  }, []);
   const change = (patch: Partial<typeof prefs>) => {
     const next = { ...prefs, ...patch };
     setPrefs(next);
