@@ -65,29 +65,31 @@ GIT_COMMIT=<short commit> bun run build
 bun run --silent hashes | diff - hashes.txt
 ```
 
-## Reach your node with Tailscale
+## Reach your node
 
-A browser will not open `wss://` to a self-signed certificate, and an
-`https://` page cannot open `ws://` at all. Tailscale gives your node a real
-certificate on a private name, reachable from any of your devices with no
-port forwarding.
+A browser will not open `wss://` to a self-signed certificate it has not
+accepted, and an `https://` page cannot open `ws://` at all. Give your node a
+certificate your browser trusts. Any way works:
 
-1. Install Tailscale on the node and on your devices, and enable HTTPS
-   certificates in the Tailscale admin console.
-2. On the node, issue a certificate for its name:
-   `tailscale cert node.your-tailnet.ts.net`.
-3. Point Fulcrum at it and open a secure WebSocket port, in `fulcrum.conf`:
+- Your own domain with Let's Encrypt. A DNS challenge needs no open port, and
+  the name can point at a home network address.
+- A private network that issues certificates, such as Tailscale with
+  `tailscale cert`.
+- Your own certificate authority, such as mkcert, trusted on each device.
+- A self-signed certificate, accepted once on each device. The connection
+  screen walks you through it.
 
-   ```
-   wss = 0.0.0.0:50004
-   cert = /path/to/node.your-tailnet.ts.net.crt
-   key = /path/to/node.your-tailnet.ts.net.key
-   ```
+Then point Fulcrum at it and open a secure WebSocket port, in `fulcrum.conf`:
 
-4. Restart Fulcrum and connect the wallet to
-   `wss://node.your-tailnet.ts.net:50004`.
+```
+wss = 0.0.0.0:50004
+cert = /path/to/node.example.com.crt
+key = /path/to/node.example.com.key
+```
 
-Tailscale certificates last 90 days. Re-run `tailscale cert` and restart
+Restart Fulcrum and connect the wallet to `wss://node.example.com:50004`.
+
+Let's Encrypt and Tailscale certificates last 90 days. Renew and restart
 Fulcrum before they expire, for example from a monthly cron job.
 
 ## Development

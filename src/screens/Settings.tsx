@@ -358,7 +358,7 @@ export function Settings() {
             What this app can and cannot protect you from
           </a>
           <a className={linkClass} href="#/guide">
-            Reaching your node: Tailscale and the local container
+            Reaching your node: certificates and the local container
           </a>
         </Panel>
       </div>

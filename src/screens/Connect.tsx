@@ -81,11 +81,11 @@ function Url({ children }: { children: ReactNode }) {
   return <span className="mt-1 inline-block rounded-[4px] bg-sunk px-2 py-1 font-mono text-[0.86em] break-all">{children}</span>;
 }
 
-const tailscale = (
+const certificate = (
   <p className="m-0">
-    To stop this happening on every device, give your server a real certificate on a private name with Tailscale.{" "}
+    To stop this happening on every device, give your server a certificate your browser trusts.{" "}
     <a className={linkClass} href="#/guide">
-      Read the Tailscale guide
+      How to get one
     </a>
   </p>
 );
@@ -133,7 +133,7 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
           </Steps>
         </>
       ),
-      more: tailscale,
+      more: certificate,
     },
     "mixed-content": {
       title: "This page cannot open a plain ws:// or http:// connection",
@@ -146,8 +146,8 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
           <Steps>
             <li>
               <div>
-                <b className="font-semibold">Give your server a certificate and use wss:// or https://.</b> Tailscale does this for
-                you on a private name. <a className={linkClass} href="#/guide">Read the Tailscale guide</a>
+                <b className="font-semibold">Give your server a certificate and use wss:// or https://.</b>{" "}
+                <a className={linkClass} href="#/guide">How to get one</a>
               </div>
             </li>
             <li>
@@ -208,7 +208,7 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
           </Steps>
         </>
       ),
-      more: tailscale,
+      more: certificate,
     },
     timeout: {
       title: `${h} did not answer within 10 seconds`,
@@ -236,7 +236,7 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
           </Steps>
         </>
       ),
-      more: tailscale,
+      more: certificate,
     },
     "not-electrum": {
       title: "Something answered, but it is not an Electrum server",
@@ -302,7 +302,7 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
   const guide =
     failure && failure !== "invalid-url"
       ? guides[failure]
-      : { title: "The connection failed", body: <p className="m-0">The browser reported: {message}</p>, more: tailscale };
+      : { title: "The connection failed", body: <p className="m-0">The browser reported: {message}</p>, more: certificate };
   return (
     <section aria-live="polite" className="overflow-hidden rounded-panel border border-[color-mix(in_srgb,var(--bad)_40%,var(--rule))] bg-sheet">
       <div className="flex items-start gap-2.5 bg-bad-tint px-4 py-3.5 text-bad">
@@ -397,7 +397,7 @@ export function Connect({ onboarding = false }: { onboarding?: boolean }) {
           <Field
             label="Server address"
             hint="An Electrum server as wss:// and its WebSocket Secure port, often 50004, or an Esplora API as its https:// address."
-            error={invalid ? "Write it as wss://host:port, for example wss://node.your-tailnet.ts.net:50004, or as https://host/api." : undefined}
+            error={invalid ? "Write it as wss://host:port, for example wss://node.example.com:50004, or as https://host/api." : undefined}
           >
             {(props) => (
               <input
@@ -405,7 +405,7 @@ export function Connect({ onboarding = false }: { onboarding?: boolean }) {
                 className={`${inputClass} font-mono text-[0.86em] ${failed && !invalid ? "border-bad" : ""}`}
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                placeholder="wss://node.your-tailnet.ts.net:50004"
+                placeholder="wss://node.example.com:50004"
                 spellCheck={false}
                 autoCapitalize="none"
                 autoComplete="off"

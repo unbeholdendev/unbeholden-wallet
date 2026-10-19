@@ -51,7 +51,7 @@ the user's own node.
 3. As a node runner, I want to see clearly whether I am connected, connecting, or disconnected, so that I can trust what I am looking at.
 4. As a node runner whose connection failed, I want to be told precisely why (certificate rejected, connection refused, timed out, responded but is not an Electrum server), so that I can fix the actual problem.
 5. As a node runner with a self-signed certificate, I want step-by-step guidance on making the browser accept it, so that I am not left with a silent failure.
-6. As a node runner, I want documented guidance on exposing my node over Tailscale with a valid certificate, so that I can reach it from any device without port forwarding.
+6. As a node runner, I want documented guidance on giving my node a certificate my browser trusts, so that I can reach it over wss://.
 7. As a privacy-conscious user, I want the app to refuse to work without my own server rather than quietly falling back to a public one, so that I never leak my addresses by accident.
 8. As a new user, I want to import a wallet by pasting an output descriptor, so that the script type and derivation are unambiguous.
 9. As a user migrating from another wallet, I want to paste a bare `zpub`, `vpub` or `xpub`, so that I can use an export that is not a descriptor.
@@ -178,7 +178,7 @@ the user's own node.
 - The interface covers: fetching the chain tip, subscribing to headers, fetching history for a batch of scripthashes, fetching a batch of transactions, subscribing to scripthashes, fetching the mempool fee histogram, and broadcasting a raw transaction.
 - The v1 implementation is Electrum over WSS only. There is no default server, no bundled server list, no demo mode, and no instance operated by the project.
 - Electrum JSON-RPC batching is used wherever more than one call of the same kind is needed. This is the primary sync performance lever and is a requirement, not an optimisation.
-- The connection screen classifies failures into distinct, actionable states: certificate rejected, connection refused, timed out, and connected-but-not-Electrum. Each has its own guidance. Tailscale is the documented happy path for reaching a home node with a valid certificate.
+- The connection screen classifies failures into distinct, actionable states: certificate rejected, connection refused, timed out, and connected-but-not-Electrum. Each has its own guidance. The guide covers the ways to give a home node a certificate the browser trusts, with no one way favoured.
 
 ### Storage
 
@@ -327,7 +327,7 @@ in-browser override, because WebSockets have no "proceed anyway" affordance. The
 user must first visit the `https://` URL in another tab and accept the
 certificate there. This is obscure enough that most people will conclude the app
 is broken. Every browser wallet that has died, died here. The failure
-classification, the Tailscale documentation and the local container path exist
+classification, the certificate guide and the local container path exist
 to address this specific problem and should be treated as product surface, not
 plumbing.
 
