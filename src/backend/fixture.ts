@@ -1,7 +1,6 @@
 import { Transaction } from "@scure/btc-signer";
-import { p2wpkh } from "@scure/btc-signer/payment.js";
 import { parseDescriptor } from "../wallet/descriptor";
-import { derivePublicKey } from "../wallet/derive";
+import { derivePayment } from "../wallet/derive";
 import { BIP84_ZPUB, BIP86_XPUB } from "../wallet/vectors";
 import { openWallet } from "../core/wallet";
 import { createWallet, saveSettings } from "../core/wallets";
@@ -23,8 +22,8 @@ const PARSE = {
 
 const ours = parseDescriptor(DEMO_DESCRIPTOR, "mainnet");
 const others = parseDescriptor(`wpkh(${BIP86_XPUB}/0/*)`, "mainnet");
-const mine = (chain: number, index: number) => p2wpkh(derivePublicKey(ours, "mainnet", chain, index)).script;
-const theirs = (index: number) => p2wpkh(derivePublicKey(others, "mainnet", 0, index)).script;
+const mine = (chain: number, index: number) => derivePayment(ours, "mainnet", chain, index).script;
+const theirs = (index: number) => derivePayment(others, "mainnet", 0, index).script;
 
 function tx(inputs: [string, number][], outputs: [Uint8Array, number][]): Uint8Array {
   const t = new Transaction(PARSE);

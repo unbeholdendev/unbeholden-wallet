@@ -44,10 +44,14 @@ export function formatBip329(records: Bip329Record[]): string {
 
 /** The abbreviated descriptor BIP329 names a wallet by, such as `wpkh([d34db33f/84'/0'/0'])`. */
 export function bip329Origin(descriptor: Descriptor): string | null {
-  const { origin, scriptType } = descriptor;
-  if (!origin) return null;
-  const steps = origin.path.map((i) => (i >= HARDENED ? `${i - HARDENED}'` : `${i}`));
-  return `${scriptType}([${[origin.fingerprint, ...steps].join("/")}])`;
+  const { keys, multi, scriptType } = descriptor;
+  if (keys.some((k) => !k.origin)) return null;
+  const origins = keys.map(({ origin }) => {
+    const steps = origin!.path.map((i) => (i >= HARDENED ? `${i - HARDENED}'` : `${i}`));
+    return `[${[origin!.fingerprint, ...steps].join("/")}]`;
+  });
+  const inner = multi ? `${multi.sorted ? "sortedmulti" : "multi"}(${multi.threshold},${origins.join(",")})` : origins[0];
+  return `${scriptType}(${inner})`;
 }
 
 export const sameOrigin = (a: string, b: string) => {

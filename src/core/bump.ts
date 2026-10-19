@@ -2,10 +2,9 @@ import { hex } from "@scure/base";
 import { Address, OutScript } from "@scure/btc-signer";
 import type { WalletCoin, WalletTx } from "./wallet";
 import type { Coin } from "../wallet/coin";
-import type { ScriptType } from "../wallet/descriptor";
 import { NETWORKS, type Network } from "../wallet/network";
 import type { ChangeOutput, Recipient } from "../wallet/psbt";
-import { spend, type Spend } from "../wallet/select";
+import { spend, type Spend, type WalletKind } from "../wallet/select";
 
 export type BumpProblem =
   | { kind: "confirmed" }
@@ -40,7 +39,7 @@ export function planBump(
   tx: WalletTx,
   coins: WalletCoin[],
   feeRate: number,
-  wallet: { scriptType: ScriptType; network: Network; nextChange: { chain: number; index: number } },
+  wallet: WalletKind & { network: Network; nextChange: { chain: number; index: number } },
 ): BumpPlan {
   const oldFee = tx.fee ?? 0;
   const oldFeeRate = oldFee / tx.vsize;
@@ -70,6 +69,7 @@ export function planBump(
     recipients: payments.map((o) => ({ script: o.script, value: o.value! })),
     feeRate,
     scriptType: wallet.scriptType,
+    multisig: wallet.multisig,
   };
   // Confirmed only: BIP125 rule 2 forbids new unconfirmed inputs.
   const extra = coins

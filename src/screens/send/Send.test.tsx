@@ -2,7 +2,7 @@ import { Transaction } from "@scure/btc-signer";
 import { act, cleanup, configure, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { address, BIP84, LARGE, script, signPsbt } from "../../../scripts/regtest/fixture";
+import { address, BIP84, LARGE, MULTISIG, script, signPsbt } from "../../../scripts/regtest/fixture";
 import { App } from "../../App";
 import { fakeBackend, type FakeBackend, type Fixture } from "../../backend/fake";
 import { createWallet, saveSettings } from "../../core/wallets";
@@ -62,10 +62,10 @@ const outgoing = tx([[id(payB), 0]], [[theirs, 200_000], [script(BIP84, 1, 0), 9
 let fixture: Partial<Fixture>;
 let backends: FakeBackend[];
 
-async function start(hash: string, mempool: Uint8Array[] = [foreign, parent, child]) {
+async function start(hash: string, mempool: Uint8Array[] = [foreign, parent, child], descriptor = BIP84.text) {
   const vault = await createVault(PASSPHRASE, CHEAP);
   await saveSettings(vault, { server: "wss://node.example:50004" });
-  const wallet = await createWallet(vault, { name: "Spending", descriptor: BIP84.text, network: "regtest" });
+  const wallet = await createWallet(vault, { name: "Spending", descriptor, network: "regtest" });
   await vault.put(`labels/${wallet.id}`, { [`output:${id(payA)}:0`]: "Kraken withdrawal", [`output:${id(payB)}:0`]: "Bisq trade" });
   await vault.put(`frozen/${wallet.id}`, [`${id(payC)}:0`]);
   await vault.put("book", [{ address: MAINNET, name: "Cold storage" }]);
@@ -592,5 +592,41 @@ describe("coin economics", () => {
     expect((await coin(/^0\.00 009 000 BTC/)).getAttribute("aria-checked")).toBe("true");
     expect(summary().getByText(sats(178))).toBeTruthy();
     expect(screen.getByRole("button", { name: "Review and sign" })).toHaveProperty("disabled", false);
+  });
+});
+
+describe("a 2-of-3 multisig wallet", () => {
+  const c = MULTISIG.descriptor.keys[2]!.origin!.fingerprint;
+  beforeEach(() => {
+    fixture.blocks = [[faucet], [tx([[id(faucet), 5]], [[script(MULTISIG, 0, 0), 400_000], [theirs, 99_599_000]])]];
+  });
+
+  it("asks to check a receive address on a cosigner device", async () => {
+    await start("#/receive", [], MULTISIG.text);
+    expect(await screen.findByText(/A 2-of-3 multisig address\. Check it on a cosigner device/)).toBeTruthy();
+  });
+
+  it("collects one cosigner's signatures at a time, saying whose, then broadcasts at two", async () => {
+    const user = await start("#/send", [], MULTISIG.text);
+    await payTo(user, PAYEE, "0.001");
+    await user.click(screen.getByRole("button", { name: "Review and sign" }));
+    expect(await screen.findByText(/This needs 2 of 3 signatures/)).toBeTruthy();
+    let blob: Blob | null = null;
+    URL.createObjectURL = (x: Blob) => ((blob = x), "blob:psbt");
+    URL.revokeObjectURL = () => {};
+    await user.click(screen.getByRole("button", { name: "Save PSBT file" }));
+    const built = new Uint8Array(await blob!.arrayBuffer());
+    await user.click(screen.getByRole("button", { name: "Signed it, scan it back" }));
+    await upload(user, signPsbt(built, MULTISIG.cosigners[2]!));
+    expect(await screen.findByText(`1 of 2 signatures so far, from ${c}. Show this code to another cosigner, or scan a PSBT another cosigner has signed.`)).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Back to the code" }));
+    await user.click(screen.getByRole("button", { name: "Save PSBT file" }));
+    const partly = new Uint8Array(await blob!.arrayBuffer());
+    expect(Transaction.fromPSBT(partly).getInput(0).partialSig).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: "Signed it, scan it back" }));
+    await upload(user, signPsbt(partly, MULTISIG.cosigners[0]!));
+    expect(await screen.findByText("Signed and checked")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Broadcast through your server" }));
+    expect(await screen.findByText(Transaction.fromPSBT(built).id)).toBeTruthy();
   });
 });

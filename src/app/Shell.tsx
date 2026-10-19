@@ -19,7 +19,8 @@ const tabs: { id: Tab; label: string; icon: IconName }[] = [
 
 const scriptType = (w: WalletRecord) => {
   try {
-    return walletDescriptor(w).scriptType;
+    const { scriptType, keys, multi } = walletDescriptor(w);
+    return multi ? `${multi.threshold}-of-${keys.length}` : scriptType;
   } catch {
     return null;
   }

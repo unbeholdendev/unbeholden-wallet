@@ -323,6 +323,15 @@ describe("descriptor URs", () => {
     OUTPUT_URS.forEach((ur, i) => expect(decode(ur)).toEqual([OUTPUT_TEXTS[i]]));
   });
 
+  it("reads a crypto-output multisig, BCR-2020-010's test vector 5", () => {
+    const cbor = hex.decode(
+      "d90191d90196a201010282d9012fa403582103cbcaa9c98c877a26977d00825c956a238e8dddfbd322cce4f74b0b5bd6ace4a704582060499f801b896d83179a4374aeb7822aaeaceaa0db1f85ee3e904c4defbd968906d90130a20180030007d90130a1018601f400f480f4d9012fa403582102fc9e5af0ac8d9b3cecfe2a888e2117ba3d089d8585886c9c826b6b22a98d12ea045820f0909affaa7ee7abe5dd4e100598d4dc53cd709d5a5c2cac40e7412f232f7c9c06d90130a2018200f4021abd16bee507d90130a1018600f400f480f4",
+    );
+    expect(descriptorsFromUr({ type: "crypto-output", cbor })).toEqual([
+      "wsh(multi(1,xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB/1/0/*,[bd16bee5/0]xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH/0/0/*))",
+    ]);
+  });
+
   it("reads every output of a crypto-account and of an account-descriptor", () => {
     expect(decode(CRYPTO_ACCOUNT)).toEqual(ACCOUNT_TEXTS);
     expect(decode(ACCOUNT_DESCRIPTOR)).toEqual(ACCOUNT_TEXTS);

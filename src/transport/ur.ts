@@ -301,6 +301,10 @@ const SCRIPTS = new Map([
   [409, "tr"],
   [410, "cosigner"],
 ]);
+const MULTI = new Map([
+  [406, "multi"],
+  [407, "sortedmulti"],
+]);
 const OUTPUT = [308, 40308];
 const ACCOUNT = [311, 40311];
 const HDKEY = [303, 40303];
@@ -371,6 +375,12 @@ function outputText(item: Cbor, master: number | undefined): string {
     const keys = body.get(2) ?? [];
     if (typeof source !== "string" || !Array.isArray(keys)) throw new Error("Unexpected CBOR");
     return source.replace(/@(\d+)/g, (_, n) => keyText(keys[Number(n)], master));
+  }
+  const multi = body instanceof Tagged && MULTI.get(body.tag);
+  if (multi) {
+    const keys = field((body as Tagged).value, 2);
+    if (!Array.isArray(keys)) throw new Error("Unexpected CBOR");
+    return `${multi}(${field((body as Tagged).value, 1)},${keys.map((k) => keyText(k, master)).join(",")})`;
   }
   const script = body instanceof Tagged && SCRIPTS.get(body.tag);
   return script ? `${script}(${outputText((body as Tagged).value, master)})` : keyText(body, master);

@@ -1,7 +1,7 @@
 import { hex, utf8 } from "@scure/base";
 import { sha256 } from "@scure/btc-signer/utils.js";
 import { outpoint, type Coin } from "./coin";
-import type { ScriptType } from "./descriptor";
+import type { Descriptor, ScriptType } from "./descriptor";
 
 /** An output to pay. `"max"` takes whatever is left after fees and the other recipients. */
 export type Recipient = {
@@ -10,12 +10,19 @@ export type Recipient = {
   value: number | "max";
 };
 
-export type Payment = {
+/** The wallet's script type, so also the type of any change output, with k and n for a multisig. */
+export type WalletKind = {
+  scriptType: Descriptor["scriptType"];
+  multisig?: { threshold: number; keys: number };
+};
+
+export const walletKind = ({ scriptType, keys, multi }: Descriptor): WalletKind =>
+  multi ? { scriptType, multisig: { threshold: multi.threshold, keys: keys.length } } : { scriptType };
+
+export type Payment = WalletKind & {
   recipients: Recipient[];
   /** sat/vB */
   feeRate: number;
-  /** The wallet's, so also the type of any change output. */
-  scriptType: ScriptType;
 };
 
 export type SpendProblem =
@@ -44,7 +51,7 @@ export type Spend = {
 // https://bitcoinops.org/en/tools/calc-size/
 const OVERHEAD_WEIGHT = 42;
 const INPUT_WEIGHT: Record<ScriptType, number> = { wpkh: 272, tr: 230 };
-const CHANGE_SCRIPT_BYTES: Record<ScriptType, number> = { wpkh: 22, tr: 34 };
+const CHANGE_SCRIPT_BYTES: Record<WalletKind["scriptType"], number> = { wpkh: 22, tr: 34, wsh: 34 };
 
 // Core's search budget for branch and bound, and the change SRD aims for.
 // https://github.com/bitcoin/bitcoin/blob/master/src/wallet/coinselection.cpp
@@ -65,19 +72,24 @@ const isWitness = (script: string) =>
 
 const outputWeight = (scriptBytes: number) => (8 + 1 + scriptBytes) * 4;
 
-function inputWeight(coin: Coin): number {
-  if (coin.script.length === 44 && coin.script.startsWith("0014")) {
-    return INPUT_WEIGHT.wpkh;
-  }
-  if (coin.script.length === 68 && coin.script.startsWith("5120")) {
-    return INPUT_WEIGHT.tr;
-  }
-  throw new Error(`Cannot spend output script ${coin.script}`);
+const varIntLength = (n: number) => (n < 0xfd ? 1 : 3);
+
+/**
+ * A k-of-n wsh input is 164 WU of outpoint, empty scriptSig and sequence,
+ * then a witness: item count, the empty item CHECKMULTISIG pops, k 72-byte
+ * signatures, and `k <n keys> n CHECKMULTISIG` of 3 + 34n bytes, each item
+ * after its length byte.
+ */
+function inputWeight({ scriptType, multisig }: WalletKind): number {
+  if (scriptType !== "wsh") return INPUT_WEIGHT[scriptType];
+  if (!multisig) throw new Error("A multisig payment needs its k and n");
+  const script = 3 + 34 * multisig.keys;
+  return 164 + 1 + 1 + 73 * multisig.threshold + varIntLength(script) + script;
 }
 
-/** Sats to spend this coin as one input at `feeRate`, before the rest of the transaction. */
-export const spendCost = (coin: Coin, feeRate: number) =>
-  Math.ceil((inputWeight(coin) / 4) * feeRate);
+/** Sats to spend one of the wallet's coins as one input at `feeRate`, before the rest of the transaction. */
+export const spendCost = (kind: WalletKind, feeRate: number) =>
+  Math.ceil((inputWeight(kind) / 4) * feeRate);
 
 const countWeight = (count: number) => (count > 252 ? 8 : 0);
 
@@ -91,7 +103,7 @@ export function spend(coins: Coin[], payment: Payment): Spend {
     OVERHEAD_WEIGHT +
     countWeight(coins.length) +
     countWeight(outputs) +
-    sum(coins.map(inputWeight)) +
+    coins.length * inputWeight(payment) +
     sum(recipients.map((r) => outputWeight(r.script.length / 2))) +
     (outputs > recipients.length ? outputWeight(changeBytes) : 0);
   const vsizeOf = (outputs: number) => Math.ceil(weight(outputs) / 4);
@@ -111,7 +123,7 @@ export function spend(coins: Coin[], payment: Payment): Spend {
     const withChange = available - fixed - feeOf(outputs + 1);
     const minChange = Math.max(
       dust(changeBytes, true),
-      Math.ceil((INPUT_WEIGHT[scriptType] / 4) * feeRate) + 1,
+      spendCost(payment, feeRate) + 1,
     );
     if (withChange >= minChange) {
       change = withChange;
@@ -262,14 +274,14 @@ export function selectCoins(
     )
     .map((coin) => ({
       coin,
-      effective: coin.value - (inputWeight(coin) / 4) * feeRate,
+      effective: coin.value - (inputWeight(payment) / 4) * feeRate,
     }))
     .filter((c) => c.effective > 0);
   if (recipients.some((r) => r.value === "max")) return spend(pool.map((c) => c.coin), payment);
 
   const changeOutput = outputWeight(CHANGE_SCRIPT_BYTES[scriptType]) / 4;
   const changeFee = changeOutput * feeRate;
-  const costOfChange = changeFee + (INPUT_WEIGHT[scriptType] / 4) * feeRate;
+  const costOfChange = changeFee + (inputWeight(payment) / 4) * feeRate;
   const rest =
     OVERHEAD_WEIGHT / 4 +
     sum(recipients.map((r) => outputWeight(r.script.length / 2) / 4));
