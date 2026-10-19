@@ -2,7 +2,7 @@ import type { WalletCoin } from "../../core/wallet";
 import { Amount, btcParts, groupSats } from "../../ui/amount";
 import { Icon, type IconName } from "../../ui/icons";
 import { Button, Chip } from "../../ui/kit";
-import { SourceSwatch, TINT, type Source } from "../../ui/sources";
+import type { Source } from "../../ui/sources";
 import { outpoint } from "../../wallet/coin";
 import { spendCost } from "../../wallet/select";
 import { useWallet } from "../../app/session";
@@ -36,8 +36,7 @@ function status(coin: WalletCoin): { text: string; tone?: "ok" | "warn"; icon?: 
 
 const COLUMNS = "@min-[900px]:grid-cols-[22px_150px_92px_minmax(0,1fr)]";
 
-/** One coin; given its source, the coin stands for the whole of a one-coin source. */
-function CoinRow({ coin, source, tip, rate, on, onToggle }: { coin: WalletCoin; source?: Source; tip: number | null; rate: number; on: boolean; onToggle: () => void }) {
+function CoinRow({ coin, tip, rate, on, onToggle }: { coin: WalletCoin; tip: number | null; rate: number; on: boolean; onToggle: () => void }) {
   const ok = selectable(coin);
   const s = status(coin);
   const { lead, rest } = btcParts(coin.value);
@@ -48,14 +47,14 @@ function CoinRow({ coin, source, tip, rate, on, onToggle }: { coin: WalletCoin; 
     <div
       data-on={on || undefined}
       data-off={!ok || undefined}
-      className={`group relative grid min-h-14 w-full grid-cols-[22px_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 border-t px-4 py-3 transition-colors @min-[900px]:items-center @min-[900px]:py-2.5 ${COLUMNS} ${source ? `border-rule-2 data-on:shadow-[inset_4px_0_0_var(--carbon)] ${TINT[source.tone]}` : "border-rule bg-sheet hover:bg-[color-mix(in_srgb,var(--carbon-tint)_45%,var(--sheet))] data-on:bg-carbon-tint data-off:hover:bg-sheet"}`}
+      className={`group relative grid min-h-14 w-full grid-cols-[22px_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 border-t px-4 py-3 transition-colors @min-[900px]:items-center @min-[900px]:py-2.5 ${COLUMNS} border-rule bg-sheet hover:bg-[color-mix(in_srgb,var(--carbon-tint)_45%,var(--sheet))] data-on:bg-carbon-tint data-off:hover:bg-sheet`}
     >
       <button
         type="button"
         role="checkbox"
         aria-checked={on}
         aria-disabled={!ok}
-        aria-label={[`${lead}${rest} BTC`, source?.name ?? coin.label ?? coin.address, when, s?.text, uneconomic].filter(Boolean).join(", ")}
+        aria-label={[`${lead}${rest} BTC`, coin.label ?? coin.address, when, s?.text, uneconomic].filter(Boolean).join(", ")}
         onClick={() => ok && onToggle()}
         className="mt-px grid size-5 place-items-center rounded-check border-[1.5px] border-check bg-sheet text-carbon-ink after:absolute after:inset-0 aria-checked:border-carbon aria-checked:bg-carbon aria-disabled:cursor-not-allowed aria-disabled:border-dashed aria-disabled:after:cursor-not-allowed"
       >
@@ -70,14 +69,7 @@ function CoinRow({ coin, source, tip, rate, on, onToggle }: { coin: WalletCoin; 
       </span>
       <span className="text-right text-sm whitespace-nowrap text-ink-2 @max-[899px]:hidden">{when}</span>
       <span className="col-start-2 col-end-4 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-ink-3 @min-[900px]:col-auto">
-        {source ? (
-          <span className="flex min-w-0 items-center gap-2.5 text-base text-ink">
-            <SourceSwatch source={source} />
-            <SourceTitle source={source} />
-          </span>
-        ) : (
-          <span className={`min-w-0 ${coin.label ? "text-ink group-data-off:text-ink-3" : "truncate font-mono text-[0.86em]"}`}>{coin.label ?? coin.address}</span>
-        )}
+        <span className={`min-w-0 ${coin.label ? "text-ink group-data-off:text-ink-3" : "truncate font-mono text-[0.86em]"}`}>{coin.label ?? coin.address}</span>
         <span className="whitespace-nowrap @min-[900px]:hidden">{when}</span>
         <span className="whitespace-nowrap">Costs {groupSats(cost)} sats to spend</span>
         <a href={`#/coin/${outpoint(coin)}`} aria-label={`History of ${lead}${rest} BTC`} className="relative z-[1] text-carbon underline decoration-1 underline-offset-3">
@@ -142,21 +134,18 @@ export function CoinList({
         <span>Label</span>
       </div>
       {sources.map((source) => {
-        if (source.coins.length === 1) {
-          const coin = source.coins[0]!;
-          return <CoinRow key={source.id} coin={coin} source={source} tip={tip} rate={rate} on={selected.has(outpoint(coin))} onToggle={() => onToggle(coin)} />;
-        }
+        const picked = source.coins.filter((c) => selected.has(outpoint(c))).length;
         const open = source.coins.filter(take);
         const whole = open.length > 0 && open.every((c) => selected.has(outpoint(c)));
         return (
-          <div key={source.id} role="group" aria-label={source.name} className="border-t border-rule-2">
-            <div className={`sticky top-14 z-[2] grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-2.5 px-4 py-2.5 ${TINT[source.tone]}`}>
-              <SourceSwatch source={source} />
-              <SourceTitle source={source} />
-              <div className="grid justify-items-end text-sm text-ink-2">
+          <div key={source.id} role="group" aria-label={source.name} className="border-t border-rule">
+            <div className="sticky top-14 z-[2] grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 bg-manila-2 px-4 py-2.5">
+              <SourceTitle source={source} on={picked > 0} />
+              <div className="grid justify-items-end text-right text-sm text-manila-ink">
                 <span>
-                  {source.coins.length} coins, <Amount sats={source.total} />
+                  {picked} of {source.coins.length} picked
                 </span>
+                <Amount sats={source.total} />
                 {open.length > 1 && (
                   <button type="button" onClick={() => onGroup(source)} className="text-xs font-medium text-carbon underline decoration-1 underline-offset-3">
                     {whole ? "Clear these" : "Select all"}
