@@ -61,7 +61,8 @@ export function Trust() {
           <Icon name="check" className="mt-0.5 size-5 text-ok" />
           <p>
             <strong>It does protect your history at rest.</strong> Wallet data in the browser is encrypted with a key
-            derived from your passphrase (Argon2id, AES-GCM).
+            derived from your passphrase (Argon2id, AES-GCM). Set no passphrase and it does not: anyone using the
+            browser can see your wallets.
           </p>
         </li>
         <li>

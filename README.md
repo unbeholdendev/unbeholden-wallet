@@ -32,7 +32,8 @@ An Esplora server cannot push news, so the app asks it for a new block every
 you refresh. Your Esplora must send `Access-Control-Allow-Origin` naming this
 app's origin (electrs: `--cors <origin>`), or the browser hides its answers.
 - **It does protect your history at rest.** Wallet data in the browser is
-  encrypted with a key derived from your passphrase (Argon2id, AES-GCM).
+  encrypted with a key derived from your passphrase (Argon2id, AES-GCM). Set
+  no passphrase and it does not: anyone using the browser can see your wallets.
 - **Your signer protects your keys.** The app never sees them. Check the
   addresses and amounts on your signer's own screen before you sign, and
   verify receive addresses on the signer when it matters.
