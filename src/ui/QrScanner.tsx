@@ -83,7 +83,7 @@ export function QrScanner({ onResult, onBlocked }: { onResult: (text: string) =>
       {state === "denied" && (
         <div role="alert" className="grid justify-items-start gap-2 text-sm text-ink-2">
           <p className="m-0">
-            <b className="font-semibold text-ink">Camera access was refused.</b> Allow the camera for this site in your
+            <b className="font-bold text-ink">Camera access was refused.</b> Allow the camera for this site in your
             browser's site settings, then try again. Pasting the text works just as well.
           </p>
           <Button size="sm" icon="retry" onClick={() => setAttempt(attempt + 1)}>
@@ -93,7 +93,7 @@ export function QrScanner({ onResult, onBlocked }: { onResult: (text: string) =>
       )}
       {state === "no-camera" && (
         <p role="alert" className="m-0 text-sm text-ink-2">
-          <b className="font-semibold text-ink">No camera is available here.</b> The browser found none it can use on
+          <b className="font-bold text-ink">No camera is available here.</b> The browser found none it can use on
           this page. Paste the text instead.
         </p>
       )}

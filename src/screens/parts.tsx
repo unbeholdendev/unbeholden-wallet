@@ -55,11 +55,11 @@ export function EditableLabel({
     <button
       type="button"
       onClick={() => edit(value ?? "")}
-      className={`group inline-flex max-w-full min-w-0 items-baseline gap-1.5 rounded-check text-left ${value ? "text-ink" : "text-ink-3"} hover:text-route ${className}`}
+      className={`group inline-flex max-w-full min-w-0 items-baseline gap-1.5 rounded-check text-left ${value ? "text-ink" : "text-ink-3"} hover:text-carbon ${className}`}
     >
       <span className="min-w-0 break-words">{value ?? placeholder}</span>
       {value && <span className="sr-only">, edit label</span>}
-      <Icon name="pencil" className="size-3.5 translate-y-0.5 text-ink-3 opacity-60 group-hover:text-route group-hover:opacity-100" />
+      <Icon name="pencil" className="size-3.5 translate-y-0.5 text-ink-3 opacity-60 group-hover:text-carbon group-hover:opacity-100" />
     </button>
   );
 }
@@ -82,7 +82,7 @@ export function Opening({ title }: { title: string }) {
   const failed = useOpenFailure();
   return (
     <div className="grid content-start gap-2">
-      <h1 className="m-0 text-xl font-semibold">{title}</h1>
+      <h1 className="m-0 text-xl font-bold">{title}</h1>
       {failed ? (
         <>
           <Notice tone="bad">
@@ -123,7 +123,7 @@ export function SourceTitle({ source }: { source: Source }) {
   const session = useWalletSession();
   return (
     <div className="grid min-w-0 justify-items-start gap-0.5">
-      <EditableLabel type="output" target={outpoint(source.coins[0]!)} value={source.label} placeholder={source.name} className="relative z-[1] font-semibold" />
+      <EditableLabel type="output" target={outpoint(source.coins[0]!)} value={source.label} placeholder={source.name} className="relative z-[1] font-bold" />
       <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-2">
         {source.note}
         <button
@@ -131,7 +131,7 @@ export function SourceTitle({ source }: { source: Source }) {
           role="switch"
           aria-checked={source.kyc.length > 0}
           onClick={() => (source.kyc.length ? session?.setKyc(source.kyc, false) : session?.setKyc(source.coins, true))}
-          className="relative z-[1] inline-flex items-center gap-1 rounded-chip px-1.5 py-px font-medium text-ink-3 underline decoration-dotted underline-offset-2 hover:text-route aria-checked:bg-warn-tint aria-checked:text-warn aria-checked:no-underline"
+          className="relative z-[1] inline-flex items-center gap-1 rounded-chip px-1.5 py-px font-medium text-ink-3 underline decoration-dotted underline-offset-2 hover:text-carbon aria-checked:bg-warn-tint aria-checked:text-warn aria-checked:no-underline"
         >
           {source.kyc.length > 0 && <Icon name="check" className="size-3" />}
           Knows who I am

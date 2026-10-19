@@ -96,7 +96,7 @@ export function CreateVault() {
           </Button>
         </form>
         <section className="grid content-start gap-3 rounded-panel border border-rule bg-sheet p-4 text-ink-2">
-          <h2 className="m-0 text-md font-semibold text-ink">There is no reset</h2>
+          <h2 className="m-0 text-md font-bold text-ink">There is no reset</h2>
           <p className="m-0">
             Nobody can recover this passphrase, including the people who made this app. If you forget it, you delete the
             vault and import your wallets again from their descriptors.

@@ -1,21 +1,21 @@
 @import "tailwindcss";
-@import "@fontsource/barlow-semi-condensed/latin-400.css";
-@import "@fontsource/barlow-semi-condensed/latin-500.css";
-@import "@fontsource/barlow-semi-condensed/latin-600.css";
+@import "@fontsource/hanken-grotesk/latin-400.css";
+@import "@fontsource/hanken-grotesk/latin-500.css";
+@import "@fontsource/hanken-grotesk/latin-700.css";
 
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
 :root {
-  --paper: #f5f3ec; --sheet: #fffefa; --sunk: #eeebe1;
-  --ink: #1b2a2e; --ink-2: #445356; --ink-3: #5a686b;
-  --rule: #dcd7ca; --rule-2: #c6bfad;
-  --legend: #163847; --legend-ink: #f2eee3; --legend-ink-2: #afc4cd;
-  --legend-rule: #2b5062; --legend-hi: #23495b;
-  --route: #ad1a68; --route-ink: #ffffff; --route-tint: #f8e6ef; --route-tint-2: #ebc3d7;
-  --contour: #a8642a; --relief: #efe5d0; --relief-2: #e3d3b2;
-  --ok: #2b7238; --ok-tint: #e1efdd;
-  --warn: #7f5300; --warn-tint: #fbebc6;
-  --bad: #a8261d; --bad-tint: #f8dfda;
+  --paper: #fbfbf8; --sheet: #ffffff; --sunk: #f3f2ed;
+  --ink: #111214; --ink-2: #45474d; --ink-3: #64666c;
+  --rule: #e4e3dd; --rule-2: #cfcdc4;
+  --manila: #e9dcb6; --manila-2: #f5eedb; --manila-ink: #5e4f22;
+  --carbon: #2a3f9a; --carbon-ink: #ffffff; --carbon-tint: #edf0f9; --carbon-hover: #22337f;
+  --tamper: #cf2330; --tamper-ink: #ffffff;
+  --ok: #2c6a37; --ok-tint: #e5f0e3;
+  --warn: #7c5300; --warn-tint: #faefd2;
+  --bad: #a6271e; --bad-tint: #f9e3e0;
+  --check: #8d9096;
   --src-1: #d2e7f1; --src-1-edge: #2b78a0;
   --src-2: #d5e8c2; --src-2-edge: #4a812f;
   --src-3: #f1e1b4; --src-3-edge: #8f6410;
@@ -23,22 +23,22 @@
   --src-5: #cde9e1; --src-5-edge: #267a6a;
   --src-6: #f5d5cc; --src-6-edge: #a84434;
   --src-none: #e5e2da; --src-none-edge: #6f6c64;
-  --elevation: 0 1px 2px rgb(27 42 46 / 0.06), 0 6px 18px -6px rgb(27 42 46 / 0.14);
+  --elevation: 0 1px 2px rgb(17 18 20 / .06), 0 10px 24px -10px rgb(17 18 20 / .22);
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --paper: #0f171a; --sheet: #152125; --sunk: #0b1215;
-    --ink: #e9e6dc; --ink-2: #b5bfbe; --ink-3: #95a2a2;
-    --rule: #26363a; --rule-2: #36494e;
-    --legend: #0a2230; --legend-ink: #edeae0; --legend-ink-2: #98b2be;
-    --legend-rule: #1e3d4d; --legend-hi: #143447;
-    --route: #f06bae; --route-ink: #22091a; --route-tint: #3a1a2b; --route-tint-2: #5c2745;
-    --contour: #d49559; --relief: #2a261c; --relief-2: #3a3324;
-    --ok: #82c98d; --ok-tint: #17301d;
-    --warn: #e6b95a; --warn-tint: #33280f;
-    --bad: #f2948a; --bad-tint: #3b1b18;
+    --paper: #121317; --sheet: #191b20; --sunk: #0e0f12;
+    --ink: #ecebe6; --ink-2: #b8b9bd; --ink-3: #9a9ca2;
+    --rule: #2a2c33; --rule-2: #3a3d45;
+    --manila: #8a7442; --manila-2: #29241a; --manila-ink: #f3e7c4;
+    --carbon: #9aaeff; --carbon-ink: #10152e; --carbon-tint: #1d2340; --carbon-hover: #b6c4ff;
+    --tamper: #c9353e; --tamper-ink: #ffffff;
+    --ok: #86c891; --ok-tint: #17291b;
+    --warn: #e8bc5e; --warn-tint: #2f2610;
+    --bad: #ff8a80; --bad-tint: #3b1b18;
+    --check: #6c6f77;
     --src-1: #17394a; --src-1-edge: #74badd;
     --src-2: #1f3b1b; --src-2-edge: #8cc56e;
     --src-3: #3a3014; --src-3-edge: #ddb258;
@@ -46,23 +46,23 @@
     --src-5: #133a33; --src-5-edge: #66c5af;
     --src-6: #41231d; --src-6-edge: #ec9483;
     --src-none: #2a2926; --src-none-edge: #a3a096;
-    --elevation: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 20px -8px rgb(0 0 0 / 0.5);
+    --elevation: 0 1px 2px rgb(0 0 0 / .3), 0 12px 28px -10px rgb(0 0 0 / .6);
     color-scheme: dark;
   }
 }
 
 /* Same values as the media query: an explicit choice beats the system. */
 :root[data-theme="dark"] {
-  --paper: #0f171a; --sheet: #152125; --sunk: #0b1215;
-  --ink: #e9e6dc; --ink-2: #b5bfbe; --ink-3: #95a2a2;
-  --rule: #26363a; --rule-2: #36494e;
-  --legend: #0a2230; --legend-ink: #edeae0; --legend-ink-2: #98b2be;
-  --legend-rule: #1e3d4d; --legend-hi: #143447;
-  --route: #f06bae; --route-ink: #22091a; --route-tint: #3a1a2b; --route-tint-2: #5c2745;
-  --contour: #d49559; --relief: #2a261c; --relief-2: #3a3324;
-  --ok: #82c98d; --ok-tint: #17301d;
-  --warn: #e6b95a; --warn-tint: #33280f;
-  --bad: #f2948a; --bad-tint: #3b1b18;
+  --paper: #121317; --sheet: #191b20; --sunk: #0e0f12;
+  --ink: #ecebe6; --ink-2: #b8b9bd; --ink-3: #9a9ca2;
+  --rule: #2a2c33; --rule-2: #3a3d45;
+  --manila: #8a7442; --manila-2: #29241a; --manila-ink: #f3e7c4;
+  --carbon: #9aaeff; --carbon-ink: #10152e; --carbon-tint: #1d2340; --carbon-hover: #b6c4ff;
+  --tamper: #c9353e; --tamper-ink: #ffffff;
+  --ok: #86c891; --ok-tint: #17291b;
+  --warn: #e8bc5e; --warn-tint: #2f2610;
+  --bad: #ff8a80; --bad-tint: #3b1b18;
+  --check: #6c6f77;
   --src-1: #17394a; --src-1-edge: #74badd;
   --src-2: #1f3b1b; --src-2-edge: #8cc56e;
   --src-3: #3a3014; --src-3-edge: #ddb258;
@@ -70,7 +70,7 @@
   --src-5: #133a33; --src-5-edge: #66c5af;
   --src-6: #41231d; --src-6-edge: #ec9483;
   --src-none: #2a2926; --src-none-edge: #a3a096;
-  --elevation: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 20px -8px rgb(0 0 0 / 0.5);
+  --elevation: 0 1px 2px rgb(0 0 0 / .3), 0 12px 28px -10px rgb(0 0 0 / .6);
   color-scheme: dark;
 }
 
@@ -84,24 +84,22 @@
   --color-ink-3: var(--ink-3);
   --color-rule: var(--rule);
   --color-rule-2: var(--rule-2);
-  --color-legend: var(--legend);
-  --color-legend-ink: var(--legend-ink);
-  --color-legend-ink-2: var(--legend-ink-2);
-  --color-legend-rule: var(--legend-rule);
-  --color-legend-hi: var(--legend-hi);
-  --color-route: var(--route);
-  --color-route-ink: var(--route-ink);
-  --color-route-tint: var(--route-tint);
-  --color-route-tint-2: var(--route-tint-2);
-  --color-contour: var(--contour);
-  --color-relief: var(--relief);
-  --color-relief-2: var(--relief-2);
+  --color-manila: var(--manila);
+  --color-manila-2: var(--manila-2);
+  --color-manila-ink: var(--manila-ink);
+  --color-carbon: var(--carbon);
+  --color-carbon-ink: var(--carbon-ink);
+  --color-carbon-tint: var(--carbon-tint);
+  --color-carbon-hover: var(--carbon-hover);
+  --color-tamper: var(--tamper);
+  --color-tamper-ink: var(--tamper-ink);
   --color-ok: var(--ok);
   --color-ok-tint: var(--ok-tint);
   --color-warn: var(--warn);
   --color-warn-tint: var(--warn-tint);
   --color-bad: var(--bad);
   --color-bad-tint: var(--bad-tint);
+  --color-check: var(--check);
   --color-src-1: var(--src-1); --color-src-1-edge: var(--src-1-edge);
   --color-src-2: var(--src-2); --color-src-2-edge: var(--src-2-edge);
   --color-src-3: var(--src-3); --color-src-3-edge: var(--src-3-edge);
@@ -121,7 +119,7 @@
 
 @theme {
   --font-*: initial;
-  --font-sans: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-sans: "Hanken Grotesk", system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   --text-*: initial;
@@ -136,7 +134,7 @@
   --font-weight-*: initial;
   --font-weight-normal: 400;
   --font-weight-medium: 500;
-  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
 
   --spacing: 4px;
 
@@ -157,16 +155,16 @@
     to { stroke-dashoffset: 0; }
   }
   @keyframes value-flash {
-    from { background-color: var(--route-tint-2); }
+    from { background-color: var(--carbon-tint); }
     to { background-color: transparent; }
   }
 }
 
 @layer base {
-  html { background: var(--paper); color: var(--ink); font-family: var(--font-sans); }
+  html { background: var(--paper); color: var(--ink); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
   body { font-size: var(--text-base); line-height: 1.45; font-variant-numeric: tabular-nums; }
-  ::selection { background: var(--route-tint-2); color: var(--ink); }
-  :focus-visible { outline: 2px solid var(--route); outline-offset: 2px; }
+  ::selection { background: var(--carbon-tint); color: var(--ink); }
+  :focus-visible { outline: 2px solid var(--carbon); outline-offset: 2px; }
   * { scrollbar-width: thin; scrollbar-color: var(--rule-2) transparent; }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -182,7 +180,7 @@
 }
 
 @layer base {
-  body { margin: 0; background: var(--paper); caret-color: var(--route); }
+  body { margin: 0; background: var(--paper); caret-color: var(--carbon); }
   button, input, select, textarea { font: inherit; color: inherit; }
   button { cursor: pointer; }
 }

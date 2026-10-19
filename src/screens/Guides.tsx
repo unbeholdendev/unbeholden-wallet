@@ -6,7 +6,7 @@ import { LinkButton, Steps } from "../ui/kit";
 function Doc({ title, lede, children }: { title: string; lede: string; children: ReactNode }) {
   return (
     <Page aside={<LinkButton onClick={() => history.back()}>Back</LinkButton>}>
-      <article className="grid max-w-[68ch] gap-5 text-ink-2 [&_h2]:m-0 [&_h2]:mt-3 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-ink [&_p]:m-0 [&_strong]:font-semibold [&_strong]:text-ink">
+      <article className="grid max-w-[68ch] gap-5 text-ink-2 [&_h2]:m-0 [&_h2]:mt-3 [&_h2]:text-lg [&_h2]:font-bold [&_h2]:text-ink [&_p]:m-0 [&_strong]:font-bold [&_strong]:text-ink">
         <Heading title={title}>{lede}</Heading>
         {children}
       </article>
@@ -75,7 +75,7 @@ export function Trust() {
       </ul>
       <p>
         For real money, prefer the local container or a copy whose hashes you have checked.{" "}
-        <a className="font-medium text-route underline underline-offset-3" href="#/guide">
+        <a className="font-medium text-carbon underline underline-offset-3" href="#/guide">
           How to run it yourself
         </a>
       </p>

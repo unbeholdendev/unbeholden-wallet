@@ -18,9 +18,9 @@ export function Amount({ sats, unit = false, signed = false }: { sats: number; u
   return (
     <span className={`whitespace-nowrap tabular-nums ${incoming ? "text-ok" : ""}`}>
       {sign}
-      <span className={incoming ? "text-[color-mix(in_srgb,var(--ok)_70%,var(--paper))]" : "text-ink-3"}>{lead}</span>
+      <span className={incoming ? "opacity-75" : "font-normal text-ink-3"}>{lead}</span>
       {rest}
-      {unit && <span className="ml-[0.3em] text-[0.62em] font-medium tracking-[0.02em] text-ink-3">BTC</span>}
+      {unit && <span className="ml-[0.3em] text-[0.62em] font-bold tracking-[0.04em] text-ink-3">BTC</span>}
     </span>
   );
 }

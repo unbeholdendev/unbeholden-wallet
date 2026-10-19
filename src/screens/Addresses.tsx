@@ -17,7 +17,7 @@ function Row({ info, next }: { info: AddressInfo; next: boolean }) {
       <span className="text-sm text-ink-3 tabular-nums @min-[720px]:row-span-2 @min-[720px]:pt-0.5">#{info.index}</span>
       <GroupedAddress address={info.address} className="text-[0.86em]" />
       <span className="flex flex-wrap items-center gap-1.5 @min-[720px]:justify-end">
-        {next && <Chip tone="route">Next to give out</Chip>}
+        {next && <Chip tone="carbon">Next to give out</Chip>}
         {info.reused && <Chip tone="bad">Reused, paid {info.txCount} times</Chip>}
         {info.used ? !info.reused && <Chip>{info.txCount === 1 ? "1 transaction" : `${info.txCount} transactions`}</Chip> : !next && <Chip>Unused</Chip>}
       </span>
@@ -53,7 +53,7 @@ export function Addresses() {
 
   return (
     <div className="grid content-start items-start gap-6 @min-[900px]/app:grid-cols-[minmax(0,1fr)_320px]">
-      <h1 className="m-0 text-xl font-semibold @min-[900px]/app:col-span-2">Addresses</h1>
+      <h1 className="m-0 text-xl font-bold @min-[900px]/app:col-span-2">Addresses</h1>
       <section className="@container min-w-0 rounded-panel border border-rule bg-sheet">
         <div className="grid gap-3 p-4 @min-[560px]:grid-cols-2">
           <Segmented
@@ -78,7 +78,7 @@ export function Addresses() {
         </div>
         {reused > 0 && (
           <p className="m-0 border-t border-rule bg-bad-tint px-4 py-2.5 text-sm text-ink">
-            <b className="font-semibold text-bad">{reused === 1 ? "One address was" : `${reused} addresses were`} paid more than once.</b>{" "}
+            <b className="font-bold text-bad">{reused === 1 ? "One address was" : `${reused} addresses were`} paid more than once.</b>{" "}
             Anyone can see those payments went to the same person. Give out a fresh address each time.
           </p>
         )}
@@ -96,7 +96,7 @@ export function Addresses() {
         )}
       </section>
       <section className="grid gap-3 rounded-panel border border-rule bg-sheet p-4">
-        <h2 className="text-md font-semibold">Scan further</h2>
+        <h2 className="text-md font-bold">Scan further</h2>
         <p className="m-0 text-sm text-ink-2">
           This wallet stops looking after 20 unused addresses in a row. If another wallet gave out addresses further
           along, for example to a service that generates its own, coins paid to them stay hidden until you scan further.

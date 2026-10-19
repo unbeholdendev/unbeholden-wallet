@@ -55,20 +55,20 @@ function RouteLine({ connection }: { connection: Connection }) {
       </text>
       <path
         d={`M28 32H${failed ? 168 : 330}`}
-        className={`fill-none stroke-2 [stroke-dasharray:5_4] ${failed || reached || live ? "stroke-route" : "stroke-rule-2"} ${live ? "animate-[march_900ms_linear_infinite]" : ""}`}
+        className={`fill-none stroke-2 [stroke-dasharray:5_4] ${failed || reached || live ? "stroke-carbon" : "stroke-rule-2"} ${live ? "animate-[march_900ms_linear_infinite]" : ""}`}
       />
       {failed && (
         <>
           <path d="M173 24l14 16M187 24l-14 16" className="stroke-bad stroke-[2.4] [stroke-linecap:round]" />
-          <text x="180" y="14" textAnchor="middle" className="fill-bad text-[11px] font-semibold">
+          <text x="180" y="14" textAnchor="middle" className="fill-bad text-[11px] font-bold">
             {label}
           </text>
           <path d="M193 32H330" className="fill-none stroke-rule-2 stroke-2 [stroke-dasharray:5_4]" />
         </>
       )}
       <g transform="translate(342 32)">
-        <path d="M0 -9L8 6H-8Z" className={`stroke-[1.6] ${reached ? "fill-route-tint stroke-route" : "fill-sheet stroke-ink"}`} />
-        <circle r="2" cy="1.5" className={reached ? "fill-route" : "fill-ink"} />
+        <path d="M0 -9L8 6H-8Z" className={`stroke-[1.6] ${reached ? "fill-carbon-tint stroke-carbon" : "fill-sheet stroke-ink"}`} />
+        <circle r="2" cy="1.5" className={reached ? "fill-carbon" : "fill-ink"} />
       </g>
       <text x="352" y="58" textAnchor="end" className="fill-ink-2 text-[11px]">
         Your server
@@ -105,7 +105,7 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
           <Steps>
             <li>
               <div>
-                <b className="font-semibold">Open the server's https address in a new tab.</b>
+                <b className="font-bold">Open the server's https address in a new tab.</b>
                 <br />
                 <Url>{httpsForm(url)}</Url>{" "}
                 <a className={`${buttonClass({ size: "sm" })} mt-1 align-middle`} href={httpsForm(url)} target="_blank" rel="noreferrer">
@@ -115,19 +115,19 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
             </li>
             <li>
               <div>
-                <b className="font-semibold">Check the warning is about your own server, then accept it.</b> In Chrome
+                <b className="font-bold">Check the warning is about your own server, then accept it.</b> In Chrome
                 choose Advanced, then Proceed. In Firefox choose Advanced, then Accept the Risk and Continue. In Safari
                 choose Show Details, then visit this website.
               </div>
             </li>
             <li>
               <div>
-                <b className="font-semibold">Expect a blank page or an error there.</b> That is normal. Close that tab.
+                <b className="font-bold">Expect a blank page or an error there.</b> That is normal. Close that tab.
               </div>
             </li>
             <li>
               <div>
-                <b className="font-semibold">Come back here and choose Retry connection.</b>
+                <b className="font-bold">Come back here and choose Retry connection.</b>
               </div>
             </li>
           </Steps>
@@ -146,13 +146,13 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
           <Steps>
             <li>
               <div>
-                <b className="font-semibold">Give your server a certificate and use wss:// or https://.</b>{" "}
+                <b className="font-bold">Give your server a certificate and use wss:// or https://.</b>{" "}
                 <a className={linkClass} href="#/guide">How to get one</a>
               </div>
             </li>
             <li>
               <div>
-                <b className="font-semibold">Or run this app from the local container.</b> It serves the app on{" "}
+                <b className="font-bold">Or run this app from the local container.</b> It serves the app on{" "}
                 <span className="font-mono text-[0.86em]">http://localhost:8080</span>, and a localhost page may open
                 ws:// or http:// to a node on your own network.{" "}
                 <a className={linkClass} href="#/guide">How to run it</a>
@@ -170,18 +170,18 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
           <Steps>
             <li>
               <div>
-                <b className="font-semibold">The server is running</b> and has finished starting up.
+                <b className="font-bold">The server is running</b> and has finished starting up.
               </div>
             </li>
             <li>
               {/^https?:/.test(url) ? (
                 <div>
-                  <b className="font-semibold">The port is the one your Esplora API listens on</b>, not the explorer's
+                  <b className="font-bold">The port is the one your Esplora API listens on</b>, not the explorer's
                   web page if it serves that elsewhere.
                 </div>
               ) : (
                 <div>
-                  <b className="font-semibold">The port is the WebSocket one.</b> Fulcrum's TCP ports (50001, 50002) do
+                  <b className="font-bold">The port is the WebSocket one.</b> Fulcrum's TCP ports (50001, 50002) do
                   not speak WebSocket; the <span className="font-mono text-[0.86em]">ws</span> and{" "}
                   <span className="font-mono text-[0.86em]">wss</span> settings in fulcrum.conf name the right ports. A server with only a TCP port, such as electrs, is
                   reached through the local container.{" "}
@@ -191,14 +191,14 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
             </li>
             <li>
               <div>
-                <b className="font-semibold">Nothing between you blocks it:</b> a firewall on the node, or a router that
+                <b className="font-bold">Nothing between you blocks it:</b> a firewall on the node, or a router that
                 does not forward the port.
               </div>
             </li>
             {/^(wss|https):/.test(url) && (
               <li>
                 <div>
-                  <b className="font-semibold">A self-signed certificate can look exactly like this.</b> Open{" "}
+                  <b className="font-bold">A self-signed certificate can look exactly like this.</b> Open{" "}
                   <Url>{httpsForm(url)}</Url> in a new tab, accept the warning if it is about your own server, then
                   come back and retry.{" "}
                   <a className={`${buttonClass({ size: "sm" })} mt-1 align-middle`} href={httpsForm(url)} target="_blank" rel="noreferrer">
@@ -220,18 +220,18 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
           <Steps>
             <li>
               <div>
-                <b className="font-semibold">A home network address while you are away from home.</b> Addresses like
+                <b className="font-bold">A home network address while you are away from home.</b> Addresses like
                 192.168… only work on that network.
               </div>
             </li>
             <li>
               <div>
-                <b className="font-semibold">A firewall that drops the connection</b> rather than refusing it.
+                <b className="font-bold">A firewall that drops the connection</b> rather than refusing it.
               </div>
             </li>
             <li>
               <div>
-                <b className="font-semibold">A server still indexing the chain.</b> Fulcrum does not answer until its
+                <b className="font-bold">A server still indexing the chain.</b> Fulcrum does not answer until its
                 first sync is done.
               </div>
             </li>
@@ -276,20 +276,20 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
           <Steps>
             <li>
               <div>
-                <b className="font-semibold">If you run electrs yourself,</b> start it with{" "}
+                <b className="font-bold">If you run electrs yourself,</b> start it with{" "}
                 <Url>--cors {location.origin}</Url>
               </div>
             </li>
             <li>
               <div>
-                <b className="font-semibold">If a web server sits in front of it,</b> as on most node packages, add the
+                <b className="font-bold">If a web server sits in front of it,</b> as on most node packages, add the
                 header there. For nginx, in the block that serves the API:{" "}
                 <Url>add_header Access-Control-Allow-Origin "{location.origin}" always;</Url>
               </div>
             </li>
             <li>
               <div>
-                <b className="font-semibold">Come back here and choose Retry connection.</b>
+                <b className="font-bold">Come back here and choose Retry connection.</b>
               </div>
             </li>
           </Steps>
@@ -310,7 +310,7 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
     <section aria-live="polite" className="overflow-hidden rounded-panel border border-[color-mix(in_srgb,var(--bad)_40%,var(--rule))] bg-sheet">
       <div className="flex items-start gap-2.5 bg-bad-tint px-4 py-3.5 text-bad">
         <Icon name="warn" className="mt-0.5 size-5" />
-        <h2 className="m-0 text-md font-semibold">{guide.title}</h2>
+        <h2 className="m-0 text-md font-bold">{guide.title}</h2>
       </div>
       <div className="grid gap-3.5 p-4 text-ink-2 [&_p]:max-w-[62ch]">
         {guide.body}
@@ -327,7 +327,7 @@ function Status({ connection }: { connection: Connection }) {
     const astray = network ? wallets.filter((w) => w.network !== network) : [];
     return (
       <section className="grid gap-2 rounded-panel border border-rule bg-sheet p-4">
-        <h2 className="m-0 flex items-center gap-2 text-md font-semibold">
+        <h2 className="m-0 flex items-center gap-2 text-md font-bold">
           <span className={`size-2 rounded-full ${connection.phase === "connected" ? "bg-ok" : "bg-warn"}`} />
           {connection.phase === "connected" ? `Connected to ${hostText(connection.url)}` : `Reconnecting to ${hostText(connection.url)}`}
         </h2>
@@ -362,7 +362,7 @@ function Status({ connection }: { connection: Connection }) {
   }
   return (
     <section className="grid gap-2 rounded-panel border border-rule bg-sheet p-4">
-      <h2 className="m-0 text-md font-semibold">What happens when you connect</h2>
+      <h2 className="m-0 text-md font-bold">What happens when you connect</h2>
       <p className="m-0 text-sm text-ink-2">
         The app asks your server for block headers and for the history of your addresses. Your addresses and
         transactions go to that server and nowhere else.

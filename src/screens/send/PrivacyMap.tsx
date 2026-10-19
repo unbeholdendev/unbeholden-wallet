@@ -61,7 +61,7 @@ export function PrivacyMap({ sources, selected, onGroup }: { sources: Source[]; 
       {places.map(({ source, cx, cy, rx, ry, label }) => (
         <g key={source.id} onClick={() => onGroup(source)} className={`cursor-pointer transition-opacity ${linked.size && !linked.has(source.id) ? "opacity-[0.38]" : ""}`}>
           <path d={blob(cx, cy, rx, ry, source.seed)} className={`${FILL[source.tone]} ${EDGE[source.tone]} stroke-[1.4] ${source.dashed ? "[stroke-dasharray:4_3]" : ""}`} />
-          <text y={cy - ry * 0.4 - (label.length - 1) * 6} textAnchor="middle" className={`${INK[source.tone]} text-[11px] font-semibold tracking-[0.06em] uppercase`}>
+          <text y={cy - ry * 0.4 - (label.length - 1) * 6} textAnchor="middle" className={`${INK[source.tone]} text-[11px] font-bold tracking-[0.06em] uppercase`}>
             {label.map((line, k) => (
               <tspan key={k} x={cx} dy={k ? 12 : 0} textLength={line.length * CHAR > rx * 2 ? rx * 2 : undefined} lengthAdjust="spacingAndGlyphs">
                 {line}
@@ -81,7 +81,7 @@ export function PrivacyMap({ sources, selected, onGroup }: { sources: Source[]; 
                 <mask id={mask} maskUnits="userSpaceOnUse">
                   <path d={d} pathLength={200} className="animate-route-draw fill-none stroke-white stroke-[6] [stroke-dasharray:200]" />
                 </mask>
-                <path d={d} mask={`url(#${mask})`} className="fill-none stroke-route stroke-2 [stroke-dasharray:5_4] [stroke-linecap:round]" />
+                <path d={d} mask={`url(#${mask})`} className="fill-none stroke-carbon stroke-2 [stroke-dasharray:5_4] [stroke-linecap:round]" />
               </g>
             );
           }),
@@ -96,7 +96,7 @@ export function PrivacyMap({ sources, selected, onGroup }: { sources: Source[]; 
                 cx={x}
                 cy={y}
                 r={on ? 5 : 4.5}
-                className={`stroke-[1.5] ${on ? "fill-route stroke-sheet" : coin.frozen ? "fill-sheet stroke-ink-3 [stroke-dasharray:2_1.5]" : "fill-sheet stroke-ink-2"}`}
+                className={`stroke-[1.5] ${on ? "fill-carbon stroke-sheet" : coin.frozen ? "fill-sheet stroke-ink-3 [stroke-dasharray:2_1.5]" : "fill-sheet stroke-ink-2"}`}
               />
             );
           })}
@@ -111,7 +111,7 @@ export function PrivacyMap({ sources, selected, onGroup }: { sources: Source[]; 
         <path d="M0 -9L8 6H-8Z" className="fill-sheet stroke-ink stroke-[1.6]" />
         <circle r={2} cy={1.5} className="fill-ink" />
       </g>
-      <text x={tx.x + 13} y={tx.y + 3} className="fill-ink text-[10px] font-semibold">
+      <text x={tx.x + 13} y={tx.y + 3} className="fill-ink text-[10px] font-bold">
         This transaction
       </text>
       {sources.length > shown.length && (

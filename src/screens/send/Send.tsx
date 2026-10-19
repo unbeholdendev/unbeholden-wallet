@@ -219,7 +219,7 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
         <div className="grid min-w-0 content-start gap-4 @min-[900px]:sticky @min-[900px]:top-20 @min-[900px]:max-h-[calc(100dvh-96px)] @min-[900px]:overflow-y-auto">
           <section ref={map} aria-label="What this links" className="scroll-mt-20 rounded-panel border border-rule bg-sheet">
             <div className="flex items-center justify-between gap-3 px-4 pt-4">
-              <h2 className="text-md font-semibold">What this links</h2>
+              <h2 className="text-md font-bold">What this links</h2>
               {badge}
             </div>
             <div className="px-4 pt-3 pb-1">
@@ -252,7 +252,7 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
           </section>
           <section aria-label="Summary" className="rounded-panel border border-rule bg-sheet">
             <div className="flex items-baseline justify-between gap-3 px-4 pt-4">
-              <h2 className="text-md font-semibold">Summary</h2>
+              <h2 className="text-md font-bold">Summary</h2>
               <span className="text-sm text-ink-3">Replaceable (RBF)</span>
             </div>
             <dl className="m-0 grid px-4 pt-1 pb-4 text-sm [&>div]:flex [&>div]:items-baseline [&>div]:justify-between [&>div]:gap-3 [&>div]:border-b [&>div]:border-dotted [&>div]:border-rule-2 [&>div]:py-1.5 [&_dt]:text-ink-2 [&_dd]:m-0 [&_dd]:text-right">
@@ -278,7 +278,7 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
                 </dt>
                 <dd><Flash value={result.change}>{result.change ? <Amount sats={result.change} /> : "None"}</Flash></dd>
               </div>
-              <div className="border-b-0 pt-2.5 text-md font-semibold [&_dt]:text-ink">
+              <div className="border-b-0 pt-2.5 text-md font-bold [&_dt]:text-ink">
                 <dt>Total leaving the wallet</dt>
                 <dd><Flash value={result.total}><Amount sats={result.total} unit /></Flash></dd>
               </div>
@@ -294,7 +294,7 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
       </div>
       <div className="sticky bottom-[calc(56px+env(safe-area-inset-bottom))] z-[2] -mx-4 mt-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 border-t border-rule-2 bg-sheet px-4 pt-2.5 pb-3 shadow-[0_-6px_16px_-10px_rgb(0_0_0/0.25)] @min-[900px]:hidden">
         <span className="truncate text-sm text-ink-2">
-          <b className="font-semibold text-ink">{chosen.length} coin{chosen.length === 1 ? "" : "s"}</b>, <Amount sats={result.coins.reduce((a, c) => a + c.value, 0)} /> in &middot; fee {groupSats(result.fee)} sats
+          <b className="font-bold text-ink">{chosen.length} coin{chosen.length === 1 ? "" : "s"}</b>, <Amount sats={result.coins.reduce((a, c) => a + c.value, 0)} /> in &middot; fee {groupSats(result.fee)} sats
         </span>
         {primary("sm")}
         <button type="button" onClick={() => map.current?.scrollIntoView({ behavior: "smooth" })} className="justify-self-start">

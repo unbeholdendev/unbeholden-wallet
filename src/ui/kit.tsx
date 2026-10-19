@@ -2,11 +2,11 @@ import { useId, type ComponentProps, type ReactNode } from "react";
 import { Icon, type IconName } from "./icons";
 
 const buttonBase =
-  "inline-flex items-center justify-center gap-2 rounded-control border font-semibold transition-colors disabled:cursor-not-allowed disabled:border-rule disabled:bg-rule disabled:text-ink-3";
+  "inline-flex items-center justify-center gap-2 rounded-control border font-bold transition-colors disabled:cursor-not-allowed disabled:border-rule disabled:bg-rule disabled:text-ink-3";
 const variants = {
   default: "border-rule-2 bg-sheet text-ink hover:bg-sunk",
   primary:
-    "border-route bg-route text-route-ink hover:bg-[color-mix(in_srgb,var(--route)_88%,black)]",
+    "border-carbon bg-carbon text-carbon-ink hover:border-carbon-hover hover:bg-carbon-hover",
   danger: "border-rule-2 bg-sheet text-bad hover:bg-bad-tint",
 };
 const sizes = { md: "min-h-11 px-4 py-2 text-base", sm: "min-h-8 px-2.5 py-1 text-sm" };
@@ -32,14 +32,14 @@ export function Button({ variant, size, icon, wide, className = "", children, ..
 }
 
 export const linkClass =
-  "cursor-pointer font-medium text-route underline decoration-1 underline-offset-3 hover:decoration-2";
+  "cursor-pointer font-bold text-carbon underline decoration-1 underline-offset-3 hover:decoration-2";
 
 export function LinkButton({ className = "", ...rest }: ComponentProps<"button">) {
   return <button type="button" className={`${linkClass} ${className}`} {...rest} />;
 }
 
 export const inputClass =
-  "w-full min-h-11 rounded-control border border-rule-2 bg-sheet px-3 py-2.5 text-ink caret-route placeholder:text-ink-3 focus:border-transparent focus:outline-2 focus:-outline-offset-1 focus:outline-route aria-invalid:border-bad";
+  "w-full min-h-11 rounded-control border border-rule-2 bg-sheet px-3 py-2.5 text-ink caret-carbon placeholder:text-ink-3 focus:border-transparent focus:outline-2 focus:-outline-offset-1 focus:outline-carbon aria-invalid:border-bad";
 
 type FieldProps = {
   label: string;
@@ -55,7 +55,7 @@ export function Field({ label, hint, error, ok, children }: FieldProps) {
   const note = error ?? ok ?? hint;
   return (
     <div className="grid gap-1.5">
-      <label htmlFor={id} className="text-sm font-medium text-ink-2">
+      <label htmlFor={id} className="text-sm font-bold">
         {label}
       </label>
       {children({ id, "aria-describedby": note ? `${id}-note` : undefined, "aria-invalid": !!error })}
@@ -77,7 +77,7 @@ export function Panel({ title, aside, children, className = "" }: { title?: Reac
     <section className={`rounded-panel border border-rule bg-sheet ${className}`}>
       {title && (
         <div className="flex items-baseline justify-between gap-3 px-4 pt-4">
-          <h2 className="text-md font-semibold">{title}</h2>
+          <h2 className="text-md font-bold">{title}</h2>
           {aside && <span className="text-sm text-ink-3">{aside}</span>}
         </div>
       )}
@@ -91,18 +91,19 @@ const chips = {
   ok: "bg-ok-tint text-ok",
   warn: "bg-warn-tint text-warn",
   bad: "bg-bad-tint text-bad",
-  route: "bg-route-tint text-route",
+  carbon: "bg-carbon-tint text-carbon",
+  join: "bg-tamper text-tamper-ink",
 };
 
 export function Chip({ tone = "neutral", children }: { tone?: keyof typeof chips; children: ReactNode }) {
   return (
-    <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-chip px-1.5 py-px text-xs font-medium ${chips[tone]}`}>
+    <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-chip px-2 py-px text-xs font-bold ${chips[tone]}`}>
       {children}
     </span>
   );
 }
 
-/** Pick one of a few options; pressed state in route. */
+/** Pick one of a few options; pressed state in carbon. */
 export function Segmented<T extends string>({
   label,
   options,
@@ -122,7 +123,7 @@ export function Segmented<T extends string>({
           type="button"
           aria-pressed={option.value === value}
           onClick={() => onChange(option.value)}
-          className="min-h-10 flex-1 border-l border-rule px-3 py-2 text-sm font-medium text-ink-2 first:border-l-0 aria-pressed:bg-route aria-pressed:text-route-ink"
+          className="min-h-10 flex-1 border-l border-rule-2 px-3 py-2 text-sm font-medium text-ink-2 first:border-l-0 aria-pressed:bg-carbon-tint aria-pressed:font-bold aria-pressed:text-carbon"
         >
           {option.label}
         </button>
@@ -134,7 +135,7 @@ export function Segmented<T extends string>({
 /** Numbered instructions, the way a route card lists turns. */
 export function Steps({ children }: { children: ReactNode }) {
   return (
-    <ol className="m-0 grid list-none gap-3 p-0 [counter-reset:s] [&>li]:grid [&>li]:grid-cols-[28px_1fr] [&>li]:gap-2.5 [&>li>*]:min-w-0 [&>li]:[counter-increment:s] [&>li]:before:grid [&>li]:before:size-6 [&>li]:before:place-items-center [&>li]:before:rounded-full [&>li]:before:border-[1.5px] [&>li]:before:border-ink [&>li]:before:text-sm [&>li]:before:font-semibold [&>li]:before:content-[counter(s)]">
+    <ol className="m-0 grid list-none gap-3 p-0 [counter-reset:s] [&>li]:grid [&>li]:grid-cols-[28px_1fr] [&>li]:gap-2.5 [&>li>*]:min-w-0 [&>li]:[counter-increment:s] [&>li]:before:grid [&>li]:before:size-6 [&>li]:before:place-items-center [&>li]:before:rounded-full [&>li]:before:border-[1.5px] [&>li]:before:border-ink [&>li]:before:text-sm [&>li]:before:font-bold [&>li]:before:content-[counter(s)]">
       {children}
     </ol>
   );
@@ -143,12 +144,12 @@ export function Steps({ children }: { children: ReactNode }) {
 export function Empty({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <div className="grid justify-items-start gap-2 rounded-panel border border-dashed border-rule-2 px-5 py-8">
-      <svg viewBox="0 0 120 40" aria-hidden="true" className="h-10 w-30 fill-none stroke-contour stroke-[1.2] opacity-70">
+      <svg viewBox="0 0 120 40" aria-hidden="true" className="h-10 w-30 fill-none stroke-rule-2 stroke-[1.2]">
         <path d="M2 34c14-2 18-14 34-14s22 10 36 8 22-16 46-16" />
         <path d="M2 38c16-1 22-9 36-9s24 7 38 6 22-10 42-10" />
         <path d="M14 30c8-3 12-10 22-10" />
       </svg>
-      <h2 className="text-md font-semibold">{title}</h2>
+      <h2 className="text-md font-bold">{title}</h2>
       {children && <div className="max-w-[60ch] text-ink-2">{children}</div>}
     </div>
   );

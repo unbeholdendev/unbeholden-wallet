@@ -256,7 +256,7 @@ export function ImportWallet() {
       </div>
       <div className="grid content-start gap-4">
         <section className="grid gap-3 rounded-panel border border-rule bg-sheet p-4">
-          <h2 className="m-0 text-md font-semibold">The descriptor this wallet will use</h2>
+          <h2 className="m-0 text-md font-bold">The descriptor this wallet will use</h2>
           {reading.descriptor ? (
             <>
               <DescriptorText>{reading.descriptor}</DescriptorText>
