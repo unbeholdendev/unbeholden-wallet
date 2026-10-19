@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useConnection, type Connection, type Failure } from "../app/connection";
 import { Heading } from "../app/layout";
 import { useVault } from "../app/vault";
@@ -183,7 +183,9 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
                 <div>
                   <b className="font-semibold">The port is the WebSocket one.</b> Fulcrum's TCP ports (50001, 50002) do
                   not speak WebSocket; the <span className="font-mono text-[0.86em]">ws</span> and{" "}
-                  <span className="font-mono text-[0.86em]">wss</span> settings in fulcrum.conf name the right ports.
+                  <span className="font-mono text-[0.86em]">wss</span> settings in fulcrum.conf name the right ports. A server with only a TCP port, such as electrs, is
+                  reached through the local container.{" "}
+                  <a className={linkClass} href="#/guide">How to run it</a>
                 </div>
               )}
             </li>
@@ -244,7 +246,8 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
         <p className="m-0">
           A service at <span className="font-mono text-[0.86em]">{h}</span> accepted the connection and did not speak the
           Electrum protocol. Check that the port is your Electrum server's WebSocket port and not, say, a web server or
-          bitcoind's RPC port. Fulcrum and ElectrumX serve WebSocket; electrs does not, so it needs a proxy in front.
+          bitcoind's RPC port. Fulcrum and ElectrumX serve WebSocket; electrs does not, so run the local container with{" "}
+          <span className="font-mono text-[0.86em]">ELECTRUM=host:port</span> set to its TCP port.
         </p>
       ),
     },
@@ -375,6 +378,14 @@ export function Connect({ onboarding = false }: { onboarding?: boolean }) {
   const busy = connection.phase === "connecting";
   const failed = connection.phase === "failed" && connection.url === url.trim() ? connection : null;
   const invalid = failed?.failure === "invalid-url";
+
+  useEffect(() => {
+    if (url) return;
+    fetch("electrum.json")
+      .then((r) => r.json())
+      .then((bridge: { url?: unknown }) => typeof bridge.url === "string" && setUrl((u) => u || (bridge.url as string)))
+      .catch(() => {});
+  }, []);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();

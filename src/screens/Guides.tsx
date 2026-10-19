@@ -139,6 +139,11 @@ export function Guide() {
         Then open <span className={c}>http://localhost:8080</span> and connect to <span className={c}>ws://</span> and your
         node's WebSocket port, for example <span className={c}>ws://192.168.1.20:50003</span>.
       </p>
+      <p>
+        An Electrum server without WebSocket, such as electrs, is reached through the container. Give it the server's TCP
+        port, and the connection screen offers <span className={c}>ws://localhost:8080/electrum</span>.
+      </p>
+      <Code>{`docker run --rm -p 127.0.0.1:8080:8080 -e ELECTRUM=192.168.1.20:50001 unbeholden-wallet`}</Code>
     </Doc>
   );
 }
