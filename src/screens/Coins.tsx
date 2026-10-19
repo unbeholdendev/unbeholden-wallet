@@ -8,7 +8,7 @@ import { Amount, btcParts, groupSats } from "../ui/amount";
 import { ageText, confText, shortId } from "../ui/format";
 import { Icon } from "../ui/icons";
 import { Button, Chip, Empty, linkClass, Panel } from "../ui/kit";
-import { SourceSwatch, sourcesOf, TINT, type Source } from "../ui/sources";
+import { SourceTag, sourcesOf, type Source } from "../ui/sources";
 import { outpoint } from "../wallet/coin";
 import { feeTargets, MIN_FEE_RATE } from "../wallet/fees";
 import { spend, spendCost, type WalletKind } from "../wallet/select";
@@ -50,8 +50,7 @@ const sendable = (c: WalletCoin) => selectable(c) && c.status !== "foreign-uncon
 
 type Picking = { picked: Set<string>; toggle: (coin: WalletCoin) => void; can: (coin: WalletCoin) => boolean };
 
-/** One coin; given its source, the coin stands for the whole of a one-coin source. */
-function CoinRow({ coin, source, snapshot, picking, rate }: { coin: WalletCoin; source?: Source; snapshot: WalletSnapshot; picking: Picking; rate: number | null }) {
+function CoinRow({ coin, snapshot, picking, rate }: { coin: WalletCoin; snapshot: WalletSnapshot; picking: Picking; rate: number | null }) {
   const session = useWalletSession();
   const tx = lookup(snapshot).tx.get(coin.txid);
   const confirmations = tx?.confirmations ?? 0;
@@ -64,7 +63,7 @@ function CoinRow({ coin, source, snapshot, picking, rate }: { coin: WalletCoin; 
   const { lead, rest } = btcParts(coin.value);
   return (
     <li
-      className={`grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 border-t px-4 py-3 @min-[720px]:grid-cols-[140px_84px_minmax(0,1fr)_auto] @min-[720px]:items-center ${source ? "border-rule-2 first:border-t-0" : "border-rule"} ${coin.frozen ? "bg-[repeating-linear-gradient(135deg,transparent_0_6px,color-mix(in_srgb,var(--rule)_45%,transparent)_6px_7px)]" : source ? TINT[source.tone] : "bg-sheet"}`}
+      className={`grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 border-t px-4 py-3 @min-[720px]:grid-cols-[140px_84px_minmax(0,1fr)_auto] @min-[720px]:items-center border-rule ${coin.frozen ? "bg-[repeating-linear-gradient(135deg,transparent_0_6px,color-mix(in_srgb,var(--rule)_45%,transparent)_6px_7px)]" : "bg-sheet"}`}
     >
       <span className="flex items-center gap-2.5 @min-[720px]:justify-between">
         <input
@@ -81,14 +80,7 @@ function CoinRow({ coin, source, snapshot, picking, rate }: { coin: WalletCoin; 
       </span>
       <span className="hidden text-right text-sm text-ink-2 @min-[720px]:block">{when}</span>
       <div className="col-span-2 row-start-2 grid min-w-0 gap-1 @min-[720px]:col-span-1 @min-[720px]:col-start-3 @min-[720px]:row-start-1">
-        {source ? (
-          <span className="flex min-w-0 items-center gap-2.5">
-            <SourceSwatch source={source} />
-            <SourceTitle source={source} />
-          </span>
-        ) : (
-          <EditableLabel type="output" target={`${coin.txid}:${coin.vout}`} value={coin.label} placeholder="Label this coin" className="text-sm" />
-        )}
+        <EditableLabel type="output" target={`${coin.txid}:${coin.vout}`} value={coin.label} placeholder="Label this coin" className="text-sm" />
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-3">
           <span className="@min-[720px]:hidden">{when}</span>
           <span className="font-mono">{shortId(coin.address, 10, 6)}</span>
@@ -122,14 +114,12 @@ function CoinRow({ coin, source, snapshot, picking, rate }: { coin: WalletCoin; 
 }
 
 function Group({ source, snapshot, picking, rate }: { source: Source; snapshot: WalletSnapshot; picking: Picking; rate: number | null }) {
-  if (source.coins.length === 1) return <CoinRow coin={source.coins[0]!} source={source} snapshot={snapshot} picking={picking} rate={rate} />;
   return (
-    <li className="border-t border-rule-2 first:border-t-0">
-      <div className={`grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-2.5 px-4 py-2.5 ${TINT[source.tone]}`}>
-        <SourceSwatch source={source} />
-        <SourceTitle source={source} />
-        <span className="text-right text-sm text-ink-2">
-          {source.coins.length} coins
+    <li className="border-t border-rule first:border-t-0">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 bg-manila-2 px-4 py-2.5">
+        <SourceTitle source={source} on={source.coins.some((c) => picking.picked.has(outpoint(c)))} />
+        <span className="text-right text-sm text-manila-ink">
+          {source.coins.length} coin{source.coins.length === 1 ? "" : "s"}
           <br />
           <Amount sats={source.total} />
         </span>
@@ -183,12 +173,9 @@ function Join({ snapshot, sources, rate }: { snapshot: WalletSnapshot; sources: 
       </p>
       <ul className="m-0 grid list-none gap-2 p-0">
         {plans.map((plan) => (
-          <li key={plan.source.id} className={`grid gap-2 rounded-control px-3 py-2.5 @min-[560px]:grid-cols-[minmax(0,1fr)_auto] @min-[560px]:items-center ${TINT[plan.source.tone]}`}>
-            <div className="grid min-w-0 gap-1">
-              <span className="flex min-w-0 items-center gap-2.5 font-bold">
-                <SourceSwatch source={plan.source} />
-                <span className="truncate">{plan.source.name}</span>
-              </span>
+          <li key={plan.source.id} className="grid gap-2 rounded-control bg-manila-2 px-3 py-2.5 @min-[560px]:grid-cols-[minmax(0,1fr)_auto] @min-[560px]:items-center">
+            <div className="grid min-w-0 justify-items-start gap-1">
+              <SourceTag source={plan.source} large />
               <span className="text-sm text-ink-2">
                 {plan.coins.length} coins, <Amount sats={plan.coins.reduce((a, c) => a + c.value, 0)} />. Spent one by one at {BUSY_RATE} sat/vB:{" "}
                 {groupSats(plan.apart)} sats. Joined now: {groupSats(plan.fee)} sats, then {groupSats(plan.later)} sats to spend the one coin.{" "}

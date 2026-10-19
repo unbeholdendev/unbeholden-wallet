@@ -15,10 +15,12 @@ import { assessPrivacy } from "../../wallet/privacy";
 import { buildPsbt } from "../../wallet/psbt";
 import { selectCoins, spend, type Payment, type Spend } from "../../wallet/select";
 import { bulk, CoinList, selectable } from "./CoinList";
+import { CustodyLog } from "./CustodyLog";
 import { FeePanel, rateOf, rateText, useFeeHistogram, type FeeChoice } from "./fees";
-import { PrivacyMap } from "./PrivacyMap";
 import { checkAddress, parseAmount, Recipients, type Draft } from "./Recipients";
 import { SignFlow } from "./Sign";
+
+const and = (names: string[]) => (names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names[0]);
 
 const seed = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16)).join("");
 
@@ -70,7 +72,7 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
   const setSelected = (next: Set<string>) => update({ picked: [...next] });
   const [pending, setPending] = useState<WalletCoin | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const map = useRef<HTMLElement>(null);
+  const log = useRef<HTMLElement>(null);
   const histogram = useFeeHistogram();
   const [book, saveBook] = useBook();
   const skip = !!useVault().settings.skipForeignUnconfirmed;
@@ -113,6 +115,11 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
     kyc: (c) => kycOf.has(outpoint(c)),
   });
   const linked = report.sources.length;
+  const covers = (coins: WalletCoin[]) => !spend(coins, payment).problem;
+  const known = sources.filter((s) => s.kyc.length && s.coins.some(bulk));
+  const open = sources.filter((s) => !s.kyc.length && s.coins.some((c) => selected.has(outpoint(c))));
+  const knownCoins = known.flatMap((s) => s.coins.filter(bulk));
+  const suggest = linked > 1 && typed && open.length > 0 && open.length < linked && !sources.some((s) => covers(s.coins.filter(bulk)));
   const foreign = chosen.filter((c) => c.status === "foreign-unconfirmed");
   const stop = blocker(drafts, checks.map((c) => !c || "script" in c), result);
   const change = nextChange(snapshot);
@@ -163,14 +170,6 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
     }
   };
 
-  const badge =
-    linked === 0 ? (
-      <Chip>Nothing selected</Chip>
-    ) : linked === 1 ? (
-      <Chip tone="ok"><Icon name="check" className="size-3.5" />No new links</Chip>
-    ) : (
-      <Chip tone={linked > 2 ? "bad" : "warn"}><Icon name="warn" className="size-3.5" />Links {linked} sources</Chip>
-    );
   const group = (source: Source) => {
     const open = source.coins.filter(take).map(outpoint);
     const next = new Set(selected);
@@ -217,29 +216,44 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
           />
         </div>
         <div className="grid min-w-0 content-start gap-4 @min-[900px]:sticky @min-[900px]:top-20 @min-[900px]:max-h-[calc(100dvh-96px)] @min-[900px]:overflow-y-auto">
-          <section ref={map} aria-label="What this links" className="scroll-mt-20 rounded-panel border border-rule bg-sheet">
+          <section ref={log} aria-label="Custody log" className="scroll-mt-20 rounded-panel border border-rule bg-sheet">
             <div className="flex items-center justify-between gap-3 px-4 pt-4">
-              <h2 className="text-md font-bold">What this links</h2>
-              {badge}
+              <h2 className="text-md font-bold">Custody log</h2>
+              {linked > 1 && <Chip tone="join"><Icon name="join" className="size-3.5" />Joins {linked}</Chip>}
             </div>
-            <div className="px-4 pt-3 pb-1">
-              <PrivacyMap sources={sources} selected={selected} onGroup={group} />
-            </div>
-            <div aria-live="polite" className="grid gap-2.5 px-4 pb-4">
-              <p className="m-0 max-w-[60ch]">
-                {linked === 0
-                  ? draft.picked
-                    ? "Pick coins from the list, or let Pick for me choose."
-                    : "Enter an amount and coins are picked for you, from one source where they can be. Tap a coin to choose yourself."
-                  : linked === 1
-                    ? `All selected coins come from ${nameOf.get(outpoint(chosen[0]!))}. They are already linked, so this adds nothing new.`
+            <p className="m-0 px-4 pt-1 text-sm text-ink-3">What a chain analyst would write down about this transaction.</p>
+            <p aria-live="polite" className="sr-only">{linked > 1 ? `Joins ${linked} sources` : linked === 1 ? "No new links" : ""}</p>
+            <div className="grid gap-2.5 px-4 pt-3 pb-4">
+              <CustodyLog sources={sources} selected={selected} />
+              {linked !== 1 && (
+                <p className={`m-0 max-w-[60ch] ${linked ? "" : "text-ink-2"}`}>
+                  {linked === 0
+                    ? draft.picked
+                      ? "Pick coins from the list, or let Pick for me choose."
+                      : "Enter an amount and coins are picked for you, from one source where they can be. Tap a coin to choose yourself."
                     : report.warnings.find((w) => w.kind === "links-sources")!.message}
-              </p>
+                </p>
+              )}
               {report.warnings
                 .filter((w) => w.kind !== "links-sources")
                 .map((w) => (
                   <p key={w.kind + w.message} className="m-0 max-w-[60ch] text-sm text-ink-2">
                     {w.message}
+                  </p>
+                ))}
+              {suggest &&
+                (covers(knownCoins) ? (
+                  <div className="grid justify-items-start gap-2 rounded-control border border-rule-2 p-3">
+                    <span>
+                      No single source covers this payment. Use only coins from sources that already know who you are, {and(known.map((s) => s.name))}, and {and(open.map((s) => s.name))} {open.length > 1 ? "stay" : "stays"} private.
+                    </span>
+                    <Button size="sm" onClick={() => setSelected(new Set(knownCoins.map(outpoint)))}>
+                      Use only those coins
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="m-0 max-w-[60ch] text-sm text-ink-2">
+                    No single source covers this payment, and neither do the sources that already know you, so some private coins have to be joined.
                   </p>
                 ))}
               {report.change && <p className="m-0 max-w-[60ch] text-sm text-ink-2">{report.change}</p>}
@@ -297,9 +311,13 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
           <b className="font-bold text-ink">{chosen.length} coin{chosen.length === 1 ? "" : "s"}</b>, <Amount sats={result.coins.reduce((a, c) => a + c.value, 0)} /> in &middot; fee {groupSats(result.fee)} sats
         </span>
         {primary("sm")}
-        <button type="button" onClick={() => map.current?.scrollIntoView({ behavior: "smooth" })} className="justify-self-start">
-          {badge}
-        </button>
+        {linked > 1 ? (
+          <button type="button" onClick={() => log.current?.scrollIntoView({ behavior: "smooth" })} className="justify-self-start">
+            <Chip tone="join"><Icon name="join" className="size-3.5" />Joins {linked} sources</Chip>
+          </button>
+        ) : (
+          <span />
+        )}
         <span className="text-right text-sm text-ink-2">{stop ?? (result.change ? <>Change <Amount sats={result.change} /></> : "No change")}</span>
       </div>
       <Sheet open={!!pending} onClose={() => setPending(null)} title="Spend someone else's unconfirmed payment?">
@@ -350,7 +368,7 @@ export function Send() {
       <div hidden={!!built}>
         <Compose snapshot={snapshot} draft={draft} update={update} onDiscard={stored ? () => store(null) : undefined} />
       </div>
-      {built && <SignFlow built={built.psbt} title={built.title ?? "Sign and send"} warnings={built.warnings} summary={built.summary} label={built.label} names={built.names} onBack={() => update({ built: null })} done={built.signed} onDone={(signed) => update({ built: { ...built, signed } })} partial={built.partial} onPartial={(partial) => update({ built: { ...built, partial } })} />}
+      {built && <SignFlow built={built.psbt} title={built.title ?? "Sign and send"} warnings={built.warnings} summary={built.summary} label={built.label} names={built.names} inputs={built.replaces ? undefined : built.inputs} onBack={() => update({ built: null })} done={built.signed} onDone={(signed) => update({ built: { ...built, signed } })} partial={built.partial} onPartial={(partial) => update({ built: { ...built, partial } })} />}
     </>
   );
 }

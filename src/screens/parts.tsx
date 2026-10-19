@@ -1,9 +1,9 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { useOpenFailure, useWalletSession } from "../app/session";
 import type { LabelType } from "../core/wallet";
 import { Icon } from "../ui/icons";
 import { Button, inputClass, linkClass, Notice } from "../ui/kit";
-import type { Source } from "../ui/sources";
+import { SourceTag, type Source } from "../ui/sources";
 import { useToast } from "../ui/toast";
 import { outpoint } from "../wallet/coin";
 
@@ -14,12 +14,15 @@ export function EditableLabel({
   value,
   placeholder = "Add a label",
   className = "",
+  children,
 }: {
   type: LabelType;
   target: string;
   value: string | null;
   placeholder?: string;
   className?: string;
+  /** Shown in place of the label text when not editing. */
+  children?: ReactNode;
 }) {
   const session = useWalletSession();
   const [draft, setDraft] = useState<string | null>(null);
@@ -57,7 +60,7 @@ export function EditableLabel({
       onClick={() => edit(value ?? "")}
       className={`group inline-flex max-w-full min-w-0 items-baseline gap-1.5 rounded-check text-left ${value ? "text-ink" : "text-ink-3"} hover:text-carbon ${className}`}
     >
-      <span className="min-w-0 break-words">{value ?? placeholder}</span>
+      {children ?? <span className="min-w-0 break-words">{value ?? placeholder}</span>}
       {value && <span className="sr-only">, edit label</span>}
       <Icon name="pencil" className="size-3.5 translate-y-0.5 text-ink-3 opacity-60 group-hover:text-carbon group-hover:opacity-100" />
     </button>
@@ -119,12 +122,14 @@ export function CopyButton({ text, what }: { text: string; what: string }) {
 }
 
 /** A source's name, editable, what it is, and whether whoever paid it knows who the user is. */
-export function SourceTitle({ source }: { source: Source }) {
+export function SourceTitle({ source, on = false }: { source: Source; on?: boolean }) {
   const session = useWalletSession();
   return (
-    <div className="grid min-w-0 justify-items-start gap-0.5">
-      <EditableLabel type="output" target={outpoint(source.coins[0]!)} value={source.label} placeholder={source.name} className="relative z-[1] font-bold" />
-      <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-2">
+    <div className="grid min-w-0 justify-items-start gap-1">
+      <EditableLabel type="output" target={outpoint(source.coins[0]!)} value={source.label} placeholder={source.name} className="relative z-[1] max-w-full">
+        <SourceTag source={source} large on={on} />
+      </EditableLabel>
+      <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-manila-ink">
         {source.note}
         <button
           type="button"

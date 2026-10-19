@@ -91,6 +91,9 @@ async function start(hash: string, mempool: Uint8Array[] = [foreign, parent, chi
 // The default text normaliser turns the narrow spaces between digit groups into plain ones.
 const sats = (n: number) => new RegExp(`^${groupSats(n).replace(/\u202f/g, " ")} sats$`);
 const coin = (name: RegExp) => screen.findByRole("checkbox", { name });
+const group = (name: RegExp) => screen.findByRole("group", { name });
+const custody = () => within(screen.getByRole("region", { name: "Custody log" }));
+const entries = () => custody().queryAllByRole("listitem").map((li) => li.textContent);
 const summary = () => within(screen.getByRole("region", { name: "Summary" }));
 
 async function payTo(user: ReturnType<typeof userEvent.setup>, to: string, btc: string) {
@@ -150,9 +153,10 @@ describe("the send screen", () => {
   it("updates fee and change as coins are toggled, and names the sources a selection links", async () => {
     const user = await start("#/send");
     await payTo(user, PAYEE, "0.001");
-    const map = within(screen.getByRole("region", { name: "What this links" }));
+    const map = custody();
     await user.click(screen.getByRole("button", { name: "Clear" }));
-    expect(map.getByText("Nothing selected")).toBeTruthy();
+    expect(entries()).toEqual([]);
+    expect(map.getByText("Pick coins from the list, or let Pick for me choose.")).toBeTruthy();
     const changeRow = () => summary().getByText("Change back to you").parentElement!.textContent;
     expect(changeRow()).toBe("Change back to youNone");
 
@@ -161,7 +165,8 @@ describe("the send screen", () => {
     await user.click(await coin(/Kraken withdrawal/));
     expect(summary().getByText("Coins in (1)")).toBeTruthy();
     expect(summary().getByText(sats(1_410))).toBeTruthy();
-    expect(map.getByText("No new links")).toBeTruthy();
+    expect(entries()).toEqual([expect.stringMatching(/^01Kraken withdrawalNot marked as knowing who you are1 coin picked/)]);
+    expect(map.getByText(/^No new links\. Every coin picked comes from Kraken withdrawal/)).toBeTruthy();
 
     await user.click(await coin(/Bisq trade/));
     expect(summary().getByText("Coins in (2)")).toBeTruthy();
@@ -169,27 +174,31 @@ describe("the send screen", () => {
     const change = address(BIP84, 1, 0);
     expect(changeRow()).toContain(`${change.slice(0, 10)}…${change.slice(-6)} · m/84h/1h/0h/1/0`);
     expect(map.getByText(/would most likely take the .* output for your change: it is not a round amount/)).toBeTruthy();
-    expect(map.getByText("Links 2 sources")).toBeTruthy();
+    expect(entries()).toEqual([expect.stringMatching(/^01Bisq trade/), expect.stringMatching(/^02Kraken withdrawal/)]);
+    expect(map.getByText("Joined in one transaction")).toBeTruthy();
+    expect(map.getByText("Joins 2 sources").getAttribute("aria-live")).toBe("polite");
     expect(map.getByText(/permanently linking them: Kraken withdrawal and Bisq trade/)).toBeTruthy();
     expect(map.queryByText(/an exchange that knows who you are/)).toBeNull();
 
-    await user.click(within((await coin(/Kraken withdrawal/)).parentElement!).getByRole("switch", { name: "Knows who I am" }));
+    await user.click(within(await group(/Kraken withdrawal/)).getByRole("switch", { name: "Knows who I am" }));
     expect(await map.findByText(/^Kraken withdrawal came from an exchange that knows who you are/)).toBeTruthy();
+    expect(entries()[1]).toMatch(/^02Kraken withdrawalKnows who you are/);
   });
 
   it("still warns of an exchange that knows who you are once its coin is spent and only the change is left", async () => {
     const user = await start("#/send", []);
-    await user.click(within((await coin(/Bisq trade/)).parentElement!).getByRole("switch", { name: "Knows who I am" }));
+    await user.click(within(await group(/Bisq trade/)).getByRole("switch", { name: "Knows who I am" }));
     await act(async () => backends.at(-1)!.addToMempool(outgoing));
-    const change = await coin(/Change at/);
-    const switches = within(change.parentElement!).getByRole("switch", { name: "Knows who I am" });
+    const changeSource = within(await group(/Change at/));
+    const change = changeSource.getByRole("checkbox");
+    const switches = changeSource.getByRole("switch", { name: "Knows who I am" });
     expect(switches.getAttribute("aria-checked")).toBe("true");
 
     await payTo(user, PAYEE, "0.001");
     await user.click(screen.getByRole("button", { name: "Clear" }));
     await user.click(await coin(/Kraken withdrawal/));
     await user.click(change);
-    const map = within(screen.getByRole("region", { name: "What this links" }));
+    const map = custody();
     expect(map.getByText(/^Change at .* came from an exchange that knows who you are/)).toBeTruthy();
 
     await user.click(switches);
@@ -232,22 +241,39 @@ describe("the send screen", () => {
     expect(screen.getByText(/One selected coin is an unconfirmed payment from someone else/)).toBeTruthy();
   });
 
+  it("offers to spend only from sources that know who you are when no single source covers the payment", async () => {
+    const user = await start("#/send");
+    await user.click(within(await group(/Kraken withdrawal/)).getByRole("switch", { name: "Knows who I am" }));
+    await payTo(user, PAYEE, "0.0075");
+    await user.click(screen.getByRole("button", { name: "Clear" }));
+    await user.click(await coin(/Kraken withdrawal/));
+    await user.click(await coin(/Bisq trade/));
+    expect(custody().getByText(/neither do the sources that already know you, so some private coins have to be joined/)).toBeTruthy();
+
+    await user.click(within(await group(/Bisq trade/)).getByRole("switch", { name: "Knows who I am" }));
+    await user.click(await coin(/Unconfirmed, from someone else/));
+    expect(entries()).toHaveLength(3);
+    expect(await custody().findByText(/Use only coins from sources that already know who you are, Bisq trade and Kraken withdrawal, and .* stays private/)).toBeTruthy();
+    await user.click(custody().getByRole("button", { name: "Use only those coins" }));
+    expect(entries()).toEqual([expect.stringMatching(/^01Bisq trade/), expect.stringMatching(/^02Kraken withdrawal/)]);
+    expect((await coin(/Unconfirmed, from someone else/)).getAttribute("aria-checked")).toBe("false");
+  });
+
   it("picks coins from one source once an amount is typed, until a tap takes over", async () => {
     const user = await start("#/send");
     await payTo(user, PAYEE, "0.004");
-    const map = within(screen.getByRole("region", { name: "What this links" }));
     expect((await coin(/Kraken withdrawal/)).getAttribute("aria-checked")).toBe("true");
     expect((await coin(/Bisq trade/)).getAttribute("aria-checked")).toBe("false");
-    expect(map.getByText("No new links")).toBeTruthy();
+    expect(entries()).toHaveLength(1);
 
     await user.click(await coin(/Bisq trade/));
-    expect(map.getByText("Links 2 sources")).toBeTruthy();
+    expect(entries()).toHaveLength(2);
     await user.clear(screen.getByLabelText("Amount, BTC or sats"));
     await user.type(screen.getByLabelText("Amount, BTC or sats"), "0.001");
-    expect(map.getByText("Links 2 sources")).toBeTruthy();
+    expect(entries()).toHaveLength(2);
 
     await user.click(screen.getByRole("button", { name: "Pick for me" }));
-    expect(map.getByText("No new links")).toBeTruthy();
+    expect(entries()).toHaveLength(1);
   });
 
   it("keeps an unfinished send, built PSBT and all, across other screens until discarded", async () => {
@@ -496,6 +522,10 @@ describe("signing and broadcasting", () => {
     expect(await screen.findByRole("heading", { name: "Coins" })).toBeTruthy();
     location.hash = "#/send";
     expect(await screen.findByText("Signed and checked")).toBeTruthy();
+    const recap = within(screen.getByRole("heading", { name: "This payment" }).closest("section")!);
+    expect(recap.getByText("Sending").nextSibling!.textContent).toMatch(/^0\.00 100 000/);
+    expect(recap.getByText(`${PAYEE.slice(0, 10)}…${PAYEE.slice(-8)}`)).toBeTruthy();
+    expect(recap.getAllByRole("listitem").map((li) => li.textContent)).toEqual([expect.stringMatching(/^01Kraken withdrawal.*1 coin picked/)]);
     await user.click(screen.getByRole("button", { name: "Broadcast through your server" }));
     const txid = Transaction.fromPSBT(signed).id;
     expect(await screen.findByText(txid)).toBeTruthy();
