@@ -93,6 +93,7 @@ export function Transaction({ txid }: { txid: string | undefined }) {
 
   const outgoing = isOutgoing(tx);
   const pending = tx.confirmations === 0;
+  const paysUs = snapshot.coins.some((c) => c.txid === tx.txid && !c.frozen);
   return (
     <div className="grid content-start gap-6">
       <Back />
@@ -111,12 +112,28 @@ export function Transaction({ txid }: { txid: string | undefined }) {
               {!pending && <Chip tone="ok">{confText(tx.confirmations)}</Chip>}
             </div>
           </div>
-          {pending && outgoing && (
+          {pending && (outgoing || paysUs) && (
             <div className="grid gap-2 rounded-control bg-sunk p-3 text-sm text-ink-2">
-              <p className="m-0">Not in a block yet. If it is stuck, you can pay a higher fee to replace it.</p>
-              <Button variant="primary" className="justify-self-start" onClick={() => navigate(`/bump/${tx.txid}`)}>
-                Speed up
-              </Button>
+              <p className="m-0">
+                {outgoing
+                  ? "Not in a block yet. If it is stuck, you can replace it with a higher fee, or cancel it before it confirms."
+                  : "Not in a block yet. If it is stuck, you can spend what it pays you in a child transaction with a fee high enough for both."}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {outgoing && (
+                  <>
+                    <Button variant="primary" onClick={() => navigate(`/bump/${tx.txid}`)}>
+                      Speed up
+                    </Button>
+                    <Button onClick={() => navigate(`/cancel/${tx.txid}`)}>Cancel transaction</Button>
+                  </>
+                )}
+                {paysUs && (
+                  <Button variant={outgoing ? undefined : "primary"} onClick={() => navigate(`/cpfp/${tx.txid}`)}>
+                    Speed up with a child
+                  </Button>
+                )}
+              </div>
             </div>
           )}
           <Facts tx={tx} />

@@ -14,7 +14,7 @@ import { Addresses } from "./screens/Addresses";
 import { Coins } from "./screens/Coins";
 import { Home } from "./screens/Home";
 import { Receive } from "./screens/Receive";
-import { Bump } from "./screens/send/Bump";
+import { Bump, type BumpMode } from "./screens/send/Bump";
 import { Send } from "./screens/send/Send";
 import { BroadcastSigned } from "./screens/send/Sign";
 import { Transaction } from "./screens/Transaction";
@@ -27,6 +27,7 @@ import { ToastProvider } from "./ui/toast";
 import type { KdfParams } from "./vault/vault";
 
 const TABS: string[] = ["home", "send", "receive", "coins"] satisfies Tab[];
+const BUMPS: Record<string, BumpMode | undefined> = { bump: "speed", cancel: "cancel", cpfp: "cpfp" };
 
 function Unlocked({ route }: { route: string[] }) {
   const { settings, wallets, draft, lock } = useVault();
@@ -70,14 +71,14 @@ function Unlocked({ route }: { route: string[] }) {
     screen === "coin" ? <CoinHistory point={detail} /> :
     screen === "send" ? <Send /> :
     screen === "broadcast" ? <BroadcastSigned /> :
-    screen === "bump" && detail ? <Bump key={detail} txid={detail} /> :
+    BUMPS[screen] && detail ? <Bump key={screen + detail} txid={detail} mode={BUMPS[screen]} /> :
     screen === "receive" ? <Receive /> :
     screen === "coins" ? <Coins /> :
     screen === "addresses" ? <Addresses /> :
     <Home />;
   return (
     <SessionProvider>
-      <Shell tab={screen === "bump" || screen === "broadcast" ? "send" : screen === "coin" ? "coins" : TABS.includes(screen) ? (screen as Tab) : null}>{body}</Shell>
+      <Shell tab={BUMPS[screen] || screen === "broadcast" ? "send" : screen === "coin" ? "coins" : TABS.includes(screen) ? (screen as Tab) : null}>{body}</Shell>
     </SessionProvider>
   );
 }
