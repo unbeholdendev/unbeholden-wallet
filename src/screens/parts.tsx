@@ -129,11 +129,11 @@ export function SourceTitle({ source }: { source: Source }) {
         <button
           type="button"
           role="switch"
-          aria-checked={source.kyc}
-          onClick={() => session?.setKyc(source.coins, !source.kyc)}
+          aria-checked={source.kyc.length > 0}
+          onClick={() => (source.kyc.length ? session?.setKyc(source.kyc, false) : session?.setKyc(source.coins, true))}
           className="relative z-[1] inline-flex items-center gap-1 rounded-chip px-1.5 py-px font-medium text-ink-3 underline decoration-dotted underline-offset-2 hover:text-route aria-checked:bg-warn-tint aria-checked:text-warn aria-checked:no-underline"
         >
-          {source.kyc && <Icon name="check" className="size-3" />}
+          {source.kyc.length > 0 && <Icon name="check" className="size-3" />}
           Knows who I am
         </button>
       </span>
