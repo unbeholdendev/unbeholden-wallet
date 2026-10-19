@@ -55,9 +55,10 @@ export type WalletCoin = Coin & { label: string | null; kyc: boolean };
 
 /**
  * Sats. `confirmed` and `unconfirmed` cover every coin, frozen or not.
- * `spendable` is what automatic selection may use: confirmed and own change, not frozen.
+ * `spendable` is confirmed and own change, not frozen. `foreign` is unconfirmed
+ * payments from others, not frozen, which a setting may add to it.
  */
-export type Balance = { confirmed: number; unconfirmed: number; frozen: number; spendable: number };
+export type Balance = { confirmed: number; unconfirmed: number; frozen: number; spendable: number; foreign: number };
 
 /** What the wallet persists of the chain between visits. */
 export type Cache = {
@@ -296,6 +297,7 @@ export function deriveView(source: ViewSource) {
       confirmed: total(coins.filter((c) => c.status === "confirmed")),
       unconfirmed: total(coins.filter((c) => c.status !== "confirmed")),
       frozen: total(coins.filter((c) => c.frozen)),
+      foreign: total(coins.filter((c) => !c.frozen && c.status === "foreign-unconfirmed")),
       spendable: total(
         coins.filter(
           (c) => !c.frozen && (c.status === "confirmed" || c.status === "own-change"),

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useConnection } from "../../app/connection";
 import { useSendDraft, useWallet, useWalletSession, useWalletSnapshot } from "../../app/session";
-import { useBook } from "../../app/vault";
+import { useBook, useVault } from "../../app/vault";
 import { nextChange } from "../../core/view";
 import type { WalletCoin, WalletSnapshot } from "../../core/wallet";
 import { Amount, groupSats } from "../../ui/amount";
@@ -73,6 +73,8 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
   const map = useRef<HTMLElement>(null);
   const histogram = useFeeHistogram();
   const [book, saveBook] = useBook();
+  const skip = !!useVault().settings.skipForeignUnconfirmed;
+  const take = skip ? bulk : selectable;
   const named = new Map(book.map((c) => [c.address, c.name]));
 
   const sources = useMemo(() => sourcesOf(snapshot), [snapshot]);
@@ -95,8 +97,8 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
   const typed = drafts.every((d) => !d.max && parseAmount(d.amount));
   const paymentKey = JSON.stringify(payment);
   const auto = useMemo(
-    () => (typed ? selectCoins(snapshot.coins, payment, draft.seed, snapshot.groups).coins.map(outpoint) : []),
-    [typed, paymentKey, snapshot, draft.seed],
+    () => (typed ? selectCoins(snapshot.coins, payment, draft.seed, snapshot.groups, !skip).coins.map(outpoint) : []),
+    [typed, paymentKey, snapshot, draft.seed, skip],
   );
   const selected = new Set(draft.picked ?? auto);
   const chosen = snapshot.coins.filter((c) => selected.has(outpoint(c)));
@@ -109,7 +111,7 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
   const foreign = chosen.filter((c) => c.status === "foreign-unconfirmed");
   const stop = blocker(drafts, checks.map((c) => !c || "script" in c), result);
   const change = nextChange(snapshot);
-  const sweepable = snapshot.coins.filter(bulk);
+  const sweepable = snapshot.coins.filter(take);
   const swept = drafts.length === 1 && drafts[0]!.max && sweepable.length > 0 && sweepable.every((c) => selected.has(outpoint(c)));
   const left = snapshot.coins.filter((c) => !selected.has(outpoint(c)) && !sweepable.includes(c));
   const leftOut = (
@@ -125,7 +127,7 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
 
   const toggle = (coin: WalletCoin) => {
     const key = outpoint(coin);
-    if (!selected.has(key) && coin.status === "foreign-unconfirmed") return setPending(coin);
+    if (skip && !selected.has(key) && coin.status === "foreign-unconfirmed") return setPending(coin);
     const next = new Set(selected);
     if (!next.delete(key)) next.add(key);
     setSelected(next);
@@ -198,7 +200,7 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
             selected={selected}
             onToggle={toggle}
             onGroup={(source) => {
-              const open = source.coins.filter(bulk).map(outpoint);
+              const open = source.coins.filter(take).map(outpoint);
               const next = new Set(selected);
               if (open.every((k) => next.has(k))) open.forEach((k) => next.delete(k));
               else open.forEach((k) => next.add(k));
@@ -207,6 +209,7 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
             onPick={() => update({ picked: null })}
             onClear={() => update({ picked: [] })}
             picking={!draft.picked || !snapshot.coins.some(selectable)}
+            take={take}
           />
         </div>
         <div className="grid min-w-0 content-start gap-4 @min-[900px]:sticky @min-[900px]:top-20 @min-[900px]:max-h-[calc(100dvh-96px)] @min-[900px]:overflow-y-auto">
