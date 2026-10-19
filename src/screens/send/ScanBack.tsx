@@ -82,7 +82,7 @@ export function ScanBack({ onSigned, error }: { onSigned: (signed: Uint8Array) =
         <QrScanner onResult={onResult} onBlocked={setBlocked} />
       </div>
       <div hidden={blocked} className="grid gap-1">
-        <h2 className="text-md font-semibold">Point your camera at the signer</h2>
+        <h2 className="text-md font-bold">Point your camera at the signer</h2>
         <p className="m-0 max-w-[60ch] text-sm text-ink-3">Keep the signed code in view. Parts arrive in any order; gaps fill in as the code loops.</p>
       </div>
       <div hidden={blocked} className="grid gap-2" aria-live="polite">
@@ -98,14 +98,14 @@ export function ScanBack({ onSigned, error }: { onSigned: (signed: Uint8Array) =
         {progress.expected > 0 && (
           <div aria-hidden="true" className="grid grid-cols-10 gap-[3px]">
             {Array.from({ length: progress.expected }, (_, i) => (
-              <i key={i} className={`aspect-[1.6] rounded-[2px] border ${captured.has(i) ? "border-route bg-route" : "border-rule-2 bg-sheet"}`} />
+              <i key={i} className={`aspect-[1.6] rounded-[2px] border ${captured.has(i) ? "border-carbon bg-carbon" : "border-rule-2 bg-sheet"}`} />
             ))}
           </div>
         )}
       </div>
       {(error ?? scanError) && <Notice tone="bad">{error ?? scanError}</Notice>}
       <details open={blocked || undefined} className="group grid gap-3 rounded-control border border-rule p-3">
-        <summary className="cursor-pointer list-none text-sm font-medium text-route [&::-webkit-details-marker]:hidden">No camera? Load the signed file or paste it</summary>
+        <summary className="cursor-pointer list-none text-sm font-medium text-carbon [&::-webkit-details-marker]:hidden">No camera? Load the signed file or paste it</summary>
         <div className="mt-3 grid gap-3">
           <label className={`${buttonClass({})} cursor-pointer justify-self-start`}>
             <Icon name="file" />

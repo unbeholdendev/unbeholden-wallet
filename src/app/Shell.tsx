@@ -29,7 +29,7 @@ const scriptType = (w: WalletRecord) => {
 function NetworkBadge({ wallet }: { wallet: WalletRecord }) {
   if (wallet.network === "mainnet") return null;
   return (
-    <span className="rounded-chip bg-warn-tint px-1.5 py-px text-[11px] font-semibold tracking-[0.06em] text-warn uppercase">
+    <span className="rounded-chip bg-warn-tint px-1.5 py-px text-[11px] font-bold tracking-[0.06em] text-warn uppercase">
       {wallet.network}
     </span>
   );
@@ -43,9 +43,9 @@ function WalletSwitcher() {
   if (!current) return null;
   return (
     <details ref={menu} className="group relative min-w-0">
-      <summary className="flex min-w-0 cursor-pointer list-none items-center gap-2.5 rounded-control border border-legend-rule px-2.5 py-1.5 hover:bg-legend-hi [&::-webkit-details-marker]:hidden">
-        <span className="truncate text-md font-semibold">{current.name}</span>
-        <span className="hidden text-xs text-legend-ink-2 @min-[720px]/app:inline">{scriptType(current)}</span>
+      <summary className="flex min-w-0 cursor-pointer list-none items-center gap-2.5 rounded-control px-2 py-1.5 hover:bg-sunk [&::-webkit-details-marker]:hidden">
+        <span className="truncate font-bold">{current.name}</span>
+        <span className="hidden text-sm font-medium text-ink-3 @min-[720px]/app:inline">{scriptType(current)}</span>
         <NetworkBadge wallet={current} />
         <Icon name="chev" className="size-4 transition-transform group-open:rotate-180" />
       </summary>
@@ -59,7 +59,7 @@ function WalletSwitcher() {
               selectWallet(w.id);
               close();
             }}
-            className="flex items-baseline justify-between gap-3 rounded-control px-2.5 py-2 text-left hover:bg-sunk aria-[current=true]:bg-route-tint"
+            className="flex items-baseline justify-between gap-3 rounded-control px-2.5 py-2 text-left hover:bg-sunk aria-[current=true]:bg-carbon-tint"
           >
             <span className="font-medium">{w.name}</span>
             <span className="flex items-center gap-1.5 text-xs text-ink-3">
@@ -71,7 +71,7 @@ function WalletSwitcher() {
         <a href="#/addresses" onClick={close} className="rounded-control px-2.5 py-2 text-ink hover:bg-sunk">
           Addresses
         </a>
-        <a href="#/import" onClick={close} className="flex items-center gap-2 rounded-control px-2.5 py-2 font-medium text-route hover:bg-sunk">
+        <a href="#/import" onClick={close} className="flex items-center gap-2 rounded-control px-2.5 py-2 font-medium text-carbon hover:bg-sunk">
           <Icon name="plus" className="size-4" /> Add a wallet
         </a>
       </div>
@@ -82,13 +82,13 @@ function WalletSwitcher() {
 function statusOf(connection: Connection) {
   switch (connection.phase) {
     case "connected":
-      return { dot: "bg-[#5fc27a]", text: <>Connected to <b className="font-medium text-legend-ink">{hostText(connection.url)}</b></>, short: connection.tip === null ? "Connected" : groupSats(connection.tip) };
+      return { dot: "bg-ok", text: <>Connected to <b className="font-medium text-ink">{hostText(connection.url)}</b></>, short: connection.tip === null ? "Connected" : groupSats(connection.tip) };
     case "connecting":
-      return { dot: "bg-[#e6b95a] animate-pulse", text: <>Connecting to {hostText(connection.url)}</>, short: "Connecting" };
+      return { dot: "bg-warn animate-pulse", text: <>Connecting to {hostText(connection.url)}</>, short: "Connecting" };
     case "retrying":
-      return { dot: "bg-[#e6b95a] animate-pulse", text: <>Lost {hostText(connection.url)}, retrying</>, short: "Retrying" };
+      return { dot: "bg-warn animate-pulse", text: <>Lost {hostText(connection.url)}, retrying</>, short: "Retrying" };
     default:
-      return { dot: "bg-[#f2948a]", text: <>Not connected</>, short: "Offline" };
+      return { dot: "bg-bad", text: <>Not connected</>, short: "Offline" };
   }
 }
 
@@ -97,7 +97,7 @@ function ConnectionStatus() {
   const status = statusOf(connection);
   const tip = connection.phase === "connected" && connection.tip !== null ? connection.tip : null;
   return (
-    <a href="#/connect" className="ml-auto flex min-w-0 items-center gap-2.5 rounded-control px-2 py-1.5 text-sm whitespace-nowrap text-legend-ink-2 no-underline hover:bg-legend-hi">
+    <a href="#/connect" className="ml-auto flex min-w-0 items-center gap-2.5 rounded-control px-2 py-1.5 text-sm whitespace-nowrap text-ink-2 no-underline hover:bg-sunk">
       <span aria-hidden="true" className={`size-2 flex-none rounded-full ${status.dot}`} />
       <span className="@min-[720px]/app:hidden">{status.short}</span>
       <span className="hidden truncate @min-[720px]/app:inline">
@@ -108,23 +108,23 @@ function ConnectionStatus() {
   );
 }
 
-const barButton = "grid size-[34px] flex-none place-items-center rounded-control border border-legend-rule text-legend-ink hover:bg-legend-hi";
+const barButton = "grid size-10 flex-none place-items-center rounded-control border border-rule-2 bg-sheet text-ink hover:bg-sunk";
 
-/** The signed-in frame: legend bar on top, tab bar at the bottom on a phone. */
+/** The signed-in frame: top bar, tab bar at the bottom on a phone. */
 export function Shell({ tab, children }: { tab: Tab | null; children: ReactNode }) {
   const { lock, passphrase } = useVault();
   usePaymentNotifications();
   return (
     <div className="@container/app flex min-h-dvh flex-col bg-paper">
-      <header className="sticky top-0 z-10 flex h-14 items-center gap-2 bg-legend px-3 text-legend-ink @min-[720px]/app:gap-4 @min-[720px]/app:px-6">
+      <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-rule bg-sheet px-4 text-ink @min-[720px]/app:gap-6 @min-[720px]/app:px-6">
         <WalletSwitcher />
-        <nav aria-label="Main" className="hidden h-full gap-1 @min-[720px]/app:flex">
+        <nav aria-label="Main" className="hidden h-full @min-[720px]/app:flex">
           {tabs.map((t) => (
             <a
               key={t.id}
               href={`#/${t.id}`}
               aria-current={t.id === tab ? "page" : undefined}
-              className="relative flex h-full items-center px-3 font-medium text-legend-ink-2 no-underline hover:text-legend-ink aria-[current=page]:text-legend-ink aria-[current=page]:after:absolute aria-[current=page]:after:inset-x-3 aria-[current=page]:after:bottom-0 aria-[current=page]:after:h-[3px] aria-[current=page]:after:rounded-t-[3px] aria-[current=page]:after:bg-route"
+              className="flex h-full items-center border-y-2 border-transparent px-3.5 font-medium text-ink-2 no-underline hover:text-ink aria-[current=page]:border-b-carbon aria-[current=page]:font-bold aria-[current=page]:text-ink"
             >
               {t.label}
             </a>
@@ -145,15 +145,15 @@ export function Shell({ tab, children }: { tab: Tab | null; children: ReactNode 
         {children}
         <Footer />
       </main>
-      <nav aria-label="Main" className="sticky bottom-0 z-10 grid grid-cols-4 border-t border-legend-rule bg-legend pb-[env(safe-area-inset-bottom)] text-legend-ink-2 @min-[720px]/app:hidden">
+      <nav aria-label="Main" className="sticky bottom-0 z-10 grid grid-cols-4 border-t border-rule bg-sheet pb-[env(safe-area-inset-bottom)] text-ink-2 @min-[720px]/app:hidden">
         {tabs.map((t) => (
           <a
             key={t.id}
             href={`#/${t.id}`}
             aria-current={t.id === tab ? "page" : undefined}
-            className="group grid h-14 content-center justify-items-center gap-0.5 text-xs font-medium no-underline aria-[current=page]:text-legend-ink"
+            className="group grid h-14 content-center justify-items-center gap-0.5 border-t-2 border-transparent text-xs font-medium no-underline aria-[current=page]:border-carbon aria-[current=page]:font-bold aria-[current=page]:text-ink"
           >
-            <span className="group-aria-[current=page]:text-route-tint-2">
+            <span className="group-aria-[current=page]:text-carbon">
               <Icon name={t.icon} />
             </span>
             {t.label}

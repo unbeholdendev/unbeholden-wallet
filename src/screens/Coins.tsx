@@ -73,7 +73,7 @@ function CoinRow({ coin, source, snapshot, picking, rate }: { coin: WalletCoin; 
           checked={picking.picked.has(outpoint(coin))}
           disabled={!picking.can(coin)}
           onChange={() => picking.toggle(coin)}
-          className="size-4 flex-none accent-route"
+          className="size-4 flex-none accent-carbon"
         />
         <a href={`#/coin/${outpoint(coin)}`} className={`text-md font-medium no-underline hover:underline ${coin.frozen ? "opacity-60" : "text-ink"}`}>
           <Amount sats={coin.value} />
@@ -185,14 +185,14 @@ function Join({ snapshot, sources, rate }: { snapshot: WalletSnapshot; sources: 
         {plans.map((plan) => (
           <li key={plan.source.id} className={`grid gap-2 rounded-control px-3 py-2.5 @min-[560px]:grid-cols-[minmax(0,1fr)_auto] @min-[560px]:items-center ${TINT[plan.source.tone]}`}>
             <div className="grid min-w-0 gap-1">
-              <span className="flex min-w-0 items-center gap-2.5 font-semibold">
+              <span className="flex min-w-0 items-center gap-2.5 font-bold">
                 <SourceSwatch source={plan.source} />
                 <span className="truncate">{plan.source.name}</span>
               </span>
               <span className="text-sm text-ink-2">
                 {plan.coins.length} coins, <Amount sats={plan.coins.reduce((a, c) => a + c.value, 0)} />. Spent one by one at {BUSY_RATE} sat/vB:{" "}
                 {groupSats(plan.apart)} sats. Joined now: {groupSats(plan.fee)} sats, then {groupSats(plan.later)} sats to spend the one coin.{" "}
-                <b className="font-semibold text-ink">Saves {groupSats(plan.saving)} sats.</b>
+                <b className="font-bold text-ink">Saves {groupSats(plan.saving)} sats.</b>
               </span>
             </div>
             <Button size="sm" disabled={busy} onClick={() => join(plan)} className="justify-self-start">
@@ -238,7 +238,7 @@ export function Coins() {
   return (
     <div className="grid content-start gap-6">
       <div className="grid gap-2">
-        <h1 className="m-0 text-xl font-semibold">Coins</h1>
+        <h1 className="m-0 text-xl font-bold">Coins</h1>
         <p className="m-0 max-w-[64ch] text-ink-2">
           Every coin this wallet holds, grouped by source. Coins in one source are already linked on-chain; spending
           from two sources together links them for good. A frozen coin is left out of the spendable balance and never
@@ -263,7 +263,7 @@ export function Coins() {
               Costs to spend are at {rateText(rate)} sat/vB, {draft ? "the fee rate of your send in progress" : "the rate to confirm within 30 minutes"}.
             </p>
           )}
-          <div className="hidden grid-cols-[140px_84px_minmax(0,1fr)_auto] gap-x-3 border-t border-rule px-4 py-2 text-xs font-semibold tracking-[0.04em] text-ink-3 uppercase @min-[720px]:grid">
+          <div className="hidden grid-cols-[140px_84px_minmax(0,1fr)_auto] gap-x-3 border-t border-rule px-4 py-2 text-xs font-bold tracking-[0.04em] text-ink-3 uppercase @min-[720px]:grid">
             <span className="text-right">Value</span>
             <span className="text-right">Age</span>
             <span>Label</span>
@@ -287,7 +287,7 @@ export function Coins() {
       {sending.length > 0 && (
         <div className="sticky bottom-[calc(64px+env(safe-area-inset-bottom))] z-[2] flex flex-wrap items-center justify-between gap-3 rounded-panel border border-rule-2 bg-sheet p-3 pl-4 shadow-float @min-[720px]/app:bottom-4">
           <span className="text-sm">
-            <b className="font-semibold">{sending.length} coin{sending.length === 1 ? "" : "s"}</b>, <Amount sats={sum(sending)} />
+            <b className="font-bold">{sending.length} coin{sending.length === 1 ? "" : "s"}</b>, <Amount sats={sum(sending)} />
           </span>
           <span className="flex gap-2">
             <Button size="sm" onClick={() => setPicked(new Set())}>

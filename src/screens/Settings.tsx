@@ -315,7 +315,7 @@ function Notifications() {
   return (
     <Panel title="Notifications">
       <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={!!settings.notify} onChange={(e) => void toggle(e.target.checked)} className="size-4 accent-route" />
+        <input type="checkbox" checked={!!settings.notify} onChange={(e) => void toggle(e.target.checked)} className="size-4 accent-carbon" />
         Tell me when a payment arrives and when it confirms
       </label>
       <p className="m-0 text-sm text-ink-2">
@@ -335,7 +335,7 @@ export function Settings() {
 
   return (
     <div className="grid max-w-[1040px] gap-6 @min-[900px]:grid-cols-2">
-      <h1 className="m-0 text-xl font-semibold @min-[900px]:col-span-2">Settings</h1>
+      <h1 className="m-0 text-xl font-bold @min-[900px]:col-span-2">Settings</h1>
       <div className="grid content-start gap-6">
         <Panel title="Server" aside={connection.phase === "connected" ? "Connected" : "Not connected"}>
           <p className="m-0 font-mono text-[0.86em] break-all">{settings.server ?? "None yet"}</p>
@@ -381,7 +381,7 @@ export function Settings() {
         )}
         <Panel title="Spending">
           <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={!settings.skipForeignUnconfirmed} onChange={(e) => void saveSettings({ skipForeignUnconfirmed: !e.target.checked })} className="size-4 accent-route" />
+            <input type="checkbox" checked={!settings.skipForeignUnconfirmed} onChange={(e) => void saveSettings({ skipForeignUnconfirmed: !e.target.checked })} className="size-4 accent-carbon" />
             Spend unconfirmed payments from others
           </label>
           <p className="m-0 text-sm text-ink-2">

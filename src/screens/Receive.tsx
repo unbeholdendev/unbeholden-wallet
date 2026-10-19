@@ -82,7 +82,7 @@ export function Receive() {
   if (!ready)
     return (
       <div className="grid content-start gap-2">
-        <h1 className="m-0 text-xl font-semibold">Receive</h1>
+        <h1 className="m-0 text-xl font-bold">Receive</h1>
         <p className="m-0 text-ink-3">Checking which addresses have been paid, so as not to show you a used one.</p>
       </div>
     );
@@ -113,7 +113,7 @@ export function Receive() {
   const qr = qrPath(bip21(next.address, sats, withLabel ? next.label : null), "medium");
   return (
     <div className="grid max-w-[880px] content-start items-start gap-6 @min-[720px]/app:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-      <h1 className="m-0 text-xl font-semibold @min-[720px]/app:col-span-2">Receive</h1>
+      <h1 className="m-0 text-xl font-bold @min-[720px]/app:col-span-2">Receive</h1>
       <div className="grid justify-items-center rounded-panel border border-rule bg-qr p-4">
         <svg viewBox={`0 0 ${qr.size} ${qr.size}`} role="img" aria-label={`QR code for ${next.address}`} shapeRendering="crispEdges" className="aspect-square w-full max-w-[360px]">
           <path d={qr.d} className="fill-qr-ink" />
@@ -144,7 +144,7 @@ export function Receive() {
           <EditableLabel type="addr" target={next.address} value={next.label} placeholder="Label it before you share it" />
           {next.label && (
             <label className="flex items-center gap-2 text-sm text-ink-2">
-              <input type="checkbox" checked={withLabel} onChange={(e) => setWithLabel(e.target.checked)} className="size-4 accent-route" />
+              <input type="checkbox" checked={withLabel} onChange={(e) => setWithLabel(e.target.checked)} className="size-4 accent-carbon" />
               Put the label in the QR code for the payer to see
             </label>
           )}

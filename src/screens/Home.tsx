@@ -157,7 +157,7 @@ const directions = [
   { value: "sent", label: "Sent" },
   { value: "to self", label: "To self" },
 ];
-const smallInput = "min-h-9 w-full rounded-control border border-rule-2 bg-sheet px-2.5 py-1.5 text-ink placeholder:text-ink-3 focus:outline-2 focus:-outline-offset-1 focus:outline-route";
+const smallInput = "min-h-9 w-full rounded-control border border-rule-2 bg-sheet px-2.5 py-1.5 text-ink placeholder:text-ink-3 focus:outline-2 focus:-outline-offset-1 focus:outline-carbon";
 const localDay = (seconds: number) => new Date(seconds * 1000).toLocaleDateString("en-CA");
 
 function History({ snapshot }: { snapshot: WalletSnapshot }) {
@@ -185,9 +185,9 @@ function History({ snapshot }: { snapshot: WalletSnapshot }) {
   return (
     <section className="@container min-w-0 rounded-panel border border-rule bg-sheet">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 pt-4 pb-3">
-        <h2 className="text-md font-semibold">Transactions</h2>
+        <h2 className="text-md font-bold">Transactions</h2>
         <div className="flex w-full gap-2 @min-[480px]:w-auto">
-          <label className="flex min-h-9 min-w-0 flex-1 items-center gap-2 rounded-control border border-rule-2 bg-sheet px-2.5 text-ink-3 focus-within:outline-2 focus-within:-outline-offset-1 focus-within:outline-route @min-[480px]:w-64">
+          <label className="flex min-h-9 min-w-0 flex-1 items-center gap-2 rounded-control border border-rule-2 bg-sheet px-2.5 text-ink-3 focus-within:outline-2 focus-within:-outline-offset-1 focus-within:outline-carbon @min-[480px]:w-64">
             <Icon name="search" className="size-4" />
             <span className="sr-only">Search transactions</span>
             <input
@@ -198,7 +198,7 @@ function History({ snapshot }: { snapshot: WalletSnapshot }) {
               className="min-w-0 flex-1 bg-transparent py-1.5 text-ink outline-none placeholder:text-ink-3"
             />
           </label>
-          <Button size="sm" aria-expanded={open} aria-controls="history-filters" onClick={() => setOpen(!open)} className={active ? "border-route text-route" : ""}>
+          <Button size="sm" aria-expanded={open} aria-controls="history-filters" onClick={() => setOpen(!open)} className={active ? "border-carbon text-carbon" : ""}>
             {active ? `Filters (${active})` : "Filters"}
           </Button>
         </div>
@@ -207,7 +207,7 @@ function History({ snapshot }: { snapshot: WalletSnapshot }) {
         <div id="history-filters" className="grid gap-3 border-t border-rule bg-sunk px-4 py-3 text-sm text-ink-2 @min-[640px]:grid-cols-2">
           <Segmented label="Direction" options={directions} value={filters.direction} onChange={(direction) => set({ direction })} />
           <label className="flex items-center gap-2">
-            <input type="checkbox" checked={filters.unconfirmed} onChange={(e) => set({ unconfirmed: e.target.checked })} className="size-4 accent-route" />
+            <input type="checkbox" checked={filters.unconfirmed} onChange={(e) => set({ unconfirmed: e.target.checked })} className="size-4 accent-carbon" />
             Unconfirmed only
           </label>
           <div className="grid grid-cols-2 gap-2">
@@ -266,7 +266,7 @@ export function Home() {
         <div role="status" className="flex items-start gap-2 rounded-control bg-warn-tint px-3 py-2.5 text-sm text-warn @min-[900px]/app:col-span-2">
           <Icon name="warn" className="mt-px size-[18px]" />
           <p className="m-0 flex-1 text-ink">
-            <b className="font-semibold text-warn">The chain reorganised.</b> The tip moved to a different block at height{" "}
+            <b className="font-bold text-warn">The chain reorganised.</b> The tip moved to a different block at height{" "}
             {groupSats(snapshot.reorg.height)}, so this wallet threw away what it had cached and synced again. Balances and
             confirmations below are current.
           </p>
@@ -276,7 +276,7 @@ export function Home() {
         </div>
       )}
       {waiting && (
-        <div role="status" className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-control bg-route-tint px-3 py-2.5 text-sm @min-[900px]/app:col-span-2">
+        <div role="status" className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-control bg-carbon-tint px-3 py-2.5 text-sm @min-[900px]/app:col-span-2">
           <p className="m-0 flex-1">{waiting.signed ? "A signed transaction is waiting to be broadcast." : "A transaction you built is waiting to be signed."}</p>
           <a className={linkClass} href="#/send">
             Resume it

@@ -40,18 +40,18 @@ function Stop({ tx }: { tx: WalletTx }) {
   const own = tx.inputs.length > outside.length;
   return (
     <li className="relative grid gap-1 pb-5 pl-7 last:pb-0">
-      <span aria-hidden="true" className="absolute top-1.5 left-0 size-3 rounded-full border-2 border-route bg-sheet" />
+      <span aria-hidden="true" className="absolute top-1.5 left-0 size-3 rounded-full border-2 border-carbon bg-sheet" />
       <span className="flex flex-wrap items-baseline justify-between gap-x-3">
-        <a href={`#/tx/${tx.txid}`} className={`${linkClass} font-semibold`}>
+        <a href={`#/tx/${tx.txid}`} className={`${linkClass} font-bold`}>
           {tx.label ?? txFallback(tx)}
         </a>
         <span className="text-sm text-ink-2">{when === null ? "Unconfirmed" : dateText(when)}</span>
       </span>
       <span className="flex flex-wrap items-center gap-1.5 text-sm text-ink-2">
         {outside.some((i) => i.txid === COINBASE) ? (
-          <Chip tone="route">New coins from mining</Chip>
+          <Chip tone="carbon">New coins from mining</Chip>
         ) : outside.length > 0 && (
-          <Chip tone="route">{own ? "Joined with someone else's coins" : "Paid in from outside"}</Chip>
+          <Chip tone="carbon">{own ? "Joined with someone else's coins" : "Paid in from outside"}</Chip>
         )}
         {own && !outside.length && <span>Spent your earlier coins</span>}
         {tx.outputs.some((o) => o.mine && o.kyc) && (
@@ -87,7 +87,7 @@ export function CoinHistory({ point }: { point: string | undefined }) {
     <div className="grid max-w-[720px] content-start gap-6">
       <Back />
       <div className="grid gap-2">
-        <h1 className="m-0 text-xl font-semibold">Coin history</h1>
+        <h1 className="m-0 text-xl font-bold">Coin history</h1>
         <span className="text-2xl font-medium">
           <Amount sats={coin.value} unit />
         </span>
@@ -122,14 +122,14 @@ export function CoinHistory({ point }: { point: string | undefined }) {
       </section>
       <section aria-label="How it got here" className="grid gap-4 rounded-panel border border-rule bg-sheet p-4">
         <div className="grid gap-1">
-          <h2 className="m-0 text-md font-semibold">How it got here</h2>
+          <h2 className="m-0 text-md font-bold">How it got here</h2>
           <p className="m-0 text-sm text-ink-2">
             {stops.length === 1
               ? "Straight from one transaction."
               : `Through ${stops.length} of your transactions, from ${entries === 1 ? "one place" : `${entries} places`} where value came in from outside.`}
           </p>
         </div>
-        <ol className="relative m-0 list-none p-0 before:absolute before:top-3 before:bottom-3 before:left-[5px] before:border-l-2 before:border-dashed before:border-route">
+        <ol className="relative m-0 list-none p-0 before:absolute before:top-3 before:bottom-3 before:left-[5px] before:border-l-2 before:border-dashed before:border-carbon">
           {stops.map((tx) => (
             <Stop key={tx.txid} tx={tx} />
           ))}

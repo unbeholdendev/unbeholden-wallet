@@ -162,7 +162,7 @@ export function SignFlow({
       />
       {!external && (
         <p className="m-0 text-sm text-ink-2">
-          <Chip tone="route">Replaceable (RBF)</Chip> Every transaction this wallet builds can be replaced, so you can raise its fee later if it is slow to confirm.
+          <Chip tone="carbon">Replaceable (RBF)</Chip> Every transaction this wallet builds can be replaced, so you can raise its fee later if it is slow to confirm.
         </p>
       )}
       {notices.map((w) => (
@@ -211,7 +211,7 @@ export function SignFlow({
         {stage === "verified" && (
           <div className="grid gap-4 @min-[900px]:col-span-2">
             <div className="flex items-baseline justify-between gap-3">
-              <h2 className="text-md font-semibold">Signed and checked</h2>
+              <h2 className="text-md font-bold">Signed and checked</h2>
               <Chip tone="ok">Ready to broadcast</Chip>
             </div>
             <ul className="m-0 grid list-none gap-2.5 p-0">
@@ -240,7 +240,7 @@ export function SignFlow({
             </p>
             {failure && (
               <div role="alert" className="grid gap-1.5 rounded-control bg-bad-tint px-3 py-2.5 text-sm text-bad">
-                <b className="font-semibold">Your node refused this transaction. Its reason:</b>
+                <b className="font-bold">Your node refused this transaction. Its reason:</b>
                 <span className="font-mono text-[0.86em] break-words">{failure}</span>
               </div>
             )}
@@ -261,7 +261,7 @@ export function SignFlow({
   return (
     <div className="@container grid gap-4">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h1 className="m-0 text-xl font-semibold">{title}</h1>
+        <h1 className="m-0 text-xl font-bold">{title}</h1>
         <LinkButton onClick={onBack}>{external ? "Load another" : "Back to coins"}</LinkButton>
       </div>
       <nav aria-label="Signing steps" hidden={external} className="flex overflow-hidden rounded-panel border border-rule-2 bg-sheet @min-[900px]:max-w-[720px]">
@@ -272,9 +272,9 @@ export function SignFlow({
             aria-current={s === stage ? "step" : undefined}
             disabled={s === "verified" ? !raw : false}
             onClick={() => setStage(s)}
-            className="flex min-h-11 flex-1 items-center justify-center gap-2 border-l border-rule px-1 text-sm font-medium text-ink-3 first:border-l-0 disabled:cursor-not-allowed aria-[current=step]:bg-route-tint aria-[current=step]:text-ink"
+            className="flex min-h-11 flex-1 items-center justify-center gap-2 border-l border-rule px-1 text-sm font-medium text-ink-3 first:border-l-0 disabled:cursor-not-allowed aria-[current=step]:bg-carbon-tint aria-[current=step]:text-ink"
           >
-            <i className={`grid size-5 flex-none place-items-center rounded-full border-[1.5px] border-current text-[11px] font-semibold not-italic ${s === stage ? "border-route bg-route text-route-ink" : i < at ? "text-ink-2" : ""}`}>
+            <i className={`grid size-5 flex-none place-items-center rounded-full border-[1.5px] border-current text-[11px] font-bold not-italic ${s === stage ? "border-carbon bg-carbon text-carbon-ink" : i < at ? "text-ink-2" : ""}`}>
               {i < at ? <Icon name="check" className="size-3 stroke-[2.6]" /> : i + 1}
             </i>
             {name}
@@ -314,7 +314,7 @@ export function BroadcastSigned() {
   return (
     <div className="@container grid gap-4">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h1 className="m-0 text-xl font-semibold">{title}</h1>
+        <h1 className="m-0 text-xl font-bold">{title}</h1>
         {partial && <LinkButton onClick={() => setPartial(null)}>Start again</LinkButton>}
       </div>
       <section className="grid justify-items-stretch gap-4 rounded-panel border border-rule bg-sheet p-4 @min-[900px]:grid-cols-[minmax(0,340px)_minmax(0,1fr)] @min-[900px]:items-start @min-[900px]:gap-x-8 @min-[900px]:gap-y-5 @min-[900px]:p-6">
