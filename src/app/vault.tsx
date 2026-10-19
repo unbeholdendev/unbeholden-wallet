@@ -24,6 +24,7 @@ import {
   renameWallet,
   saveSettings,
   type Merged,
+  type Contact,
   type NewWallet,
   type Settings as CoreSettings,
   type WalletRecord,
@@ -85,6 +86,22 @@ export function useVault() {
   if (api.state.phase !== "open") throw new Error("useVault while the vault is not open");
   const { state, ...actions } = api;
   return { ...state, ...actions };
+}
+
+export function useBook() {
+  const { vault, restored } = useVault();
+  const [book, setBook] = useState<Contact[]>([]);
+  useEffect(() => {
+    vault.get<Contact[]>("book").then((b) => setBook(b ?? []));
+  }, [vault, restored]);
+  const save = useCallback(
+    async (next: Contact[]) => {
+      await vault.put("book", next);
+      setBook(next);
+    },
+    [vault],
+  );
+  return [book, save] as const;
 }
 
 async function load(vault: Store): Promise<Open> {

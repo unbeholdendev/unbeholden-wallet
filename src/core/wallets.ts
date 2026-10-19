@@ -25,6 +25,9 @@ export type NewWallet = Pick<WalletRecord, "name" | "descriptor" | "network"> & 
 
 export type Settings = { server: string | null };
 
+/** A saved recipient. The vault keeps one address book for all its wallets. */
+export type Contact = { address: string; name: string };
+
 /** @throws when the text is neither a supported descriptor nor an extended key. */
 export function walletDescriptor(
   wallet: Pick<WalletRecord, "descriptor" | "network" | "scriptType">,
@@ -78,7 +81,7 @@ export async function deleteWallet(vault: Store, id: string): Promise<void> {
 
 /** What `mergeBackup` reads: no cached chain data, no unfinished send. */
 export async function backupRecords(vault: Store): Promise<Record<string, unknown>> {
-  const keys = (await vault.keys()).filter((key) => key === "settings" || /^(wallet|labels|frozen|kyc|requests)\//.test(key));
+  const keys = (await vault.keys()).filter((key) => key === "settings" || key === "book" || /^(wallet|labels|frozen|kyc|requests)\//.test(key));
   return Object.fromEntries(await Promise.all(keys.map(async (key) => [key, await vault.get(key)])));
 }
 
@@ -87,7 +90,8 @@ export type Merged = { added: string[]; skipped: string[]; labels: number; kept:
 /**
  * Adds the backup's wallets not already here, by descriptor and network. Of
  * labels, adds those for things with none here and keeps the rest; frozen and
- * KYC marks and payment requests add up; a setting is taken only where none is set.
+ * KYC marks and payment requests add up; saved recipients are added by
+ * address, never renamed; a setting is taken only where none is set.
  */
 export async function mergeBackup(vault: Store, records: Record<string, unknown>): Promise<Merged> {
   const same = (w: WalletRecord) => `${w.network} ${formatDescriptor(walletDescriptor(w))}`;
@@ -122,6 +126,9 @@ export async function mergeBackup(vault: Store, records: Record<string, unknown>
     const theirs = ((records[`requests/${from}`] ?? []) as { address: string }[]).filter((r) => !have.has(r.address));
     await vault.put(`requests/${to}`, [...requests, ...theirs]);
   }
+  const book = (await vault.get<Contact[]>("book")) ?? [];
+  for (const c of (records.book ?? []) as Contact[]) if (!book.some((b) => b.address === c.address)) book.push(c);
+  await vault.put("book", book);
   const settings: Record<string, unknown> = { ...(await getSettings(vault)) };
   for (const [key, value] of Object.entries((records.settings ?? {}) as Record<string, unknown>))
     if (settings[key] == null && key !== "walletId") settings[key] = value;

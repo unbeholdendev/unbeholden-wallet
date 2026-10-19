@@ -37,6 +37,8 @@ const CHEAP = { m: 8, t: 1, p: 1 };
 const PASSPHRASE = "correct horse battery staple";
 const PARSE = { allowUnknownInputs: true, allowUnknownOutputs: true, allowLegacyWitnessUtxo: true, disableScriptCheck: true };
 const PAYEE = address(LARGE, 0, 0);
+// A P2WPKH example from BIP173. https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
+const MAINNET = "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4";
 const theirs = script(LARGE, 0, 50);
 
 function tx(inputs: [string, number][], outputs: [Uint8Array, number][]): Uint8Array {
@@ -66,6 +68,7 @@ async function start(hash: string, mempool: Uint8Array[] = [foreign, parent, chi
   const wallet = await createWallet(vault, { name: "Spending", descriptor: BIP84.text, network: "regtest" });
   await vault.put(`labels/${wallet.id}`, { [`output:${id(payA)}:0`]: "Kraken withdrawal", [`output:${id(payB)}:0`]: "Bisq trade" });
   await vault.put(`frozen/${wallet.id}`, [`${id(payC)}:0`]);
+  await vault.put("book", [{ address: MAINNET, name: "Cold storage" }]);
   vault.lock();
   location.hash = hash;
   render(
@@ -279,8 +282,7 @@ describe("the send screen", () => {
   it("refuses a wrong-network address and a malformed one, each in its own words", async () => {
     const user = await start("#/send");
     const field = await screen.findByLabelText("Address");
-    // A P2WPKH example from BIP173. https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
-    await user.type(field, "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4");
+    await user.type(field, MAINNET);
     expect(screen.getByText("This is a mainnet address, but this wallet is on regtest.")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Fix the address first" })).toHaveProperty("disabled", true);
 
@@ -303,6 +305,20 @@ describe("the send screen", () => {
     await user.paste(`bitcoin:${PAYEE}?label=Rent`);
     await user.clear(screen.getByLabelText("Note"));
     expect(screen.getByLabelText("Note")).toBeTruthy();
+  });
+
+  it("sends everything spendable in one tap, and says what it left out", async () => {
+    const user = await start("#/send");
+    await user.type(await screen.findByLabelText("Address"), PAYEE);
+    await user.click(screen.getByRole("button", { name: "Send everything" }));
+    expect(screen.getByRole("button", { name: "Max" }).getAttribute("aria-pressed")).toBe("true");
+    expect((await coin(/Kraken withdrawal/)).getAttribute("aria-checked")).toBe("true");
+    expect((await coin(/Bisq trade/)).getAttribute("aria-checked")).toBe("true");
+    expect(summary().getByText("Coins in (2)")).toBeTruthy();
+    expect(summary().getByText("Change back to you").parentElement!.textContent).toBe("Change back to youNone");
+    // Frozen 200 000, waiting on a parent 150 000, someone else's unconfirmed 100 000.
+    expect(screen.getByText(/^Sending everything spendable/).textContent!.replace(/\s+/g, " ")).toMatch(/^Sending everything spendable\. Left out, 0\.00 450 000 ?BTC: 1 frozen, 1 waiting on an unconfirmed parent, 1 unconfirmed from someone else\.$/);
+    expect(screen.getByRole("button", { name: "Review and sign" })).toHaveProperty("disabled", false);
   });
 
   it("keeps a manual fee rate when the mempool changes", async () => {
@@ -450,6 +466,57 @@ describe("signing and broadcasting", () => {
     expect(await coin(/Your change, unconfirmed/)).toBeTruthy();
     expect((screen.getByLabelText("Address") as HTMLInputElement).value).toBe("");
   });
+});
+
+describe("address book", () => {
+  it("saves a recipient, offers it on its own network only, and names the payment with it", async () => {
+    const user = await start("#/send");
+    const field = (await screen.findByLabelText("Address")) as HTMLInputElement;
+    expect(screen.queryByRole("button", { name: "Choose a saved address" })).toBeNull();
+    // Uppercase, as bech32 is often written in QR codes; saved and labelled by its lowercase spelling.
+    await user.type(field, PAYEE.toUpperCase());
+    await user.click(screen.getByRole("button", { name: "Save to address book" }));
+    await user.type(screen.getByLabelText("Name"), "Landlord");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByText("Valid regtest address, saved as Landlord")).toBeTruthy();
+
+    await user.clear(field);
+    await user.click(screen.getByRole("button", { name: "Choose a saved address" }));
+    expect(screen.queryByText("Cold storage")).toBeNull();
+    await user.click(screen.getByRole("button", { name: /^Landlord/ }));
+    expect(field.value).toBe(PAYEE);
+    await user.type(screen.getByLabelText("Amount, BTC or sats"), "0.001");
+    await user.click(screen.getByRole("button", { name: "Review and sign" }));
+    expect(await screen.findByText("Payment 1 to Landlord")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Back to coins" }));
+    await user.clear(field);
+    await user.clear(screen.getByLabelText("Amount, BTC or sats"));
+
+    const psbt = await builtPsbt(user);
+    await upload(user, signPsbt(psbt, BIP84));
+    await user.click(await screen.findByRole("button", { name: "Broadcast through your server" }));
+    const signed = Transaction.fromPSBT(psbt);
+    expect(await screen.findByText(signed.id, {}, { timeout: 15_000 })).toBeTruthy();
+    const vout = Array.from({ length: signed.outputsLength }, (_, i) => signed.getOutput(i).script!).findIndex((s) => s.join() === script(LARGE, 0, 0).join());
+
+    location.hash = "#/home";
+    expect(await screen.findByText("Landlord")).toBeTruthy();
+    location.hash = "#/settings";
+    let exported: Blob | undefined;
+    URL.createObjectURL = (b: Blob) => ((exported = b), "blob:labels");
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    await user.click(await screen.findByRole("button", { name: "Export labels" }));
+    expect((await exported!.text()).trim().split("\n").map((l) => JSON.parse(l))).toContainEqual(expect.objectContaining({ type: "output", ref: `${signed.id}:${vout}`, label: "Landlord" }));
+
+    await user.click(screen.getByRole("button", { name: "Rename Landlord" }));
+    await user.clear(screen.getByLabelText("New name for Landlord"));
+    await user.type(screen.getByLabelText("New name for Landlord"), "Rent{Enter}");
+    await user.click(await screen.findByRole("button", { name: "Delete Cold storage" }));
+    expect(await screen.findByText("1 saved")).toBeTruthy();
+    location.hash = "#/send";
+    await user.type(await screen.findByLabelText("Address"), PAYEE);
+    expect(screen.getByText("Valid regtest address, saved as Rent")).toBeTruthy();
+  }, 60_000);
 });
 
 describe("fee bump", () => {
