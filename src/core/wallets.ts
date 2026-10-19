@@ -70,15 +70,15 @@ export async function renameWallet(vault: Store, id: string, name: string): Prom
   await vault.put(`wallet/${id}`, { ...(await getWallet(vault, id)), name });
 }
 
-/** Removes the wallet with its cached chain data, labels, frozen and KYC marks, and unfinished send. */
+/** Removes the wallet with its cached chain data, labels, frozen and KYC marks, unfinished send and payment requests. */
 export async function deleteWallet(vault: Store, id: string): Promise<void> {
   const cache = await vault.keys(`cache/${id}/`);
-  await vault.delete(`wallet/${id}`, `labels/${id}`, `frozen/${id}`, `kyc/${id}`, `send/${id}`, ...cache);
+  await vault.delete(`wallet/${id}`, `labels/${id}`, `frozen/${id}`, `kyc/${id}`, `send/${id}`, `requests/${id}`, ...cache);
 }
 
 /** What `mergeBackup` reads: no cached chain data, no unfinished send. */
 export async function backupRecords(vault: Store): Promise<Record<string, unknown>> {
-  const keys = (await vault.keys()).filter((key) => key === "settings" || /^(wallet|labels|frozen|kyc)\//.test(key));
+  const keys = (await vault.keys()).filter((key) => key === "settings" || /^(wallet|labels|frozen|kyc|requests)\//.test(key));
   return Object.fromEntries(await Promise.all(keys.map(async (key) => [key, await vault.get(key)])));
 }
 
@@ -87,7 +87,7 @@ export type Merged = { added: string[]; skipped: string[]; labels: number; kept:
 /**
  * Adds the backup's wallets not already here, by descriptor and network. Of
  * labels, adds those for things with none here and keeps the rest; frozen and
- * KYC marks add up; a setting is taken only where none is set.
+ * KYC marks and payment requests add up; a setting is taken only where none is set.
  */
 export async function mergeBackup(vault: Store, records: Record<string, unknown>): Promise<Merged> {
   const same = (w: WalletRecord) => `${w.network} ${formatDescriptor(walletDescriptor(w))}`;
@@ -117,6 +117,10 @@ export async function mergeBackup(vault: Store, records: Record<string, unknown>
       const union = new Set([...((await vault.get<string[]>(`${marks}/${to}`)) ?? []), ...((records[`${marks}/${from}`] ?? []) as string[])]);
       await vault.put(`${marks}/${to}`, [...union]);
     }
+    const requests = (await vault.get<{ address: string }[]>(`requests/${to}`)) ?? [];
+    const have = new Set(requests.map((r) => r.address));
+    const theirs = ((records[`requests/${from}`] ?? []) as { address: string }[]).filter((r) => !have.has(r.address));
+    await vault.put(`requests/${to}`, [...requests, ...theirs]);
   }
   const settings: Record<string, unknown> = { ...(await getSettings(vault)) };
   for (const [key, value] of Object.entries((records.settings ?? {}) as Record<string, unknown>))

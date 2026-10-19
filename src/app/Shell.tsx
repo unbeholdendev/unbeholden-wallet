@@ -4,6 +4,7 @@ import { hostText } from "../ui/format";
 import { Icon, type IconName } from "../ui/icons";
 import { useConnection, type Connection } from "./connection";
 import { Footer, InstallPrompt } from "./layout";
+import { usePaymentNotifications } from "./notify";
 import { walletDescriptor, type WalletRecord } from "../core/wallets";
 import { useVault } from "./vault";
 
@@ -111,6 +112,7 @@ const barButton = "grid size-[34px] flex-none place-items-center rounded-control
 /** The signed-in frame: legend bar on top, tab bar at the bottom on a phone. */
 export function Shell({ tab, children }: { tab: Tab | null; children: ReactNode }) {
   const { lock } = useVault();
+  usePaymentNotifications();
   return (
     <div className="@container/app flex min-h-dvh flex-col bg-paper">
       <header className="sticky top-0 z-10 flex h-14 items-center gap-2 bg-legend px-3 text-legend-ink @min-[720px]/app:gap-4 @min-[720px]/app:px-6">

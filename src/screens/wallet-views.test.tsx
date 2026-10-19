@@ -178,6 +178,73 @@ describe("wallet views on the demo history", () => {
     expect(await screen.findByText("m/84h/0h/0h/0/8")).toBeTruthy();
   });
 
+  it("keeps a payment request on its own address and says how much of it is paid", async () => {
+    const user = await openApp("#/receive");
+    const asked = screen.getByTestId("receive-address").textContent!.replace(/\s/g, "");
+    await user.click(screen.getByRole("button", { name: "Label it before you share it" }));
+    await user.type(screen.getByLabelText("Label"), "Invoice 7{Enter}");
+    await user.type(screen.getByLabelText("Amount to ask for, BTC (optional)"), "0.001");
+    await user.click(screen.getByRole("button", { name: "Save as a request" }));
+    const request = () => screen.getByRole("button", { name: "Remove request Invoice 7" }).closest("li")!.textContent;
+    await screen.findByRole("button", { name: "Remove request Invoice 7" });
+    expect(request()).toContain("Waiting");
+    expect(screen.getByText("Requested address")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "New request" }));
+    expect(screen.getByText("m/84h/0h/0h/0/8")).toBeTruthy();
+
+    const pay = (sats: bigint) => {
+      const tx = new Tx({ allowUnknownInputs: true, allowUnknownOutputs: true, disableScriptCheck: true });
+      tx.addInput({ txid: DEMO_TXIDS.kraken, index: 1 });
+      tx.addOutput({ script: OutScript.encode(Address(NETWORKS.mainnet).decode(asked)), amount: sats });
+      return tx.unsignedTx;
+    };
+    const first = pay(40_000n);
+    for (const b of backends) b.addToMempool(first);
+    await waitFor(() => expect(request()).toContain("Partly paid"));
+    expect(request()).toContain("not yet confirmed");
+    const second = pay(60_000n);
+    for (const b of backends) b.addBlock([first, second]);
+    await waitFor(() => expect(request()).toContain("Paid"));
+    expect(request()).not.toContain("not yet confirmed");
+    expect(request()).not.toContain("Partly");
+
+    cleanup();
+    await openApp("#/receive");
+    expect(await screen.findByRole("button", { name: "Remove request Invoice 7" })).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Remove request Invoice 7" }));
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "Requests" })).toBeNull());
+  });
+
+  it("notifies of a payment in and its first confirmation, once switched on, without amounts", async () => {
+    const shown: unknown[][] = [];
+    vi.stubGlobal(
+      "Notification",
+      class {
+        static permission = "granted";
+        static requestPermission = async () => "granted";
+        constructor(...args: unknown[]) {
+          shown.push(args);
+        }
+      },
+    );
+    const user = await openApp("#/settings");
+    await user.click(screen.getByRole("checkbox", { name: "Tell me when a payment arrives and when it confirms" }));
+    go("#/receive");
+    const to = (await screen.findByTestId("receive-address")).textContent!.replace(/\s/g, "");
+    const pay = new Tx({ allowUnknownInputs: true, allowUnknownOutputs: true, disableScriptCheck: true });
+    pay.addInput({ txid: DEMO_TXIDS.kraken, index: 1 });
+    pay.addOutput({ script: OutScript.encode(Address(NETWORKS.mainnet).decode(to)), amount: 25_000n });
+    for (const b of backends) b.addToMempool(pay.unsignedTx);
+    await waitFor(() => expect(shown).toHaveLength(1));
+    for (const b of backends) b.addBlock([pay.unsignedTx]);
+    await waitFor(() => expect(shown).toHaveLength(2));
+    expect(shown).toEqual([
+      ["A payment arrived", { tag: pay.id }],
+      ["A payment confirmed", { tag: pay.id }],
+    ]);
+    vi.unstubAllGlobals();
+  });
+
   it("takes a frozen coin out of the spendable balance", async () => {
     const user = await openApp("#/coins");
     expect(spendable()).toContain("0.30 626 773");
