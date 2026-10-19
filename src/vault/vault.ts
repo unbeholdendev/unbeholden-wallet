@@ -49,7 +49,8 @@ export class BadBackup extends Error {
 }
 
 type Sealed = { iv: Uint8Array<ArrayBuffer>; data: Uint8Array<ArrayBuffer> };
-type Header = { salt: string; kdf: KdfParams; check: Sealed };
+// Without a passphrase, `key` is a random non-extractable key kept in place of `kdf`.
+type Header = { salt: string; kdf?: KdfParams; key?: CryptoKey; check: Sealed };
 
 let DB = "vault";
 
@@ -124,16 +125,20 @@ async function unseal(key: CryptoKey, name: string, sealed: Sealed) {
   return JSON.parse(new TextDecoder().decode(plain));
 }
 
-async function newHeader(passphrase: string, kdf: KdfParams) {
+async function newHeader(passphrase: string | null, kdf: KdfParams) {
   const salt = hex.encode(crypto.getRandomValues(new Uint8Array(16)));
-  const key = await deriveKey(passphrase, salt, kdf);
-  const header: Header = { salt, kdf, check: await seal(key, CHECK, null) };
+  const key =
+    passphrase === null
+      ? await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"])
+      : await deriveKey(passphrase, salt, kdf);
+  const header: Header = { salt, ...(passphrase === null ? { key } : { kdf }), check: await seal(key, CHECK, null) };
   return { header, key };
 }
 
-async function checkPassphrase(passphrase: string, header: Header | undefined) {
-  if (!header) throw new WrongPassphrase();
-  const key = await deriveKey(passphrase, header.salt, header.kdf);
+/** `null` is the passphrase of a vault without one. */
+async function checkPassphrase(passphrase: string | null, header: Header | undefined) {
+  if (!header || (passphrase === null) !== !!header.key) throw new WrongPassphrase();
+  const key = header.key ?? (await deriveKey(passphrase!, header.salt, header.kdf!));
   try {
     await unseal(key, CHECK, header.check);
   } catch {
@@ -213,7 +218,7 @@ export async function vaultExists(): Promise<boolean> {
 }
 
 export async function createVault(
-  passphrase: string,
+  passphrase: string | null,
   kdf = DEFAULT_KDF,
   now: Clock = Date.now,
 ): Promise<Vault> {
@@ -228,19 +233,19 @@ export async function createVault(
     if ((error as DOMException).name !== "ConstraintError") throw error;
     throw new Error("A vault already exists in this browser");
   }
-  return new Vault(db, key, header.salt, now);
+  return new Vault(db, key, header, now);
 }
 
 /** @throws {WrongPassphrase} whether the passphrase is wrong or there is no vault. */
 export async function unlockVault(
-  passphrase: string,
+  passphrase: string | null,
   now: Clock = Date.now,
 ): Promise<Vault> {
   const db = await openDb();
   try {
     const header = await readHeader(db);
     const key = await checkPassphrase(passphrase, header);
-    return new Vault(db, key, header!.salt, now);
+    return new Vault(db, key, header!, now);
   } catch (error) {
     db.close();
     throw error;
@@ -265,19 +270,24 @@ export async function destroyVault(): Promise<void> {
 export class Vault {
   #db: IDBDatabase | null;
   #key: CryptoKey;
-  #salt: string;
+  #header: Header;
   #now: Clock;
   #queue: Promise<unknown> = Promise.resolve();
 
-  constructor(db: IDBDatabase, key: CryptoKey, salt: string, now: Clock) {
+  constructor(db: IDBDatabase, key: CryptoKey, header: Header, now: Clock) {
     this.#db = db;
     this.#key = key;
-    this.#salt = salt;
+    this.#header = header;
     this.#now = now;
   }
 
   get locked(): boolean {
     return this.#db === null;
+  }
+
+  /** False when a stored key seals it instead. */
+  get hasPassphrase(): boolean {
+    return !this.#header.key;
   }
 
   lock(): void {
@@ -331,12 +341,13 @@ export class Vault {
   }
 
   /**
-   * Re-encrypts everything under a new salt; `kdf` is how to raise the costs.
+   * Re-encrypts everything under a new salt, in one transaction; `null` means
+   * no passphrase, and `kdf` is how to raise the costs.
    * @throws {VaultChanged} when another tab wrote meanwhile.
    */
   async changePassphrase(
-    oldPassphrase: string,
-    newPassphrase: string,
+    oldPassphrase: string | null,
+    newPassphrase: string | null,
     kdf = DEFAULT_KDF,
   ): Promise<void> {
     await checkPassphrase(oldPassphrase, await readHeader(this.#open()));
@@ -359,7 +370,7 @@ export class Vault {
       );
       await this.#write(resealed, { header, writes });
       this.#key = key;
-      this.#salt = header.salt;
+      this.#header = header;
     });
   }
 
@@ -384,7 +395,7 @@ export class Vault {
     const writes = headers.get("writes");
     let refusal: Error | undefined;
     writes.onsuccess = () => {
-      if (current.result?.salt !== this.#salt) {
+      if (current.result?.salt !== this.#header.salt) {
         this.lock();
         refusal = new VaultLocked();
         return tx.abort();
@@ -410,7 +421,7 @@ export class Vault {
 /** What the wallet code reads and writes: the vault, or a draft held in memory. */
 export type Store = Pick<Vault, "get" | "put" | "delete" | "keys">;
 
-/** Records kept only in this tab, for a wallet set up before it has a passphrase. */
+/** Records kept only in this tab, for a wallet set up before the vault exists. */
 export function memoryStore(): Store {
   const records = new Map<string, string>();
   return {

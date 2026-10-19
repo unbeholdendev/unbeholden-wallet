@@ -57,7 +57,7 @@ the user's own node.
 9. As a user migrating from another wallet, I want to paste a bare `zpub`, `vpub` or `xpub`, so that I can use an export that is not a descriptor.
 10. As a user who pasted an extended key, I want to see the descriptor the app inferred from it, so that a wrong guess is visible before I rely on an empty wallet.
 11. As a user importing a wallet, I want to scan a descriptor from a QR code shown by my signer, so that I do not have to type or transfer it manually.
-12. As a user, I want to set a passphrase that encrypts my wallet data in this browser, so that someone with access to my device cannot read my financial history.
+12. As a user, I want to set a passphrase that encrypts my wallet data in this browser, so that someone with access to my device cannot read my financial history; or to choose none, warned that anyone using the browser can then see my wallets.
 13. As a returning user, I want to unlock with my passphrase and get straight to my balance, so that checking in is fast.
 14. As a user, I want the app to prompt me to back up my descriptor during onboarding, so that losing browser storage is an inconvenience rather than a loss.
 15. As a user with several wallets, I want to hold more than one in the app and switch between them quickly, so that I can keep savings and spending separate.
@@ -182,10 +182,10 @@ the user's own node.
 
 ### Storage
 
-- One encrypted vault per browser origin, holding multiple wallets, unlocked by a single passphrase. Argon2id for key derivation, AES-GCM for encryption, IndexedDB for storage.
+- One encrypted vault per browser origin, holding multiple wallets, unlocked by a single passphrase. Argon2id for key derivation, AES-GCM for encryption, IndexedDB for storage. With no passphrase it is sealed the same way under a random non-extractable key stored beside it, opens by itself and never locks; Settings sets or removes the passphrase in one transaction.
 - The vault holds descriptors, wallet metadata, labels, frozen-coin flags, payment requests, an address book of saved recipients, cached transactions and cached address history.
 - Cached chain data is treated as a cache, not as a record of truth. The descriptor is the only thing whose loss matters, so descriptor backup is part of onboarding, and each wallet's descriptor stays in Settings to copy, download or show as a QR.
-- Settings exports wallets, labels, frozen and KYC marks and settings, without the cache, as one backup file, encrypted as the vault is and confirmed with the vault passphrase. It restores on the first-run screen into a new vault, or in Settings merges in: wallets added by descriptor, missing labels added, nothing here replaced. Its format is written down once, above `sealBackup` in `src/vault/vault.ts`.
+- Settings exports wallets, labels, frozen and KYC marks and settings, without the cache, as one backup file, encrypted as the vault is and confirmed with the vault passphrase, or without one under a passphrase chosen for the backup. It restores on the first-run screen into a new vault, or in Settings merges in: wallets added by descriptor, missing labels added, nothing here replaced. Its format is written down once, above `sealBackup` in `src/vault/vault.ts`.
 - `navigator.storage.persist()` is requested where supported. On iOS the app relies on home-screen installation to avoid seven-day storage eviction, and says so explicitly rather than burying it.
 
 ### Syncing

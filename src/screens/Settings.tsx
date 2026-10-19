@@ -15,7 +15,7 @@ import { historyCsv } from "../core/view";
 import { useToast } from "../ui/toast";
 import { download, ExportBackup, RestoreBackup } from "./Backup";
 import { DestroyVault } from "./DestroyVault";
-import { MIN_LENGTH, PassphraseInput, Strength, strength } from "./passphrase";
+import { MIN_LENGTH, NO_PASSPHRASE, PassphraseInput, Strength, strength } from "./passphrase";
 
 const idleOptions = [1, 5, 15, 60].map((m) => ({ value: String(m), label: m === 60 ? "1 hour" : `${m} min` }));
 
@@ -81,7 +81,7 @@ function AddressBook() {
 }
 
 function ChangePassphrase() {
-  const { changePassphrase } = useVault();
+  const { changePassphrase, passphrase } = useVault();
   const toast = useToast();
   const [old, setOld] = useState("");
   const [next, setNext] = useState("");
@@ -89,16 +89,14 @@ function ChangePassphrase() {
   const [error, setError] = useState<string | null>(null);
   const score = strength(next);
 
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    if (score.level === 0) return;
+  const change = async (to: string | null, done: string) => {
     setBusy(true);
     setError(null);
     try {
-      await changePassphrase(old, next);
+      await changePassphrase(passphrase ? old : null, to);
       setOld("");
       setNext("");
-      toast("Passphrase changed");
+      toast(done);
     } catch (e) {
       setError(
         e instanceof WrongPassphrase
@@ -112,16 +110,34 @@ function ChangePassphrase() {
   };
 
   return (
-    <form onSubmit={submit} className="grid gap-3" noValidate>
-      <Field label="Current passphrase" error={error ?? undefined}>
-        {(props) => <PassphraseInput {...props} autoComplete="current-password" value={old} onChange={setOld} />}
-      </Field>
-      <Field label="New passphrase" hint={<Strength score={score} />}>
+    <form
+      onSubmit={(event: FormEvent) => {
+        event.preventDefault();
+        if (score.level) change(next, passphrase ? "Passphrase changed" : "Passphrase set");
+      }}
+      className="grid gap-3"
+      noValidate
+    >
+      {passphrase ? (
+        <Field label="Current passphrase" error={error ?? undefined}>
+          {(props) => <PassphraseInput {...props} autoComplete="current-password" value={old} onChange={setOld} />}
+        </Field>
+      ) : (
+        <Notice tone="warn">{NO_PASSPHRASE}</Notice>
+      )}
+      <Field label="New passphrase" hint={<Strength score={score} />} error={passphrase ? undefined : (error ?? undefined)}>
         {(props) => <PassphraseInput {...props} autoComplete="new-password" value={next} onChange={setNext} minLength={MIN_LENGTH} />}
       </Field>
-      <Button type="submit" className="justify-self-start" disabled={busy || !old || score.level === 0}>
-        {busy ? "Re-encrypting" : "Change passphrase"}
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" disabled={busy || (passphrase && !old) || score.level === 0}>
+          {busy ? "Saving" : passphrase ? "Change passphrase" : "Set passphrase"}
+        </Button>
+        {passphrase && (
+          <Button disabled={busy || !old} onClick={() => change(null, "Passphrase removed")}>
+            Remove passphrase
+          </Button>
+        )}
+      </div>
     </form>
   );
 }
@@ -312,7 +328,7 @@ function Notifications() {
 }
 
 export function Settings() {
-  const { settings, saveSettings, lock, persistence } = useVault();
+  const { settings, saveSettings, lock, passphrase, persistence } = useVault();
   const { connection } = useConnection();
   const [destroying, setDestroying] = useState(false);
   const status = persistence && persistenceText[persistence];
@@ -347,20 +363,22 @@ export function Settings() {
         </Panel>
       </div>
       <div className="grid content-start gap-6">
-        <Panel title="Lock">
-          <div className="grid gap-1.5">
-            <span className="text-sm font-medium text-ink-2">Lock after this long without use</span>
-            <Segmented
-              label="Idle lock"
-              options={idleOptions}
-              value={String(settings.idleMinutes ?? IDLE_DEFAULT_MINUTES)}
-              onChange={(v) => saveSettings({ idleMinutes: Number(v) })}
-            />
-          </div>
-          <Button icon="lock" className="justify-self-start" onClick={lock}>
-            Lock now
-          </Button>
-        </Panel>
+        {passphrase && (
+          <Panel title="Lock">
+            <div className="grid gap-1.5">
+              <span className="text-sm font-medium text-ink-2">Lock after this long without use</span>
+              <Segmented
+                label="Idle lock"
+                options={idleOptions}
+                value={String(settings.idleMinutes ?? IDLE_DEFAULT_MINUTES)}
+                onChange={(v) => saveSettings({ idleMinutes: Number(v) })}
+              />
+            </div>
+            <Button icon="lock" className="justify-self-start" onClick={lock}>
+              Lock now
+            </Button>
+          </Panel>
+        )}
         <Notifications />
         <Panel title="Passphrase">
           <ChangePassphrase />

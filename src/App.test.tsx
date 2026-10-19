@@ -339,6 +339,87 @@ describe("settings", () => {
   }, 30_000);
 });
 
+describe("no passphrase", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  async function openVault() {
+    const vault = await createVault(null, CHEAP);
+    await vault.put("settings", { server: SERVER });
+    await createWallet(vault, { name: "Spending", descriptor: BIP84_ZPUB, network: "mainnet" });
+    vault.lock();
+  }
+
+  it("keeps the wallet without one, opens straight to it after a reload, and offers no lock", async () => {
+    let user = renderApp();
+    await user.type(await screen.findByLabelText("Server address"), SERVER);
+    await user.click(screen.getByRole("button", { name: "Connect" }));
+    await user.click(await screen.findByLabelText("Descriptor or extended public key"));
+    await user.paste(BIP84_ZPUB);
+    await user.click(screen.getByRole("button", { name: /Continue to backup/ }));
+    await user.click(screen.getByRole("button", { name: "Finish without a backup" }));
+    await user.click(await screen.findByRole("button", { name: "No passphrase" }));
+    expect(screen.getByText(/Anyone using this browser can see your wallets/)).toBeTruthy();
+    expect(screen.queryByLabelText("Passphrase")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Keep without a passphrase" }));
+    expect(await screen.findByRole("heading", { name: "Home" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Lock" })).toBeNull();
+
+    cleanup();
+    location.hash = "#/settings";
+    user = renderApp();
+    expect(await screen.findByRole("heading", { name: "Settings" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Lock" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Lock now" })).toBeNull();
+  }, 30_000);
+
+  it("asks for a passphrase once one is set, and stops once it is removed", async () => {
+    await openVault();
+    location.hash = "#/settings";
+    let user = renderApp();
+    await user.type(await screen.findByLabelText("New passphrase"), PASSPHRASE);
+    await user.click(screen.getByRole("button", { name: "Set passphrase" }));
+    expect(await screen.findByText("Passphrase set")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Lock" })).toBeTruthy();
+
+    cleanup();
+    user = renderApp();
+    await unlock(user);
+    await user.type(await screen.findByLabelText("Current passphrase"), "incorrect horse");
+    await user.click(screen.getByRole("button", { name: "Remove passphrase" }));
+    expect(await screen.findByText("The current passphrase is not right.")).toBeTruthy();
+    await user.clear(screen.getByLabelText("Current passphrase"));
+    await user.type(screen.getByLabelText("Current passphrase"), PASSPHRASE);
+    await user.click(screen.getByRole("button", { name: "Remove passphrase" }));
+    expect(await screen.findByText("Passphrase removed")).toBeTruthy();
+
+    cleanup();
+    renderApp();
+    expect(await screen.findByRole("heading", { name: "Settings" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Lock" })).toBeNull();
+  }, 30_000);
+
+  it("seals a backup with a passphrase chosen for it", async () => {
+    await openVault();
+    let file: Blob | undefined;
+    vi.spyOn(URL, "createObjectURL").mockImplementation((blob) => ((file = blob as Blob), "blob:backup"));
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    location.hash = "#/settings";
+    const user = renderApp();
+    await user.type(await screen.findByLabelText("Backup passphrase"), PASSPHRASE);
+    await user.type(screen.getByLabelText("Type it again"), "correct horse battery stable");
+    await user.click(screen.getByRole("button", { name: "Download backup" }));
+    expect(await screen.findByText("The two passphrases are different.")).toBeTruthy();
+    expect(file).toBeUndefined();
+
+    await user.clear(screen.getByLabelText("Type it again"));
+    await user.type(screen.getByLabelText("Type it again"), PASSPHRASE);
+    await user.click(screen.getByRole("button", { name: "Download backup" }));
+    await waitFor(() => expect(file).toBeDefined());
+    const records = await openBackup(await file!.text(), PASSPHRASE);
+    expect(Object.values(records)).toContainEqual(expect.objectContaining({ name: "Spending", descriptor: BIP84_ZPUB }));
+  }, 30_000);
+});
+
 describe("backup", () => {
   afterEach(() => vi.restoreAllMocks());
 

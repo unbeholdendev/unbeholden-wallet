@@ -30,7 +30,7 @@ const TABS: string[] = ["home", "send", "receive", "coins"] satisfies Tab[];
 const BUMPS: Record<string, BumpMode | undefined> = { bump: "speed", cancel: "cancel", cpfp: "cpfp" };
 
 function Unlocked({ route }: { route: string[] }) {
-  const { settings, wallets, draft, lock } = useVault();
+  const { settings, wallets, draft, passphrase, lock } = useVault();
   const { connection, connect, disconnect } = useConnection();
   const [reached, setReached] = useState(false);
 
@@ -46,7 +46,7 @@ function Unlocked({ route }: { route: string[] }) {
 
   if (!wallets.length)
     return (
-      <Page aside={draft ? undefined : <LinkButton onClick={lock}>Lock</LinkButton>}>
+      <Page aside={passphrase ? <LinkButton onClick={lock}>Lock</LinkButton> : undefined}>
         {reached ? <ImportWallet /> : <Connect onboarding />}
         {draft && (
           <Panel title="Or restore from a backup" className="max-w-[400px]">

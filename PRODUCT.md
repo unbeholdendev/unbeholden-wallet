@@ -50,7 +50,7 @@ on-chain. Nothing else does this well; it is the feature to protect.
   attributes.
 - No fiat anywhere, by design.
 - Must work fully on a phone, including coin selection and QR scanning.
-- Multiple wallets in one encrypted vault, unlocked by one passphrase.
+- Multiple wallets in one vault, unlocked by one passphrase, or by none if the user chooses.
 - Labels (BIP329), frozen coins, RBF always on, fee bumping, mempool-derived
   fee suggestions with a manual sat/vB entry.
 

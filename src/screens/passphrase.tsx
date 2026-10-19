@@ -3,6 +3,8 @@ import { inputClass } from "../ui/kit";
 
 export const MIN_LENGTH = 10;
 
+export const NO_PASSPHRASE = "No passphrase. Anyone using this browser can see your wallets: balances, history and future addresses.";
+
 /**
  * A rough guess at guessing cost, enough to steer people towards several
  * random words. The vault's Argon2id costs do the rest.

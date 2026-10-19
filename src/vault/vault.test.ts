@@ -1,6 +1,6 @@
 import { argon2id } from "@noble/hashes/argon2.js";
 import { hex } from "@scure/base";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   BadBackup,
   createVault,
@@ -118,6 +118,46 @@ describe("vault", () => {
     const reopened = await unlockVault("new passphrase");
     expect(await reopened.get("wallet/a")).toEqual(wallets["wallet/a"]);
     expect(await reopened.get("wallet/b")).toEqual(wallets["wallet/b"]);
+    reopened.lock();
+  });
+
+  it("opens without a passphrase by its stored key, and takes one on and off", async () => {
+    const vault = await createVault(null, CHEAP);
+    await vault.put("wallet/a", wallets["wallet/a"]);
+    vault.lock();
+    await expect(unlockVault(PASSPHRASE)).rejects.toThrow(WrongPassphrase);
+
+    const reopened = await unlockVault(null);
+    expect(reopened.hasPassphrase).toBe(false);
+    await reopened.changePassphrase(null, PASSPHRASE, CHEAP);
+    reopened.lock();
+    await expect(unlockVault(null)).rejects.toThrow(WrongPassphrase);
+
+    const guarded = await unlockVault(PASSPHRASE);
+    await expect(guarded.changePassphrase("not it", null)).rejects.toThrow(WrongPassphrase);
+    await guarded.changePassphrase(PASSPHRASE, null);
+    guarded.lock();
+    const open = await unlockVault(null);
+    expect(await open.get("wallet/a")).toEqual(wallets["wallet/a"]);
+    open.lock();
+  });
+
+  it("stays readable by the old passphrase when a change is cut off before it commits", async () => {
+    const vault = await createVault(null, CHEAP);
+    await vault.put("wallet/a", wallets["wallet/a"]);
+    const put = IDBObjectStore.prototype.put;
+    const spy = vi.spyOn(IDBObjectStore.prototype, "put").mockImplementation(function (this: IDBObjectStore, value, key) {
+      if (key === "kdf") this.transaction.abort();
+      return put.call(this, value, key);
+    });
+    await vault.changePassphrase(null, PASSPHRASE, CHEAP).catch(() => {});
+    expect(spy).toHaveBeenCalledWith(expect.anything(), "kdf");
+    spy.mockRestore();
+    vault.lock();
+
+    await expect(unlockVault(PASSPHRASE)).rejects.toThrow(WrongPassphrase);
+    const reopened = await unlockVault(null);
+    expect(await reopened.get("wallet/a")).toEqual(wallets["wallet/a"]);
     reopened.lock();
   });
 
