@@ -1,14 +1,26 @@
 # Issue tracker: Forgejo (via MCP)
 
 Issues and specs for this repo live in Forgejo at
-`https://git.unbeholden.dev/unbeholden/btc-browser-wallet`.
+`https://git.unbeholden.dev/unbeholden/unbeholden-wallet`.
 
 There is no `gh` or `glab` equivalent here. All operations go through the
 `forgejo` MCP connector, whose tools are deferred: load a schema with
 `ToolSearch` (`select:mcp__forgejo__create_issue`) before calling it.
 
-Owner is `unbeholden`, repo is `btc-browser-wallet`. Both are required parameters on
+Owner is `unbeholden`, repo is `unbeholden-wallet`. Both are required parameters on
 nearly every call.
+
+## External reports on GitHub
+
+The public mirror is `https://github.com/unbeholdendev/unbeholden-wallet`, and
+outsiders file issues there. Read them, never write: no token, so use the
+public API, limited to 60 requests an hour.
+
+    curl -s https://api.github.com/repos/unbeholdendev/unbeholden-wallet/issues
+    curl -s https://api.github.com/repos/unbeholdendev/unbeholden-wallet/issues/<n>/comments
+
+The issues endpoint also returns PRs; they carry a `pull_request` key. To act on
+a report, open a Forgejo issue that links to it.
 
 ## Conventions
 

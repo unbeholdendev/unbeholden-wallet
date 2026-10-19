@@ -1,4 +1,4 @@
-# Bitcoin browser wallet
+# Unbeholden Wallet
 
 A watch-only Bitcoin wallet that runs in a browser tab. It talks only to your
 own server, Electrum over WebSocket or an Esplora API, holds no keys, builds PSBTs, and hands them to an
@@ -57,8 +57,8 @@ origin is a secure context that may open plain `ws://`, so this is also how
 you reach a node on your own network without a certificate.
 
 ```sh
-docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -t btc-browser-wallet .
-docker run --rm -p 127.0.0.1:8080:8080 btc-browser-wallet
+docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -t unbeholden-wallet .
+docker run --rm -p 127.0.0.1:8080:8080 unbeholden-wallet
 ```
 
 ## Verify a build

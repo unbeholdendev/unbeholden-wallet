@@ -184,7 +184,7 @@ export function electrumBackend(
     const previousTip = tip;
     try {
       const version = await Promise.race([
-        call("server.version", "btc-browser-wallet", PROTOCOL),
+        call("server.version", "unbeholden-wallet", PROTOCOL),
         new Promise((_, reject) => setTimeout(reject, timeout)),
       ]);
       if (!Array.isArray(version) || typeof version[0] !== "string") {

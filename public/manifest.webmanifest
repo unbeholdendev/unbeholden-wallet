@@ -1,6 +1,6 @@
 {
-  "name": "Bitcoin browser wallet",
-  "short_name": "Wallet",
+  "name": "Unbeholden Wallet",
+  "short_name": "Unbeholden",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

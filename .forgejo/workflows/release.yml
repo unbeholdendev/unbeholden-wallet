@@ -16,7 +16,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run build
       - run: bun run --silent hashes > hashes.txt
-      - run: tar -czf "btc-browser-wallet-$GITHUB_REF_NAME.tar.gz" -C dist .
+      - run: tar -czf "unbeholden-wallet-$GITHUB_REF_NAME.tar.gz" -C dist .
       - name: Publish release
         env:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -26,7 +26,7 @@ jobs:
             -H "Authorization: token $TOKEN" -H "Content-Type: application/json" \
             -d "{\"tag_name\":\"$GITHUB_REF_NAME\",\"name\":\"$GITHUB_REF_NAME\"}" \
             | node -p "JSON.parse(require('fs').readFileSync(0)).id")
-          for f in hashes.txt "btc-browser-wallet-$GITHUB_REF_NAME.tar.gz"; do
+          for f in hashes.txt "unbeholden-wallet-$GITHUB_REF_NAME.tar.gz"; do
             curl -sSf -X POST "$API/$id/assets" \
               -H "Authorization: token $TOKEN" -F "attachment=@$f"
           done
