@@ -7,6 +7,20 @@ air-gapped signer over animated QR or a file.
 Supports `wpkh` and `tr` single-signature wallets on mainnet, signet and
 regtest.
 
+## Why it exists
+
+I built it for myself: I wanted my on-chain wallet on any device I pick up,
+with the features I need, without having to install anything. Sparrow is great, but only on desktop.
+
+It holds no private keys. The worst a bug or a tampered copy can do is show
+you wrong information or build a wrong transaction, and your signer still has
+to approve it. That is a far smaller risk than a wallet that can spend on its
+own.
+
+It was written by AI, under my direction. Writing it by hand would have taken
+far longer. I decided what it does and reviewed the work, but you should know
+how it was made before you trust it.
+
 ## What the hosted app can and cannot protect you from
 
 Read this before trusting a hosted copy with real money.
@@ -26,11 +40,6 @@ Read this before trusting a hosted copy with real money.
   your server in advance, so it allows a WebSocket or an HTTP request to
   any host. That the app only ever asks the one server is a property of its
   code, not something the policy enforces.
-
-An Esplora server cannot push news, so the app asks it for a new block every
-30 seconds; a payment still in the mempool shows at the next block or when
-you refresh. Your Esplora must send `Access-Control-Allow-Origin` naming this
-app's origin (electrs: `--cors <origin>`), or the browser hides its answers.
 - **It does protect your history at rest.** Wallet data in the browser is
   encrypted with a key derived from your passphrase (Argon2id, AES-GCM). Set
   no passphrase and it does not: anyone using the browser can see your wallets.
@@ -91,6 +100,11 @@ Restart Fulcrum and connect the wallet to `wss://node.example.com:50004`.
 
 Let's Encrypt and Tailscale certificates last 90 days. Renew and restart
 Fulcrum before they expire, for example from a monthly cron job.
+
+An Esplora server cannot push news, so the app asks it for a new block every
+30 seconds; a payment still in the mempool shows at the next block or when
+you refresh. Your Esplora must send `Access-Control-Allow-Origin` naming this
+app's origin (electrs: `--cors <origin>`), or the browser hides its answers.
 
 ## Development
 
