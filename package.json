@@ -1,6 +1,7 @@
 {
-  "name": "btc-browser-wallet",
+  "name": "unbeholden-wallet",
   "private": true,
+  "license": "MIT",
   "version": "0.1.0",
   "type": "module",
   "scripts": {

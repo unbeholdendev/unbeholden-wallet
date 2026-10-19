@@ -150,7 +150,7 @@ async function checkPassphrase(passphrase: string | null, header: Header | undef
 /**
  * Backup file, the one place its format is written down. UTF-8 JSON:
  *
- *     { "format": "btc-browser-wallet backup", "version": 1,
+ *     { "format": "unbeholden-wallet backup", "version": 1,
  *       "salt": hex, "kdf": { m, t, p }, "check": box, "data": box }
  *
  * A box is `{ "iv": hex, "data": hex }`: AES-GCM under the Argon2id key of the
@@ -160,7 +160,7 @@ async function checkPassphrase(passphrase: string | null, header: Header | undef
  * the vault stores them: `settings`, `wallet/<id>`, `labels/<id>`,
  * `frozen/<id>` and `kyc/<id>`. A reader refuses a version above its own.
  */
-const BACKUP = { format: "btc-browser-wallet backup", version: 1 } as const;
+const BACKUP = { format: "unbeholden-wallet backup", version: 1 } as const;
 const BACKUP_DATA = `backup/${BACKUP.version}`;
 
 const boxText = (box: Sealed) => ({ iv: hex.encode(box.iv), data: hex.encode(box.data) });
