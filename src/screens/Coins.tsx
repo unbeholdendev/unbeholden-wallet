@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { navigate } from "../app/route";
 import { useSendDraft, useWallet, useWalletSession, useWalletSnapshot } from "../app/session";
+import { useVault } from "../app/vault";
 import { nextChange } from "../core/view";
 import type { WalletCoin, WalletSnapshot, WalletTx } from "../core/wallet";
 import { Amount, btcParts, groupSats } from "../ui/amount";
@@ -47,7 +48,7 @@ function lookup(snapshot: WalletSnapshot) {
 
 const sendable = (c: WalletCoin) => selectable(c) && c.status !== "foreign-unconfirmed";
 
-type Picking = { picked: Set<string>; toggle: (coin: WalletCoin) => void };
+type Picking = { picked: Set<string>; toggle: (coin: WalletCoin) => void; can: (coin: WalletCoin) => boolean };
 
 /** One coin; given its source, the coin stands for the whole of a one-coin source. */
 function CoinRow({ coin, source, snapshot, picking, rate }: { coin: WalletCoin; source?: Source; snapshot: WalletSnapshot; picking: Picking; rate: number | null }) {
@@ -70,7 +71,7 @@ function CoinRow({ coin, source, snapshot, picking, rate }: { coin: WalletCoin; 
           type="checkbox"
           aria-label={`Send ${lead}${rest} BTC`}
           checked={picking.picked.has(outpoint(coin))}
-          disabled={!sendable(coin)}
+          disabled={!picking.can(coin)}
           onChange={() => picking.toggle(coin)}
           className="size-4 flex-none accent-route"
         />
@@ -210,6 +211,7 @@ export function Coins() {
   const [draft, store] = useSendDraft();
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const histogram = useFeeHistogram();
+  const skip = !!useVault().settings.skipForeignUnconfirmed;
   if (!snapshot) return <Opening title="Coins" />;
   const sources = sourcesOf(snapshot);
   const rate = histogram && rateOf(draft?.fee ?? { preset: "threeBlocks" }, histogram);
@@ -220,14 +222,16 @@ export function Coins() {
     if (!next.delete(outpoint(coin))) next.add(outpoint(coin));
     setPicked(next);
   };
-  const sending = coins.filter((c) => sendable(c) && picked.has(outpoint(c)));
+  const can = skip ? sendable : selectable;
+  const sending = coins.filter((c) => can(c) && picked.has(outpoint(c)));
   const send = () => {
     store((d) => ({ ...(d ?? blankDraft()), picked: sending.map(outpoint), built: null }));
     navigate("/send");
   };
-  const waiting = sum(coins.filter((c) => !c.frozen && (c.status === "foreign-unconfirmed" || c.status === "unconfirmed-parents")));
+  const spendable = balance.spendable + (skip ? 0 : balance.foreign);
+  const waiting = balance.confirmed + balance.unconfirmed - spendable - balance.frozen;
   const totals: [string, number][] = [
-    ["Spendable now", balance.spendable],
+    ["Spendable now", spendable],
     ["Frozen", balance.frozen],
     ["Not spendable yet", waiting],
   ];
@@ -266,7 +270,7 @@ export function Coins() {
           </div>
           <ul className="m-0 list-none border-t border-rule-2 p-0">
             {sources.map((s) => (
-              <Group key={s.id} source={s} snapshot={snapshot} picking={{ picked, toggle }} rate={rate} />
+              <Group key={s.id} source={s} snapshot={snapshot} picking={{ picked, toggle, can }} rate={rate} />
             ))}
           </ul>
         </section>
