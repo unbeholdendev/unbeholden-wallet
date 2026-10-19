@@ -32,10 +32,16 @@ function Flash({ value, children }: { value: number; children: ReactNode }) {
   );
 }
 
-export type Built = { psbt: Uint8Array; warnings: string[]; label: string; names?: Record<string, string>; summary: [ReactNode, ReactNode][] };
+export type Built = { psbt: Uint8Array; warnings: string[]; title?: string; label: string; names?: Record<string, string>; summary: [ReactNode, ReactNode][] };
 
-/** `picked` null lets the wallet choose coins for the amount; a tap fixes the choice. */
-export type SendDraft = { drafts: Draft[]; fee: FeeChoice; seed: string; picked: string[] | null; built: (Built & { inputs: string[]; signed?: Uint8Array; partial?: Uint8Array }) | null };
+/** `picked` null lets the wallet choose coins for the amount; a tap fixes the choice. `replaces` is set for a fee bump or cancellation, whose `inputs` are only the coins it adds. */
+export type SendDraft = { drafts: Draft[]; fee: FeeChoice; seed: string; picked: string[] | null; built: (Built & { inputs: string[]; replaces?: string; signed?: Uint8Array; partial?: Uint8Array }) | null };
+
+/** Whether a built send can still go out: its coins unspent and what it replaces still unconfirmed. */
+export function stillPending(built: NonNullable<SendDraft["built"]>, snapshot: WalletSnapshot) {
+  const unspent = new Set(snapshot.coins.map(outpoint));
+  return built.inputs.every((k) => unspent.has(k)) && (!built.replaces || snapshot.transactions.some((t) => t.txid === built.replaces && t.height === null));
+}
 
 export const blankDraft = (): SendDraft => ({
   drafts: [{ key: 0, address: "", amount: "", max: false, label: "" }],
@@ -324,10 +330,7 @@ export function Send() {
   // Checked once synced and on the way out, not on every change, so a broadcast does not flash the screen back to an empty form.
   useEffect(() => {
     if (!session) return;
-    const drop = () => {
-      const unspent = new Set(session.getSnapshot().coins.map(outpoint));
-      store((d) => (d?.built?.inputs.some((k) => !unspent.has(k)) ? null : d));
-    };
+    const drop = () => store((d) => (d?.built && !stillPending(d.built, session.getSnapshot()) ? null : d));
     if (synced) drop();
     return drop;
   }, [session, store, synced]);
@@ -340,7 +343,7 @@ export function Send() {
       <div hidden={!!built}>
         <Compose snapshot={snapshot} draft={draft} update={update} onDiscard={stored ? () => store(null) : undefined} />
       </div>
-      {built && <SignFlow built={built.psbt} title="Sign and send" warnings={built.warnings} summary={built.summary} label={built.label} names={built.names} onBack={() => update({ built: null })} done={built.signed} onDone={(signed) => update({ built: { ...built, signed } })} partial={built.partial} onPartial={(partial) => update({ built: { ...built, partial } })} />}
+      {built && <SignFlow built={built.psbt} title={built.title ?? "Sign and send"} warnings={built.warnings} summary={built.summary} label={built.label} names={built.names} onBack={() => update({ built: null })} done={built.signed} onDone={(signed) => update({ built: { ...built, signed } })} partial={built.partial} onPartial={(partial) => update({ built: { ...built, partial } })} />}
     </>
   );
 }

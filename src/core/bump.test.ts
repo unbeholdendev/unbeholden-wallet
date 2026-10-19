@@ -28,6 +28,7 @@ function walletTx(inputValue: number, change: number, fee = 282): WalletTx {
     confirmations: 0,
     time: null,
     seenAt: 0,
+    unconfirmedParents: false,
     net: -(50_000 + fee),
     fee,
     vsize: 141,
@@ -120,6 +121,22 @@ describe("cancel", () => {
     expect(plan.change).toEqual({ chain: 1, index: 0, value: 98_900 });
     expect(planBump(tx, change, 3.5, wallet, true).problem).toEqual({ kind: "below-minimum", minFeeRate: 3.6 });
   });
+
+  it("refuses when the fee would leave too little to send back", () => {
+    const tx = walletTx(1_300, 0);
+    // At 10 sat/vB the 110 vB cancellation pays 1 100 sats, leaving 200: under
+    // the 294-sat wpkh dust limit, so there is no output to send back.
+    const plan = planBump(tx, [coin(tx.txid, 1, 0, mine(1, 0), "own-change")], 10, wallet, true);
+    expect(plan.problem).toEqual({ kind: "nothing-left" });
+  });
+
+  it("says how short it is when the coins cannot cover the fee at all", () => {
+    const tx = walletTx(500, 0);
+    // With no output it can afford, the cancellation is one wpkh input and the
+    // 42 WU overhead, 314 WU or 79 vB: 790 sats at 10 sat/vB, 290 more than 500.
+    const plan = planBump(tx, [coin(tx.txid, 1, 0, mine(1, 0), "own-change")], 10, wallet, true);
+    expect(plan.problem).toEqual({ kind: "insufficient", missing: 290 });
+  });
 });
 
 describe("child pays for parent", () => {
@@ -142,7 +159,7 @@ describe("child pays for parent", () => {
     const tx = incoming(141);
     // The child, one wpkh input and one wpkh output, is 110 vB. At 10 sat/vB the
     // pair of 141 + 110 vB owes 2 510 sats; the parent paid 141, so the child pays 2 369.
-    const plan = planCpfp(tx, paid(tx), 10, wallet);
+    const plan = planCpfp(tx, [tx], paid(tx), 10, wallet);
     expect(plan.problem).toBeNull();
     expect(plan.spend.fee).toBe(2_369);
     expect(plan.spend.vsize).toBe(110);
@@ -157,7 +174,7 @@ describe("child pays for parent", () => {
     // A 2-of-3 wsh input is 164 + 1 + 1 + 2 × 73 + 1 + 105 = 418 WU; with a
     // 172 WU wsh output and 42 WU overhead, 632 WU is 158 vB. At 10 sat/vB the
     // pair of 141 + 158 vB owes 2 990 sats, less the parent's 141 is 2 849.
-    const plan = planCpfp(tx, paid(tx), 10, multisig);
+    const plan = planCpfp(tx, [tx], paid(tx), 10, multisig);
     expect(plan.spend.vsize).toBe(158);
     expect(plan.spend.fee).toBe(2_849);
   });
@@ -166,22 +183,40 @@ describe("child pays for parent", () => {
     const tx = incoming(14);
     // At 0.2 sat/vB the pair owes 50.2, so 51 sats, less 14 is 37: under the
     // child's own 110 vB at 1 sat/vB, so it pays 110.
-    expect(planCpfp(tx, paid(tx), 0.2, wallet).spend.fee).toBe(110);
+    expect(planCpfp(tx, [tx], paid(tx), 0.2, wallet).spend.fee).toBe(110);
   });
 
   it("says when what it pays the wallet cannot cover the child's fee", () => {
     const tx = incoming(141);
     // 2 369 sats of fee plus a 294-sat change output, the wpkh dust limit at
     // 3 sat/vB of (8 + 1 + 22 + 67) bytes, is 663 more than 2 000.
-    expect(planCpfp(tx, paid(tx, 2_000), 10, wallet).problem).toEqual({ kind: "insufficient", missing: 663 });
+    expect(planCpfp(tx, [tx], paid(tx, 2_000), 10, wallet).problem).toEqual({ kind: "insufficient", missing: 663 });
   });
 
   it("will not guess when the parent's fee is unknown", () => {
     const tx = incoming(null);
-    expect(planCpfp(tx, paid(tx), 10, wallet).problem).toEqual({ kind: "fee-unknown" });
+    expect(planCpfp(tx, [tx], paid(tx), 10, wallet).problem).toEqual({ kind: "fee-unknown" });
   });
 
   it("needs an unspent coin from the parent", () => {
-    expect(planCpfp(incoming(141), [], 10, wallet).problem).toEqual({ kind: "nothing-to-spend" });
+    expect(planCpfp(incoming(141), [], [], 10, wallet).problem).toEqual({ kind: "nothing-to-spend" });
+  });
+
+  it("counts the parent's unconfirmed ancestors in the package", () => {
+    const tx = incoming(141);
+    const grandparent = { ...walletTx(0, 0, 200), txid: "bb".repeat(32), vsize: 200, inputs: [] };
+    // Parent and grandparent are 341 vB and paid 341 sats. With the 110 vB
+    // child, 451 vB at 10 sat/vB owes 4 510 sats, so the child pays 4 169.
+    const plan = planCpfp(tx, [tx, grandparent], paid(tx), 10, wallet);
+    expect(plan.oldVsize).toBe(341);
+    expect(plan.oldFee).toBe(341);
+    expect(plan.spend.fee).toBe(4_169);
+    expect(plan.partial).toBe(false);
+    expect(planCpfp(tx, [tx, { ...grandparent, height: 100 }], paid(tx), 10, wallet).spend.fee).toBe(2_369);
+  });
+
+  it("says the rate may be lower when an unconfirmed parent is not in the wallet", () => {
+    const tx = { ...incoming(141), unconfirmedParents: true };
+    expect(planCpfp(tx, [tx], paid(tx), 10, wallet).partial).toBe(true);
   });
 });

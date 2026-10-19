@@ -170,9 +170,7 @@ export function Transaction({ txid }: { txid: string | undefined }) {
           <Endpoints title="Outputs" count={tx.outputs.length}>
             {tx.outputs.map((output: TxOutput) => (
               <Endpoint key={output.vout} {...output}>
-                {output.mine && (
-                  <EditableLabel type="output" target={`${tx.txid}:${output.vout}`} value={output.label} placeholder="Label this coin" className="text-sm" />
-                )}
+                <EditableLabel type="output" target={`${tx.txid}:${output.vout}`} value={output.label} placeholder={output.mine ? "Label this coin" : "Label this payment"} className="text-sm" />
               </Endpoint>
             ))}
           </Endpoints>

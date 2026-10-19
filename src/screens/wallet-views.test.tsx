@@ -136,6 +136,23 @@ describe("wallet views on the demo history", () => {
     expect(location.hash).toBe(`#/bump/${DEMO_TXIDS.rent}`);
   });
 
+  it("labels an output that pays someone else", async () => {
+    const user = await openApp(`#/tx/${DEMO_TXIDS.rent}`);
+    await user.click(await screen.findByRole("button", { name: "Label this payment" }));
+    await user.type(screen.getByLabelText("Label"), "Landlord{Enter}");
+    expect(await screen.findByRole("button", { name: /^Landlord, edit label/ })).toBeTruthy();
+  });
+
+  it("keeps a built replacement after locking and unlocking", async () => {
+    const user = await openApp(`#/bump/${DEMO_TXIDS.rent}`);
+    await user.click(await screen.findByRole("button", { name: "Build the replacement" }));
+    expect(location.hash).toBe("#/send");
+
+    cleanup();
+    await openApp("#/home");
+    expect(await screen.findByText("A transaction you built is waiting to be signed.")).toBeTruthy();
+  });
+
   it("traces a coin back to where its value came in, and names the coins it is already linked with", async () => {
     const user = await openApp("#/coins");
     await user.click(await screen.findByRole("link", { name: /0\.01 048 560/ }));
