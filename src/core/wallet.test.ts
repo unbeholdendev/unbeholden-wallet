@@ -43,9 +43,10 @@ function tx(inputs: [string, number][], outputs: [Uint8Array, number][]): Uint8A
 }
 const id = (raw: Uint8Array) => Transaction.fromRaw(raw, PARSE).id;
 
+const tap = theirs(0);
 const faucet = tx(
   [["00".repeat(32), 0xffffffff]],
-  Array.from({ length: 600 }, (): [Uint8Array, number] => [theirs(0), 1_000_000]),
+  Array.from({ length: 600 }, (): [Uint8Array, number] => [tap, 1_000_000]),
 );
 const FAUCET = id(faucet);
 const pay1 = tx([[id(faucet), 0]], [[mine(0, 0), 100_000], [theirs(1), 899_000]]);
@@ -182,17 +183,17 @@ describe.each(SERVERS)("a wallet with a known history, served by %s", (_, serve)
 describe.each(SERVERS)("scanning, served by %s", (_, serve) => {
   it("finds a coin beyond the gap limit only on a deeper scan", async () => {
     const backend = chain(serve);
-    backend.addBlock([tx([[id(faucet), 9]], [[mine(0, 60), 7_000]])]);
+    backend.addBlock([tx([[id(faucet), 9]], [[mine(0, 45), 7_000]])]);
     const session = await open(backend);
     expect(session.getSnapshot().balance.confirmed).toBe(89_000);
 
-    expect(await session.scanDeeper(100)).toBe(1);
+    expect(await session.scanDeeper(10)).toBe(1);
     expect(session.getSnapshot().balance.confirmed).toBe(96_000);
-    expect(session.getSnapshot().nextReceive.index).toBe(61);
-    expect(session.getSnapshot().addresses.receive).toHaveLength(81);
+    expect(session.getSnapshot().nextReceive.index).toBe(46);
+    expect(session.getSnapshot().addresses.receive).toHaveLength(66);
 
-    expect(await session.scanDeeper(100)).toBe(0);
-    expect(session.getSnapshot().addresses.receive).toHaveLength(81);
+    expect(await session.scanDeeper(10)).toBe(0);
+    expect(session.getSnapshot().addresses.receive).toHaveLength(66);
   });
 
   it("fetches only what changed on a second load", async () => {
@@ -437,7 +438,7 @@ describe("wallet records", () => {
     const second = await createWallet(
       vault,
       { name: "Spending", descriptor: BIP84_ZPUB, network: "mainnet" },
-      () => Date.now() + 1,
+      () => 0,
     );
     await expect(
       createWallet(vault, { name: "Bad", descriptor: BIP86_XPUB, network: "mainnet" }),

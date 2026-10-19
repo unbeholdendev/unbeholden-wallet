@@ -43,13 +43,15 @@ export async function createWallet(
   wallet: NewWallet,
   now: Clock = Date.now,
 ): Promise<WalletRecord> {
+  const newest = (await listWallets(vault)).at(-1)?.createdAt ?? -Infinity;
   const record: WalletRecord = {
     id: crypto.randomUUID(),
     name: wallet.name,
     descriptor: wallet.descriptor,
     network: wallet.network,
     scriptType: wallet.scriptType ?? null,
-    createdAt: now(),
+    // Two wallets made in the same millisecond would otherwise list in random id order.
+    createdAt: Math.max(now(), newest + 1),
   };
   walletDescriptor(record);
   await vault.put(`wallet/${record.id}`, record);

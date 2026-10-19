@@ -13,8 +13,8 @@ export type Source = {
   name: string;
   /** What the user called it, when they did. */
   label: string | null;
-  /** Some coin in it came from someone who knows who the user is. */
-  kyc: boolean;
+  /** Its coins, held or since spent, that came from someone who knows who the user is. */
+  kyc: { txid: string; vout: number }[];
   /** Short enough to sit inside a territory on the map. */
   short: string;
   note: string;
@@ -78,6 +78,7 @@ export function sourcesOf(snapshot: WalletSnapshot): Source[] {
     byGroup.set(id, [...(byGroup.get(id) ?? []), coin]);
   }
   const txLabel = new Map(snapshot.transactions.map((t) => [t.txid, t.label]));
+  const marked = snapshot.transactions.flatMap((t) => t.outputs.filter((o) => o.kyc).map((o) => ({ txid: t.txid, vout: o.vout })));
   const addressLabel = new Map(
     [...snapshot.addresses.receive, ...snapshot.addresses.change].map((a) => [a.address, a.label]),
   );
@@ -102,7 +103,7 @@ export function sourcesOf(snapshot: WalletSnapshot): Source[] {
       seed,
       name: label ?? `${kind} ${shortAddress(oldest.address)}`,
       label: label ?? null,
-      kyc: coins.some((c) => c.kyc),
+      kyc: marked.filter((m) => (snapshot.groups.get(outpoint(m)) ?? outpoint(m)) === id),
       short: label ? (label.length > 16 ? label.slice(0, 16).replace(/[\s,;:.-]+\S*$/, "") : label) : `…${oldest.address.slice(-4)}`,
       note: [
         oldest.height === null ? "Not yet confirmed" : `First seen in block ${groupSats(oldest.height)}`,

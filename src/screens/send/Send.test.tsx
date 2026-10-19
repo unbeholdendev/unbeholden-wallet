@@ -8,7 +8,7 @@ import { fakeBackend, type FakeBackend, type Fixture } from "../../backend/fake"
 import { createWallet, saveSettings } from "../../core/wallets";
 import { bbqrParts } from "../../transport/bbqr";
 import { psbtUrEncoder } from "../../transport/ur";
-import { groupSats } from "../../ui/amount";
+import { btcParts, groupSats } from "../../ui/amount";
 import { createVault, destroyVault } from "../../vault/vault";
 
 const camera = vi.hoisted(() => ({ frames: [] as string[] }));
@@ -175,6 +175,26 @@ describe("the send screen", () => {
 
     await user.click(within((await coin(/Kraken withdrawal/)).parentElement!).getByRole("switch", { name: "Knows who I am" }));
     expect(await map.findByText(/^Kraken withdrawal came from an exchange that knows who you are/)).toBeTruthy();
+  });
+
+  it("still warns of an exchange that knows who you are once its coin is spent and only the change is left", async () => {
+    const user = await start("#/send", []);
+    await user.click(within((await coin(/Bisq trade/)).parentElement!).getByRole("switch", { name: "Knows who I am" }));
+    await act(async () => backends.at(-1)!.addToMempool(outgoing));
+    const change = await coin(/Change at/);
+    const switches = within(change.parentElement!).getByRole("switch", { name: "Knows who I am" });
+    expect(switches.getAttribute("aria-checked")).toBe("true");
+
+    await payTo(user, PAYEE, "0.001");
+    await user.click(screen.getByRole("button", { name: "Clear" }));
+    await user.click(await coin(/Kraken withdrawal/));
+    await user.click(change);
+    const map = within(screen.getByRole("region", { name: "What this links" }));
+    expect(map.getByText(/^Change at .* came from an exchange that knows who you are/)).toBeTruthy();
+
+    await user.click(switches);
+    expect(switches.getAttribute("aria-checked")).toBe("false");
+    expect(map.queryByText(/an exchange that knows who you are/)).toBeNull();
   });
 
   it("never picks a frozen coin or one with an unconfirmed parent, and asks before spending someone else's unconfirmed payment", async () => {
@@ -432,11 +452,15 @@ describe("signing and broadcasting", () => {
     await upload(user, stranger.toPSBT());
     expect(await screen.findByText("This PSBT was refused: Input 1 is not one of this wallet's unspent coins.")).toBeTruthy();
 
-    const signed = signPsbt(built, BIP84);
+    const bare = Transaction.fromPSBT(signPsbt(built, BIP84));
+    for (let i = 0; i < bare.outputsLength; i++) bare.updateOutput(i, { bip32Derivation: undefined }, true);
+    const signed = bare.toPSBT();
     await upload(user, signed);
     expect(await screen.findByRole("heading", { name: "Check before you broadcast" })).toBeTruthy();
     expect(screen.getByText(PAYEE)).toBeTruthy();
     expect(screen.getByText("Change back to you")).toBeTruthy();
+    const { lead, rest } = btcParts(100_000 + Number(bare.fee));
+    expect(screen.getByText("Total leaving the wallet").parentElement!.textContent).toBe(`Total leaving the wallet${lead}${rest}BTC`);
     await user.click(screen.getByRole("button", { name: "Broadcast through your server" }));
     expect(await screen.findByText(Transaction.fromPSBT(signed).id)).toBeTruthy();
   });

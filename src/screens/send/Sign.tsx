@@ -72,8 +72,14 @@ export function SignFlow({
   const [refusal, setRefusal] = useState<string | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
-  const review = useMemo(() => reviewPsbt(built, descriptor, network), [built, descriptor, network]);
   const paths = new Map([...(snapshot?.addresses.receive ?? []), ...(snapshot?.addresses.change ?? [])].map((a) => [a.address, a.path]));
+  const review = useMemo(() => {
+    const review = reviewPsbt(built, descriptor, network);
+    // A PSBT signed elsewhere need not say which outputs are this wallet's, so its known addresses say too.
+    const change = new Set(snapshot?.addresses.change.map((a) => a.address));
+    const outputs = review.outputs.map((o) => (o.address && paths.has(o.address) ? { ...o, mine: true, change: change.has(o.address) } : o));
+    return { ...review, outputs };
+  }, [built, descriptor, network, snapshot]);
   const inputs = useMemo(() => parsePsbt(built).inputsLength, [built]);
 
   const signed = (psbt: Uint8Array) => {
