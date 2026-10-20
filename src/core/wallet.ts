@@ -8,6 +8,7 @@ import {
   type Unsubscribe,
   type WalletBackend,
 } from "../backend/backend";
+import { log } from "../log";
 import type { Clock, Store } from "../vault/vault";
 import { outpoint } from "../wallet/coin";
 import { deriveAddress } from "../wallet/derive";
@@ -302,9 +303,11 @@ export async function openWallet(
       try {
         while (!closed && backend && (full || newTip || dirty.size)) await syncOnce();
         if (!closed) emit(backend ? { progress: null, error: null } : { progress: null });
+        if (!closed && backend) log("synced");
       } catch (error) {
         if (closed) return;
         full = true;
+        log("sync failed", { message: (error as Error).message });
         emit({ error: backend ? (error as Error).message : null, progress: null });
       } finally {
         loop = null;
