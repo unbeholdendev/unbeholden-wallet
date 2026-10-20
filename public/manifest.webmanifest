@@ -1,6 +1,6 @@
 {
   "name": "Unbeholden Wallet",
-  "short_name": "Unbeholden",
+  "short_name": "Unbeholden Wallet",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

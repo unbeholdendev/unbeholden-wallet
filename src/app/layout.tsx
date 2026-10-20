@@ -11,7 +11,7 @@ export function Page({ children, aside }: { children: ReactNode; aside?: ReactNo
         <header className="flex items-center justify-between gap-4">
           <a href="#/" className="flex items-center gap-2.5 text-md font-bold text-ink no-underline">
             <Mark />
-            Watch-only wallet
+            Unbeholden Wallet
           </a>
           {aside}
         </header>

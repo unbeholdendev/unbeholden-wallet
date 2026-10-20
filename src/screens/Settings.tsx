@@ -379,17 +379,6 @@ export function Settings() {
             </Button>
           </Panel>
         )}
-        <Panel title="Amounts">
-          <Segmented
-            label="Show and type amounts in"
-            value={settings.unit ?? "btc"}
-            onChange={(unit) => void saveSettings({ unit })}
-            options={[
-              { value: "btc", label: "BTC" },
-              { value: "sats", label: "sats" },
-            ]}
-          />
-        </Panel>
         <Panel title="Spending">
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={!settings.skipForeignUnconfirmed} onChange={(e) => void saveSettings({ skipForeignUnconfirmed: !e.target.checked })} className="size-4 accent-carbon" />
