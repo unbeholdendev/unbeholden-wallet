@@ -23,7 +23,7 @@ export function bip21(address: string, sats: number | null, label: string | null
 /** Its label is the address's label. */
 export type PaymentRequest = { address: string; sats: number | null };
 
-function received(snapshot: WalletSnapshot, address: string) {
+export function received(snapshot: WalletSnapshot, address: string) {
   let confirmed = 0;
   let unconfirmed = 0;
   for (const tx of snapshot.transactions)
