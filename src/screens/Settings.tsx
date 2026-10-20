@@ -256,7 +256,7 @@ function Wallets() {
               <LinkButton aria-label={`Descriptor of ${w.name}`} onClick={() => setShowing(w)}>
                 Descriptor
               </LinkButton>
-              <LinkButton aria-label={`Remove ${w.name}`} onClick={() => setRemoving(w)}>
+              <LinkButton aria-label={`Remove ${w.name}`} onClick={() => setRemoving(w)} className="text-bad!">
                 Remove
               </LinkButton>
             </li>
