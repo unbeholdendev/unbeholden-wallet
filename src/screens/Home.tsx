@@ -33,7 +33,7 @@ function SyncLine({ snapshot }: { snapshot: WalletSnapshot }) {
           ? ["bg-warn animate-pulse", `${stages[progress.stage]}, ${groupSats(progress.done)} of ${groupSats(progress.total)}.`]
           : error
             ? ["bg-bad", `The last sync failed. ${error}`]
-            : ["bg-ok", tip ? `Up to date at block ${groupSats(tip.height)}. Watching ${server}.` : `Watching ${server}.`];
+            : ["bg-ok", tip ? `Up to date at block ${groupSats(tip.height)}.` : "Up to date."];
   return (
     <div role="status" className="flex items-center gap-2.5 border-t border-rule px-4 py-3 text-sm text-ink-2">
       <span aria-hidden="true" className={`size-2 flex-none rounded-full ${dot}`} />
