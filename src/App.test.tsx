@@ -122,10 +122,17 @@ describe("onboarding", () => {
     expect(settings).toEqual({ server: SERVER, walletId: wallet!.id });
   }, 30_000);
 
+  it("says why it cannot run outside a secure context", async () => {
+    vi.stubGlobal("isSecureContext", false);
+    renderApp();
+    expect(await screen.findByText("Open this over https or localhost")).toBeTruthy();
+    vi.unstubAllGlobals();
+  });
+
   it("offers the container's bridge as the server when it has one", async () => {
     const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ url: "ws://localhost:8080/electrum" }));
     renderApp();
-    await waitFor(() => expect((screen.getByLabelText("Server address") as HTMLInputElement).value).toBe("ws://localhost:8080/electrum"));
+    await waitFor(() => expect((screen.getByLabelText("Server address") as HTMLInputElement).value).toBe("ws://localhost:3000/electrum"));
     expect(fetch).toHaveBeenCalledWith("electrum.json");
     fetch.mockRestore();
   });

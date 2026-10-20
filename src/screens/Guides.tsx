@@ -144,6 +144,12 @@ export function Guide() {
         port, and the connection screen offers <span className={c}>ws://localhost:8080/electrum</span>.
       </p>
       <Code>{`docker run --rm -p 127.0.0.1:8080:8080 -e ELECTRUM=192.168.1.20:50001 unbeholden-wallet`}</Code>
+      <p>
+        From another device, such as your phone, put https in front of the container: plain http to a network address is
+        not a secure page, and the app will not run there. With Tailscale, run this on the machine with the container, then
+        open <span className={c}>https://&lt;machine&gt;.&lt;tailnet&gt;.ts.net</span>. The bridge then offers wss:// on that name.
+      </p>
+      <Code>{`tailscale serve --bg 8080`}</Code>
     </Doc>
   );
 }
