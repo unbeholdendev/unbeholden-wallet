@@ -203,6 +203,14 @@ describe("onboarding", () => {
       expect(screen.getByRole("link", { name: /Open it/ }).getAttribute("href")).toBe("https://node.example.ts.net:50004/");
   });
 
+  it("blames the container's link, not a certificate, when its own bridge fails", async () => {
+    await existingVault({ server: "ws://localhost:3000/electrum" });
+    const user = renderApp("certificate-rejected");
+    await unlock(user);
+    expect(await screen.findByRole("heading", { name: "The container could not reach your Electrum server" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: /certificate/ })).toBeNull();
+  });
+
   it("shows the descriptor a zpub implies and presses for the backup", async () => {
     await existingVault({ server: SERVER });
     const user = renderApp();
