@@ -383,7 +383,7 @@ export function Connect({ onboarding = false }: { onboarding?: boolean }) {
     if (url) return;
     fetch("electrum.json")
       .then((r) => r.json())
-      .then((bridge: { url?: unknown }) => typeof bridge.url === "string" && setUrl((u) => u || (bridge.url as string)))
+      .then((bridge: { url?: unknown }) => typeof bridge.url === "string" && setUrl((u) => u || new URL("electrum", location.href).href.replace(/^http/, "ws")))
       .catch(() => {});
   }, []);
 
