@@ -176,7 +176,7 @@ the user's own node.
 
 - All external I/O goes through a single `WalletBackend` interface. This is both the architectural seam that keeps an Esplora implementation possible and the test seam.
 - The interface covers: fetching the chain tip, subscribing to headers, fetching history for a batch of scripthashes, fetching a batch of transactions, subscribing to scripthashes, fetching the mempool fee histogram, and broadcasting a raw transaction.
-- The v1 implementation is Electrum over WSS only. There is no default server, no bundled server list, no demo mode, and no instance operated by the project.
+- The v1 implementation is Electrum over WSS only. There is no default server, no bundled server list, and no instance operated by the project. The one exception is the demo build (`bun run build:demo`): the same app against a fake chain held in memory, served from its own origin, whose CSP allows connections only to its own origin.
 - Electrum JSON-RPC batching is used wherever more than one call of the same kind is needed. This is the primary sync performance lever and is a requirement, not an optimisation.
 - The connection screen classifies failures into distinct, actionable states: certificate rejected, connection refused, timed out, and connected-but-not-Electrum. Each has its own guidance. The guide covers the ways to give a home node a certificate the browser trusts, with no one way favoured.
 
@@ -298,7 +298,7 @@ last two are standing decisions and have none.
 - Multiple accounts per descriptor (#99).
 - Legacy `pkh` and wrapped `sh(wpkh)` script types (#100).
 - Any server operated by the project: no default Electrum endpoint, no bundled
-  server list, no proxy, no demo mode.
+  server list, no proxy. The demo build talks to no Bitcoin server at all.
 - Mandatory on-device address verification.
 
 ## Further Notes
@@ -321,8 +321,8 @@ spike is discarded afterwards. The real build then proceeds bottom-up from the
 descriptor and derivation layer, which has published vectors and can be made
 provably correct before anything sits on it.
 
-**The connection screen is the funnel.** Given that there is no default server
-and no demo, every user's first action is connecting to their own node, and the
+**The connection screen is the funnel.** Given that there is no default server,
+every real user's first action is connecting to their own node, and the
 browser makes that harder than it sounds: an HTTPS page cannot open `ws://` at
 all, and a `wss://` connection to a self-signed certificate fails with no
 in-browser override, because WebSockets have no "proceed anyway" affordance. The
