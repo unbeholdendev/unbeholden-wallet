@@ -173,6 +173,9 @@ export function Receive() {
           <dt className="text-ink-2">Index</dt>
           <dd className="m-0 text-right">Receive #{next.index}</dd>
         </dl>
+        <a className={`${linkClass} justify-self-start text-sm`} href="#/addresses">
+          All addresses, used and unused
+        </a>
         <details className="rounded-control bg-sunk p-3 text-sm text-ink-2">
           <summary className="flex cursor-pointer list-none flex-wrap items-baseline justify-between gap-x-3 gap-y-1 [&::-webkit-details-marker]:hidden">
             <span>For a large amount, check this address on your signer first.</span>
