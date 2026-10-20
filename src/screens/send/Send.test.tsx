@@ -567,7 +567,7 @@ describe("address book", () => {
     const vout = Array.from({ length: signed.outputsLength }, (_, i) => signed.getOutput(i).script!).findIndex((s) => s.join() === script(LARGE, 0, 0).join());
 
     location.hash = "#/home";
-    expect(await screen.findByText("Landlord")).toBeTruthy();
+    expect(await screen.findByRole("link", { name: "Landlord" })).toBeTruthy();
     location.hash = "#/settings";
     let exported: Blob | undefined;
     URL.createObjectURL = (b: Blob) => ((exported = b), "blob:labels");

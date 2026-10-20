@@ -77,6 +77,17 @@ describe("wallet views on the demo history", () => {
     expect(((await screen.findByLabelText("Amount, BTC")) as HTMLInputElement).value).toBe("0.00005");
   });
 
+  it("shows what is pending, where the coins came from, and the mempool, beside the history", async () => {
+    await openApp();
+    expect(screen.getByText("2 payments not yet confirmed")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Where it came from" })).toBeTruthy();
+    expect(screen.getByText("Kraken withdrawals").closest("li")!.textContent).toContain("47%");
+    expect(screen.getByRole("link", { name: "All 7 sources" }).getAttribute("href")).toBe("#/coins");
+    expect(await screen.findByText(/The mempool is empty/)).toBeTruthy();
+    const chart = screen.getByRole("img", { name: /^Balance over time, from / }).querySelector("path")!.getAttribute("d")!;
+    for (const x of chart.matchAll(/H([\d.]+)/g)) expect(Number(x[1])).toBeLessThanOrEqual(320);
+  });
+
   it("shows the balances and each payment's amount and direction, newest first", async () => {
     const user = await openApp();
     const balance = screen.getByRole("region", { name: "Balance" }).textContent;
