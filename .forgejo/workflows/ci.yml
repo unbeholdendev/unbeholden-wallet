@@ -21,3 +21,6 @@ jobs:
           rm -rf dist
           bun run build
           bun run --silent hashes | diff ../hashes-1.txt -
+      - run: bun run build:demo
+      - name: The wallet build holds no demo code
+        run: "! grep -rq 'Kraken withdrawal' dist"
