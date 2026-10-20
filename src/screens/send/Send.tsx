@@ -7,7 +7,7 @@ import type { WalletCoin, WalletSnapshot } from "../../core/wallet";
 import { Amount, groupSats } from "../../ui/amount";
 import { shortId } from "../../ui/format";
 import { Icon } from "../../ui/icons";
-import { Button, Chip, LinkButton, linkClass, Notice } from "../../ui/kit";
+import { Button, Chip, linkClass, Notice } from "../../ui/kit";
 import { Sheet } from "../../ui/sheet";
 import { sourcesOf, type Source } from "../../ui/sources";
 import { outpoint } from "../../wallet/coin";
@@ -300,7 +300,7 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
             <div className="grid gap-2 px-4 pb-4">
               {error && <Notice tone="bad">{error}</Notice>}
               {primary("md")}
-              {onDiscard && <LinkButton onClick={onDiscard} className="justify-self-center">Discard this send</LinkButton>}
+              {onDiscard && <Button variant="danger" size="sm" onClick={onDiscard} className="justify-self-center">Discard this send</Button>}
               <a href="#/broadcast" className={`${linkClass} justify-self-center text-sm`}>Broadcast a PSBT signed elsewhere</a>
             </div>
           </section>
