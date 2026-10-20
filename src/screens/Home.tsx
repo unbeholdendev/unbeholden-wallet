@@ -13,6 +13,7 @@ import { reasons } from "./Connect";
 import { Opening } from "./parts";
 import { parseAmount } from "./send/Recipients";
 import { stillPending } from "./send/Send";
+import { BalanceChart, Network, Pending, Sources } from "./HomePanels";
 
 const stages = { history: "Checking addresses", transactions: "Fetching transactions", blocks: "Fetching block times" };
 
@@ -80,6 +81,7 @@ function Balance({ snapshot }: { snapshot: WalletSnapshot }) {
             )}
           </span>
         )}
+        <BalanceChart snapshot={snapshot} />
       </div>
       <SyncLine snapshot={snapshot} />
     </section>
@@ -263,12 +265,13 @@ export function Home() {
   const [draft] = useSendDraft();
   if (!snapshot) return <Opening title="Home" />;
   const fresh = !snapshot.transactions.length;
-  const waiting = draft?.built && stillPending(draft.built, snapshot) ? draft.built : null;
+  const built = draft?.built && stillPending(draft.built, snapshot) ? draft.built : null;
+  const left = "empty:hidden @min-[900px]/app:col-start-1";
   return (
-    <div className="grid content-start items-start gap-6 @min-[900px]/app:grid-cols-[360px_minmax(0,1fr)]">
+    <div className="grid content-start gap-6">
       <h1 className="sr-only">Home</h1>
       {snapshot.reorg && (
-        <div role="status" className="flex items-start gap-2 rounded-control bg-warn-tint px-3 py-2.5 text-sm text-warn @min-[900px]/app:col-span-2">
+        <div role="status" className="flex items-start gap-2 rounded-control bg-warn-tint px-3 py-2.5 text-sm text-warn">
           <Icon name="warn" className="mt-px size-[18px]" />
           <p className="m-0 flex-1 text-ink">
             <b className="font-bold text-warn">The chain reorganised.</b> The tip moved to a different block at height{" "}
@@ -280,34 +283,41 @@ export function Home() {
           </button>
         </div>
       )}
-      {waiting && (
-        <div role="status" className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-control bg-carbon-tint px-3 py-2.5 text-sm @min-[900px]/app:col-span-2">
-          <p className="m-0 flex-1">{waiting.signed ? "A signed transaction is waiting to be broadcast." : "A transaction you built is waiting to be signed."}</p>
-          <a className={linkClass} href="#/send">
-            Resume it
-          </a>
+      <div className="grid items-start gap-6 @min-[900px]/app:grid-cols-[360px_minmax(0,1fr)] @min-[900px]/app:grid-rows-[auto_auto_auto_auto_1fr]">
+        <div className={left}>
+          <Balance snapshot={snapshot} />
         </div>
-      )}
-      <Balance snapshot={snapshot} />
-      {fresh && snapshot.tip && !snapshot.progress ? (
-        <Empty title="No transactions yet">
-          <p className="m-0">
-            Nothing has been paid to this wallet&rsquo;s addresses. To receive, share an unused address from{" "}
-            <a className={linkClass} href="#/receive">
-              Receive
-            </a>
-            . If you expected coins here, they may sit beyond the addresses this wallet checks;{" "}
-            <a className={linkClass} href="#/addresses">
-              scan further
-            </a>
-            .
-          </p>
-        </Empty>
-      ) : fresh ? (
-        <p className="m-0 text-ink-3">Transactions appear here once the first sync finishes.</p>
-      ) : (
-        <History snapshot={snapshot} />
-      )}
+        <div className={left}>
+          <Pending snapshot={snapshot} waiting={built ? (built.signed ? "broadcast" : "sign") : null} />
+        </div>
+        <div className="min-w-0 @min-[900px]/app:col-start-2 @min-[900px]/app:row-span-5 @min-[900px]/app:row-start-1">
+          {fresh && snapshot.tip && !snapshot.progress ? (
+            <Empty title="No transactions yet">
+              <p className="m-0">
+                Nothing has been paid to this wallet&rsquo;s addresses. To receive, share an unused address from{" "}
+                <a className={linkClass} href="#/receive">
+                  Receive
+                </a>
+                . If you expected coins here, they may sit beyond the addresses this wallet checks;{" "}
+                <a className={linkClass} href="#/addresses">
+                  scan further
+                </a>
+                .
+              </p>
+            </Empty>
+          ) : fresh ? (
+            <p className="m-0 text-ink-3">Transactions appear here once the first sync finishes.</p>
+          ) : (
+            <History snapshot={snapshot} />
+          )}
+        </div>
+        <div className={left}>
+          <Sources snapshot={snapshot} />
+        </div>
+        <div className={left}>
+          <Network />
+        </div>
+      </div>
     </div>
   );
 }
