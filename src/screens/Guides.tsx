@@ -134,7 +134,7 @@ export function Guide() {
         context that may open plain ws://, so it reaches a node on your own network without a certificate. It also pins
         the code you run to a commit you chose.
       </p>
-      <Code>{`docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -t unbeholden-wallet .\ndocker run --rm -p 127.0.0.1:8080:8080 unbeholden-wallet`}</Code>
+      <Code>{`docker run --rm -p 127.0.0.1:8080:8080 ghcr.io/unbeholdendev/unbeholden-wallet:<short commit>`}</Code>
       <p>
         Then open <span className={c}>http://localhost:8080</span> and connect to <span className={c}>ws://</span> and your
         node's WebSocket port, for example <span className={c}>ws://192.168.1.20:50003</span>.
@@ -143,7 +143,7 @@ export function Guide() {
         An Electrum server without WebSocket, such as electrs, is reached through the container. Give it the server's TCP
         port, and the connection screen offers <span className={c}>ws://localhost:8080/electrum</span>.
       </p>
-      <Code>{`docker run --rm -p 127.0.0.1:8080:8080 -e ELECTRUM=192.168.1.20:50001 unbeholden-wallet`}</Code>
+      <Code>{`docker run --rm -p 127.0.0.1:8080:8080 -e ELECTRUM=192.168.1.20:50001 ghcr.io/unbeholdendev/unbeholden-wallet:<short commit>`}</Code>
     </Doc>
   );
 }
