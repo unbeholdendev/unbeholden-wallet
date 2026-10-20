@@ -61,6 +61,22 @@ afterEach(async () => {
 });
 
 describe("wallet views on the demo history", () => {
+  it("shows and takes amounts in sats once switched in settings", async () => {
+    const user = await openApp("#/settings");
+    await user.click(await screen.findByRole("button", { name: "sats" }));
+    go("#/home");
+    await waitFor(() => expect(spendable()).toBe("30\u202f926\u202f773sats"));
+    await user.click(screen.getByRole("button", { name: /^Filters/ }));
+    await user.type(screen.getByLabelText("At least"), "6000000");
+    expect(shownLabels()).toEqual(["Ocean payout, August", "Kraken withdrawal, July"]);
+    go("#/send");
+    await user.type(await screen.findByLabelText("Amount, sats"), "5000");
+    go("#/settings");
+    await user.click(await screen.findByRole("button", { name: "BTC" }));
+    go("#/send");
+    expect(((await screen.findByLabelText("Amount, BTC")) as HTMLInputElement).value).toBe("0.00005");
+  });
+
   it("shows the balances and each payment's amount and direction, newest first", async () => {
     const user = await openApp();
     const balance = screen.getByRole("region", { name: "Balance" }).textContent;

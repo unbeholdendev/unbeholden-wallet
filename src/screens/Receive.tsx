@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useReceiveSkips, useWallet, useWalletSnapshot } from "../app/session";
-import { useVault } from "../app/vault";
+import { useUnit, useVault } from "../app/vault";
 import type { WalletSnapshot } from "../core/wallet";
 import { qrPath } from "../transport/qr";
 import { Amount } from "../ui/amount";
@@ -8,7 +8,7 @@ import { shortId } from "../ui/format";
 import { Button, Chip, Field, inputClass, LinkButton, linkClass, Panel } from "../ui/kit";
 import { useToast } from "../ui/toast";
 import { CopyButton, EditableLabel, GroupedAddress, Opening } from "./parts";
-import { btcText, parseBtc } from "./send/Recipients";
+import { btcText, parseAmount, parseBtc } from "./send/Recipients";
 
 /** A BIP21 request. Only the address part is upper case: that fits the denser alphanumeric QR mode, and a label keeps its case. */
 // https://github.com/bitcoin/bips/blob/master/bip-0021.mediawiki
@@ -70,6 +70,7 @@ export function Receive() {
   const { record: { id }, descriptor: { keys, multi } } = useWallet();
   const [from, setFrom] = useState(() => skips.get(id) ?? "");
   const [amount, setAmount] = useState("");
+  const inSats = useUnit() === "sats";
   const [withLabel, setWithLabel] = useState(false);
   const [requests, setRequests] = useState<PaymentRequest[] | null>(null);
   const [shown, setShown] = useState<string | null>(null);
@@ -93,7 +94,7 @@ export function Receive() {
   const unused = receive.filter((a) => !a.used && a.index >= snapshot.nextReceive.index && !requested.has(a.address));
   const next = receive.find((a) => a.address === shown) ?? unused.find((a) => a.index >= skipTo) ?? snapshot.nextReceive;
   const after = unused.find((a) => a.index > next.index);
-  const sats = parseBtc(amount);
+  const sats = inSats ? parseAmount(`${amount}sats`) : parseBtc(amount);
   const isRequest = requested.has(next.address);
   const saveRequests = (list: PaymentRequest[], done: () => void) =>
     vault.put(`requests/${id}`, list).then(
@@ -149,15 +150,15 @@ export function Receive() {
             </label>
           )}
         </div>
-        <Field label="Amount to ask for, BTC (optional)" error={amount && sats === null ? "Write it as BTC, up to eight decimals." : undefined}>
+        <Field label={`Amount to ask for, ${inSats ? "sats" : "BTC"} (optional)`} error={amount && sats === null ? (inSats ? "Write it as whole sats." : "Write it as BTC, up to eight decimals.") : undefined}>
           {(props) => (
             <input
               {...props}
               className={`${inputClass} tabular-nums`}
-              inputMode="decimal"
+              inputMode={inSats ? "numeric" : "decimal"}
               autoComplete="off"
               value={amount}
-              placeholder="0.00"
+              placeholder={inSats ? "0" : "0.00"}
               onChange={(e) => setAmount(e.target.value)}
             />
           )}
@@ -199,7 +200,7 @@ export function Receive() {
           requests={requests}
           onShow={(r) => {
             setShown(r.address);
-            setAmount(r.sats ? btcText(r.sats) : "");
+            setAmount(r.sats ? (inSats ? String(r.sats) : btcText(r.sats)) : "");
             setWithLabel(false);
           }}
           onRemove={(r) => {

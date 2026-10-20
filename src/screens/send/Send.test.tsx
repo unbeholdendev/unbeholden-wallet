@@ -98,7 +98,7 @@ const summary = () => within(screen.getByRole("region", { name: "Summary" }));
 
 async function payTo(user: ReturnType<typeof userEvent.setup>, to: string, btc: string) {
   await user.type(await screen.findByLabelText("Address"), to);
-  await user.type(screen.getByLabelText("Amount, BTC or sats"), btc);
+  await user.type(screen.getByLabelText("Amount, BTC"), btc);
 }
 
 let created: string | null = null;
@@ -268,8 +268,8 @@ describe("the send screen", () => {
 
     await user.click(await coin(/Bisq trade/));
     expect(entries()).toHaveLength(2);
-    await user.clear(screen.getByLabelText("Amount, BTC or sats"));
-    await user.type(screen.getByLabelText("Amount, BTC or sats"), "0.001");
+    await user.clear(screen.getByLabelText("Amount, BTC"));
+    await user.type(screen.getByLabelText("Amount, BTC"), "0.001");
     expect(entries()).toHaveLength(2);
 
     await user.click(screen.getByRole("button", { name: "Pick for me" }));
@@ -288,7 +288,7 @@ describe("the send screen", () => {
     expect(await screen.findByRole("img", { name: /^QR code/ })).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Back to coins" }));
     expect((screen.getByLabelText("Address") as HTMLInputElement).value).toBe(PAYEE);
-    expect((screen.getByLabelText("Amount, BTC or sats") as HTMLInputElement).value).toBe("0.001");
+    expect((screen.getByLabelText("Amount, BTC") as HTMLInputElement).value).toBe("0.001");
 
     await user.click(screen.getByRole("button", { name: "Discard this send" }));
     expect((screen.getByLabelText("Address") as HTMLInputElement).value).toBe("");
@@ -552,12 +552,12 @@ describe("address book", () => {
     expect(screen.queryByText("Cold storage")).toBeNull();
     await user.click(screen.getByRole("button", { name: /^Landlord/ }));
     expect(field.value).toBe(PAYEE);
-    await user.type(screen.getByLabelText("Amount, BTC or sats"), "0.001");
+    await user.type(screen.getByLabelText("Amount, BTC"), "0.001");
     await user.click(screen.getByRole("button", { name: "Review and sign" }));
     expect(await screen.findByText("Payment 1 to Landlord")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Back to coins" }));
     await user.clear(field);
-    await user.clear(screen.getByLabelText("Amount, BTC or sats"));
+    await user.clear(screen.getByLabelText("Amount, BTC"));
 
     const psbt = await builtPsbt(user);
     await upload(user, signPsbt(psbt, BIP84));
