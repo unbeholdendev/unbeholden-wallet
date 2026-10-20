@@ -48,7 +48,10 @@ const go = (hash: string) => {
 const row = (label: string) => screen.getByRole("link", { name: label }).closest("li")!.textContent;
 const shownLabels = () =>
   screen.getAllByRole("link").filter((a) => a.getAttribute("href")?.startsWith("#/tx/")).map((a) => a.textContent);
-const spendable = () => screen.getByText("Spendable now").nextElementSibling!.textContent;
+const spendable = () => {
+  const label = screen.getByText("Spendable now");
+  return (label.tagName === "DT" ? label : label.parentElement!).nextElementSibling!.textContent;
+};
 
 beforeEach(async () => {
   backends = [];
@@ -61,26 +64,23 @@ afterEach(async () => {
 });
 
 describe("wallet views on the demo history", () => {
-  it("shows and takes amounts in sats once switched in settings", async () => {
-    const user = await openApp("#/settings");
-    await user.click(await screen.findByRole("button", { name: "sats" }));
-    go("#/home");
+  it("switches amounts to sats from the balance and back from the send form", async () => {
+    const user = await openApp();
+    await user.click(within(screen.getByRole("region", { name: "Balance" })).getByRole("button", { name: "sats" }));
     await waitFor(() => expect(spendable()).toBe("30\u202f926\u202f773sats"));
     await user.click(screen.getByRole("button", { name: /^Filters/ }));
     await user.type(screen.getByLabelText("At least"), "6000000");
     expect(shownLabels()).toEqual(["Ocean payout, August", "Kraken withdrawal, July"]);
     go("#/send");
     await user.type(await screen.findByLabelText("Amount, sats"), "5000");
-    go("#/settings");
-    await user.click(await screen.findByRole("button", { name: "BTC" }));
-    go("#/send");
+    await user.click(screen.getByRole("button", { name: "BTC" }));
     expect(((await screen.findByLabelText("Amount, BTC")) as HTMLInputElement).value).toBe("0.00005");
   });
 
   it("shows the balances and each payment's amount and direction, newest first", async () => {
     const user = await openApp();
     const balance = screen.getByRole("region", { name: "Balance" }).textContent;
-    expect(balance).toContain("Spendable now0.30 926 773");
+    expect(balance).toContain("Spendable nowBTCsats0.30 926 773");
     expect(balance).not.toContain("waiting to confirm");
     expect(balance).toContain("0.00 021 400 frozen");
 
@@ -372,7 +372,7 @@ describe("the connection", () => {
     down = false;
     act(() => report("connected"));
 
-    await waitFor(() => expect(screen.getByRole("region", { name: "Balance" }).textContent).toContain("Spendable now0.30 936 773"));
+    await waitFor(() => expect(screen.getByRole("region", { name: "Balance" }).textContent).toContain("Spendable nowBTCsats0.30 936 773"));
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
   });
 

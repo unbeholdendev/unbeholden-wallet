@@ -5,7 +5,7 @@ import { useSendDraft, useWalletSession, useWalletSnapshot } from "../app/sessio
 import { useUnit, useVault } from "../app/vault";
 import { feeRate, isOutgoing, txDirection, txWhen } from "../core/view";
 import type { WalletSnapshot, WalletTx } from "../core/wallet";
-import { Amount, btcParts, groupSats } from "../ui/amount";
+import { Amount, btcParts, groupSats, UnitSwitch } from "../ui/amount";
 import { confText, dateText, hostText, timeText, txFallback } from "../ui/format";
 import { Icon } from "../ui/icons";
 import { Button, Chip, Empty, LinkButton, linkClass, Segmented } from "../ui/kit";
@@ -59,7 +59,10 @@ function Balance({ snapshot }: { snapshot: WalletSnapshot }) {
   return (
     <section aria-label="Balance" className="rounded-panel border border-rule bg-sheet">
       <div className="grid gap-1 px-4 pt-5 pb-4">
-        <span className="text-sm text-ink-2">Spendable now</span>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-sm text-ink-2">Spendable now</span>
+          <UnitSwitch />
+        </div>
         <span className="text-2xl font-medium tracking-[-0.01em] @max-[380px]/app:text-[34px]">
           <Amount sats={spendable} unit />
         </span>
