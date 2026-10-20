@@ -5,7 +5,7 @@ import { LOOPBACK } from "../backend/handshake";
 import { genesisNetwork, type Network } from "../wallet/network";
 import { log } from "../log";
 
-export type Failure = ConnectionFailure | "invalid-url";
+export type Failure = ConnectionFailure | "invalid-url" | "bridge";
 
 /** The fake backend in tests has no status to report, so these are optional. */
 type Observable = WalletBackend & Partial<Pick<ElectrumBackend, "onStatus" | "server">>;
@@ -92,7 +92,8 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         next.close();
         if (stale()) return false;
-        const failure = error instanceof ConnectionError ? error.failure : null;
+        // This page loaded over the same host, so its certificate is trusted; only the bridge's own link can fail.
+        const failure = /^wss?:/.test(url) && new URL(url).host === location.host ? "bridge" : error instanceof ConnectionError ? error.failure : null;
         const message = String((error as Error)?.message ?? error);
         log("connect failed", { failure, message });
         setConnection({ phase: "failed", url, failure, message });

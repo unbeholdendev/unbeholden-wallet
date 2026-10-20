@@ -11,6 +11,7 @@ import { Button, buttonClass, Field, inputClass, linkClass, Notice, Steps } from
 const httpsForm = (url: string) => `https://${hostText(url)}/`;
 
 const breaks: Record<Failure, string> = {
+  bridge: "container's link",
   "certificate-rejected": "certificate",
   "mixed-content": "blocked by the browser",
   refused: "refused",
@@ -23,6 +24,7 @@ const breaks: Record<Failure, string> = {
 
 /** Each failure in one sentence, for where its guidance does not fit. */
 export const reasons: Record<Failure, string> = {
+  bridge: "The container could not reach your Electrum server.",
   "certificate-rejected": "The browser rejected its certificate.",
   "mixed-content": "This page cannot open a plain ws:// or http:// connection.",
   refused: "Nothing there accepted the connection.",
@@ -239,6 +241,39 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
         </>
       ),
       more: certificate,
+    },
+    bridge: {
+      title: "The container could not reach your Electrum server",
+      body: (
+        <>
+          <p className="m-0">
+            This address is the container's bridge, on the same server as this page, so the browser already trusts it. The
+            bridge passes the connection on to the server set in <span className="font-mono text-[0.86em]">ELECTRUM</span>,
+            and that part failed. Check, in order:
+          </p>
+          <Steps>
+            <li>
+              <div>
+                <b className="font-bold">The host and port are right, and reachable from the container.</b> Inside a
+                container, <span className="font-mono text-[0.86em]">localhost</span> is the container itself, not the
+                machine running it.
+              </div>
+            </li>
+            <li>
+              <div>
+                <b className="font-bold">The scheme matches the port.</b> A TCP port such as 50001 is{" "}
+                <span className="font-mono text-[0.86em]">ELECTRUM=host:50001</span>; an SSL port such as 50002 is{" "}
+                <span className="font-mono text-[0.86em]">ELECTRUM=ssl://host:50002</span>.
+              </div>
+            </li>
+            <li>
+              <div>
+                <b className="font-bold">Restart the container, then choose Retry connection.</b>
+              </div>
+            </li>
+          </Steps>
+        </>
+      ),
     },
     "not-electrum": {
       title: "Something answered, but it is not an Electrum server",
