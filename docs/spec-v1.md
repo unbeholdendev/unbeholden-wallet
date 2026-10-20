@@ -277,24 +277,26 @@ SeedSigner on a real phone before the surrounding UI is built.
 
 ## Out of Scope
 
-Explicitly excluded from v1. None of these get an issue opened until v1 ships.
+Explicitly excluded from v1. Each deferred item has a `needs-triage` issue; the
+last two are standing decisions and have none.
 
-- Taproot multisig, wrapped `sh(wsh(...))` multisig and miniscript.
+- Taproot multisig, wrapped `sh(wsh(...))` multisig and miniscript (#92).
 - Hardware wallets over WebUSB or WebHID (Ledger, Trezor). The QR and file paths
-  cover air-gapped signers with no vendor-specific code.
-- Tor.
-- Coinjoin and payjoin.
+  cover air-gapped signers with no vendor-specific code (#90).
+- Tor (#93).
+- Coinjoin and payjoin (#94).
 - BIP47 payment codes and silent payments. A watch-only sender needs the signer
   to supply BIP375 ECDH shares, and no released SeedSigner, Coldcard, Jade,
-  Passport or Keystone firmware does, as of October 2026.
+  Passport or Keystone firmware does, as of October 2026 (#95).
 - Fiat prices, currency conversion and any form of cost-basis or tax accounting.
   This would require a price oracle and would break the property that the app
-  makes no requests to anyone but the user's node.
-- Wallet statistics and analytics of any kind. Deferred without a chosen form.
-- Message signing and verification.
-- Anything Lightning.
-- Multiple accounts per descriptor.
-- Legacy `pkh` and wrapped `sh(wpkh)` script types.
+  makes no requests to anyone but the user's node. An opt-in price source is
+  proposed in #91; cost-basis and tax accounting stay out.
+- Wallet statistics and analytics of any kind. Deferred without a chosen form (#96).
+- Message signing and verification (#97).
+- Anything Lightning (#98).
+- Multiple accounts per descriptor (#99).
+- Legacy `pkh` and wrapped `sh(wpkh)` script types (#100).
 - Any server operated by the project: no default Electrum endpoint, no bundled
   server list, no proxy, no demo mode.
 - Mandatory on-device address verification.
