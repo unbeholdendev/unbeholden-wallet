@@ -65,7 +65,8 @@ docker compose up -d
 ```
 
 An Electrum server without WebSocket, such as electrs, is reached through the
-container: give it the server's TCP port, and the wallet offers
+container: give it the server's TCP port, or `ssl://host:port` for its SSL
+port, and the wallet offers
 `ws://localhost:8080/electrum` on its connection screen.
 
 ```sh
@@ -101,6 +102,36 @@ bun install --frozen-lockfile
 GIT_COMMIT=<short commit> bun run build
 bun run --silent hashes | diff - hashes.txt
 ```
+
+## Use the container from your phone
+
+The app only runs on a secure page: https, or http://localhost. Opened as
+`http://192.168.1.20:8080` from another device, it says so and stops,
+because the browser withholds the encryption the vault needs. Put https in
+front of the container instead. It stays bound to `127.0.0.1`.
+
+With Tailscale, on the machine running the container (HTTPS certificates
+enabled for your tailnet):
+
+```sh
+tailscale serve --bg 8080
+```
+
+Then open `https://<machine>.<tailnet>.ts.net` on any device in your tailnet.
+
+With Caddy and a name you own, in a `Caddyfile`:
+
+```
+wallet.example.com {
+	reverse_proxy 127.0.0.1:8080
+}
+```
+
+Caddy fetches the certificate itself. That needs port 80 open to the internet,
+or a DNS challenge, as in Reach your node below.
+
+The container's Electrum bridge follows: behind either, it offers
+`wss://<that name>/electrum` on the connection screen.
 
 ## Reach your node
 

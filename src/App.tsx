@@ -22,7 +22,7 @@ import { CoinHistory } from "./screens/CoinHistory";
 import { Settings } from "./screens/Settings";
 import { Unlock } from "./screens/Unlock";
 import { RestoreBackup } from "./screens/Backup";
-import { Button, LinkButton, Panel } from "./ui/kit";
+import { Button, Empty, linkClass, LinkButton, Panel } from "./ui/kit";
 import { ToastProvider } from "./ui/toast";
 import type { KdfParams } from "./vault/vault";
 
@@ -83,11 +83,30 @@ function Unlocked({ route }: { route: string[] }) {
   );
 }
 
+function Insecure() {
+  return (
+    <Page>
+      <Empty title="Open this over https or localhost">
+        <div className="grid gap-3">
+          <p>
+            The vault needs your browser's encryption, and a browser only offers it to a secure page. Plain http to a network
+            address is not one. Open the app over https, or at http://localhost on the computer running it.
+          </p>
+          <a className={linkClass} href="#/guide">
+            How to reach it from another device
+          </a>
+        </div>
+      </Empty>
+    </Page>
+  );
+}
+
 function Root() {
   const route = useRoute();
   const { state } = useVaultState();
   if (route[0] === "trust") return <Trust />;
   if (route[0] === "guide") return <Guide />;
+  if (!window.isSecureContext) return <Insecure />;
   if (state.phase !== "open") return state.phase === "locked" ? <Unlock /> : null;
   return <Unlocked key={String(state.draft)} route={route} />;
 }

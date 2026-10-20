@@ -2,8 +2,8 @@ import type { ServerWebSocket, Socket } from "bun";
 import { normalize } from "node:path";
 
 const root = process.env.ROOT ?? "dist";
-const electrum = process.env.ELECTRUM?.match(/^(.+):(\d+)$/);
-if (process.env.ELECTRUM && !electrum) throw new Error("ELECTRUM must be host:port");
+const electrum = process.env.ELECTRUM?.match(/^(?:(tcp|ssl):\/\/)?(.+):(\d+)$/);
+if (process.env.ELECTRUM && !electrum) throw new Error("ELECTRUM must be host:port, tcp://host:port or ssl://host:port");
 
 const headers = {
   "Content-Security-Policy": "frame-ancestors 'none'",
@@ -19,8 +19,10 @@ async function bridge(req: Request, server: Bun.Server<Link>) {
   const decoder = new TextDecoder();
   let rest = "";
   const tcp = await Bun.connect({
-    hostname: electrum![1]!,
-    port: Number(electrum![2]),
+    hostname: electrum![2]!,
+    port: Number(electrum![3]),
+    // Electrum servers mostly use self-signed certificates, which clients accept without a CA.
+    tls: electrum![1] === "ssl" && { rejectUnauthorized: false },
     socket: {
       data(_, chunk) {
         const lines = (rest + decoder.decode(chunk, { stream: true })).split("\n");
