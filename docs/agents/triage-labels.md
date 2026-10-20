@@ -18,8 +18,8 @@ Edit the right-hand column to match whatever vocabulary you actually use.
 
 ## Repo state
 
-Only `ready-for-agent` exists in the tracker so far. The other four are created
-on first use with `mcp__forgejo__create_repo_label`.
+`ready-for-agent` and `needs-triage` exist in the tracker so far. The other
+three are created on first use with `mcp__forgejo__create_repo_label`.
 
 `epic` also exists. It is not one of the canonical five: it marks an umbrella
 issue whose work happens in children, and no skill reads it.
