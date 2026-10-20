@@ -79,7 +79,7 @@ you have checked. Update with `docker compose pull && docker compose up -d`.
 Without Compose:
 
 ```sh
-docker run --rm -p 127.0.0.1:8080:8080 -e ELECTRUM=192.168.1.20:50001 ghcr.io/unbeholdendev/unbeholden-wallet
+docker run --rm -p 127.0.0.1:8080:8080 -e ELECTRUM=192.168.1.20:50001 ghcr.io/unbeholdendev/unbeholden-wallet:<short commit>
 ```
 
 Or build the image from a checkout you have verified:
