@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useConnection } from "../app/connection";
 import { navigate } from "../app/route";
 import { useSendDraft, useWalletSession, useWalletSnapshot } from "../app/session";
-import { useVault } from "../app/vault";
+import { useUnit, useVault } from "../app/vault";
 import { feeRate, isOutgoing, txDirection, txWhen } from "../core/view";
 import type { WalletSnapshot, WalletTx } from "../core/wallet";
 import { Amount, btcParts, groupSats } from "../ui/amount";
@@ -164,10 +164,12 @@ function History({ snapshot }: { snapshot: WalletSnapshot }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [filters, setFilters] = useState(noFilters);
+  const inSats = useUnit() === "sats";
+  const amount = (text: string) => parseAmount(inSats ? `${text}sats` : text);
   const set = (change: Partial<typeof noFilters>) => setFilters((f) => ({ ...f, ...change }));
   const active = Object.entries(filters).filter(([k, v]) => v !== noFilters[k as keyof typeof noFilters]).length;
-  const min = parseAmount(filters.min);
-  const max = parseAmount(filters.max);
+  const min = amount(filters.min);
+  const max = amount(filters.max);
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
   const shown = snapshot.transactions.filter((tx) => {
     const when = txWhen(tx);
@@ -223,11 +225,11 @@ function History({ snapshot }: { snapshot: WalletSnapshot }) {
           <div className="grid grid-cols-2 gap-2">
             <label className="grid gap-1">
               At least
-              <input inputMode="decimal" autoComplete="off" placeholder="BTC or sats" value={filters.min} onChange={(e) => set({ min: e.target.value })} aria-invalid={!!filters.min && min === null} className={`${smallInput} aria-invalid:border-bad`} />
+              <input inputMode={inSats ? "numeric" : "decimal"} autoComplete="off" placeholder={inSats ? "sats" : "BTC"} value={filters.min} onChange={(e) => set({ min: e.target.value })} aria-invalid={!!filters.min && min === null} className={`${smallInput} aria-invalid:border-bad`} />
             </label>
             <label className="grid gap-1">
               At most
-              <input inputMode="decimal" autoComplete="off" placeholder="BTC or sats" value={filters.max} onChange={(e) => set({ max: e.target.value })} aria-invalid={!!filters.max && max === null} className={`${smallInput} aria-invalid:border-bad`} />
+              <input inputMode={inSats ? "numeric" : "decimal"} autoComplete="off" placeholder={inSats ? "sats" : "BTC"} value={filters.max} onChange={(e) => set({ max: e.target.value })} aria-invalid={!!filters.max && max === null} className={`${smallInput} aria-invalid:border-bad`} />
             </label>
           </div>
           {active > 0 && (
