@@ -1,9 +1,6 @@
 services:
   wallet:
-    build:
-      context: .
-      args:
-        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+    image: ghcr.io/unbeholdendev/unbeholden-wallet:${TAG:-latest}
     ports:
       - 127.0.0.1:8080:8080
     environment:

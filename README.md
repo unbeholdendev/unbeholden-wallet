@@ -57,9 +57,11 @@ The container serves the built app on `http://localhost:8080`. A localhost
 origin is a secure context that may open plain `ws://`, so this is also how
 you reach a node on your own network without a certificate.
 
+Use Compose, which keeps it running across restarts:
+
 ```sh
-docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -t unbeholden-wallet .
-docker run --rm -p 127.0.0.1:8080:8080 unbeholden-wallet
+curl -O https://raw.githubusercontent.com/unbeholdendev/unbeholden-wallet/main/compose.yaml
+docker compose up -d
 ```
 
 An Electrum server without WebSocket, such as electrs, is reached through the
@@ -67,14 +69,24 @@ container: give it the server's TCP port, and the wallet offers
 `ws://localhost:8080/electrum` on its connection screen.
 
 ```sh
-docker run --rm -p 127.0.0.1:8080:8080 -e ELECTRUM=192.168.1.20:50001 unbeholden-wallet
+ELECTRUM=192.168.1.20:50001 docker compose up -d
 ```
 
-Or with Compose, which keeps it running across restarts. Leave `ELECTRUM`
-out if your server speaks WebSocket.
+The image is `ghcr.io/unbeholdendev/unbeholden-wallet`, tagged `latest` and
+with each build's short commit. Set `TAG=<short commit>` to stay on a version
+you have checked. Update with `docker compose pull && docker compose up -d`.
+
+Without Compose:
 
 ```sh
-GIT_COMMIT=$(git rev-parse --short HEAD) ELECTRUM=192.168.1.20:50001 docker compose up -d --build
+docker run --rm -p 127.0.0.1:8080:8080 -e ELECTRUM=192.168.1.20:50001 ghcr.io/unbeholdendev/unbeholden-wallet
+```
+
+Or build the image from a checkout you have verified:
+
+```sh
+docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -t unbeholden-wallet .
+docker run --rm -p 127.0.0.1:8080:8080 unbeholden-wallet
 ```
 
 ## Verify a build
