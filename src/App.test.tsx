@@ -434,7 +434,10 @@ describe("no passphrase", () => {
     await openVault();
     let file: Blob | undefined;
     vi.spyOn(URL, "createObjectURL").mockImplementation((blob) => ((file = blob as Blob), "blob:backup"));
-    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    let name = "";
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      name = this.download;
+    });
     location.hash = "#/settings";
     const user = renderApp();
     await user.type(await screen.findByLabelText("Backup passphrase"), PASSPHRASE);
@@ -447,6 +450,7 @@ describe("no passphrase", () => {
     await user.type(screen.getByLabelText("Type it again"), PASSPHRASE);
     await user.click(screen.getByRole("button", { name: "Download backup" }));
     await waitFor(() => expect(file).toBeDefined());
+    expect(name).toBe(`Spending-backup-${new Date().toISOString().slice(0, 10)}.json`);
     const records = await openBackup(await file!.text(), PASSPHRASE);
     expect(Object.values(records)).toContainEqual(expect.objectContaining({ name: "Spending", descriptor: BIP84_ZPUB }));
   }, 30_000);

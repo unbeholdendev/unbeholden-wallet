@@ -29,7 +29,7 @@ function report({ added, skipped, labels, kept }: Merged) {
 }
 
 export function ExportBackup() {
-  const { exportBackup, passphrase: vaultHas } = useVault();
+  const { exportBackup, passphrase: vaultHas, wallets } = useVault();
   const toast = useToast();
   const [passphrase, setPassphrase] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -44,7 +44,8 @@ export function ExportBackup() {
     setBusy(true);
     setError(null);
     try {
-      download(await exportBackup(passphrase), "application/json", "wallet-backup.json");
+      const names = wallets.map((w) => w.name.replace(/[^\w-]+/g, "-")).join("+") || "wallet";
+      download(await exportBackup(passphrase), "application/json", `${names}-backup-${new Date().toISOString().slice(0, 10)}.json`);
       setPassphrase("");
       setConfirm("");
       toast("Backup saved");
