@@ -88,6 +88,18 @@ describe("wallet views on the demo history", () => {
     for (const x of chart.matchAll(/H([\d.]+)/g)) expect(Number(x[1])).toBeLessThanOrEqual(320);
   });
 
+  it("closes the wallet menu on a click elsewhere or Escape", async () => {
+    const user = await openApp();
+    const menu = screen.getByText("Add a wallet").closest("details")!;
+    await user.click(menu.querySelector("summary")!);
+    expect(menu.open).toBe(true);
+    fireEvent.pointerDown(document.body);
+    expect(menu.open).toBe(false);
+    await user.click(menu.querySelector("summary")!);
+    await user.keyboard("{Escape}");
+    expect(menu.open).toBe(false);
+  });
+
   it("shows the balances and each payment's amount and direction, newest first", async () => {
     const user = await openApp();
     const balance = screen.getByRole("region", { name: "Balance" }).textContent;

@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { groupSats } from "../ui/amount";
 import { hostText } from "../ui/format";
 import { Icon, type IconName } from "../ui/icons";
@@ -40,6 +40,17 @@ function WalletSwitcher() {
   const menu = useRef<HTMLDetailsElement>(null);
   const current = wallets.find((w) => w.id === walletId);
   const close = () => menu.current?.removeAttribute("open");
+  useEffect(() => {
+    const away = (e: Event) => {
+      if (e instanceof KeyboardEvent ? e.key === "Escape" : !menu.current?.contains(e.target as Node)) close();
+    };
+    document.addEventListener("pointerdown", away);
+    document.addEventListener("keydown", away);
+    return () => {
+      document.removeEventListener("pointerdown", away);
+      document.removeEventListener("keydown", away);
+    };
+  }, []);
   if (!current) return null;
   return (
     <details ref={menu} className="group relative min-w-0">
