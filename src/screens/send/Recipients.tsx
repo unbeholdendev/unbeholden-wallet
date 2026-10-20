@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Icon } from "../../ui/icons";
 import type { Contact } from "../../core/wallets";
 import { useUnit } from "../../app/vault";
+import { UnitSwitch } from "../../ui/amount";
 import { Button, Field, inputClass, LinkButton, Panel } from "../../ui/kit";
 import { QrScanner } from "../../ui/QrScanner";
 import { Sheet } from "../../ui/sheet";
@@ -171,6 +172,9 @@ export function Recipients({
                   >
                     Max
                   </button>
+                  <div className="flex-none">
+                    <UnitSwitch />
+                  </div>
                 </div>
               )}
             </Field>
