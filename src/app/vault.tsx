@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { log } from "../log";
 import {
   createVault,
   DEFAULT_KDF,
@@ -131,6 +132,7 @@ export function VaultProvider({ kdf = DEFAULT_KDF, children }: { kdf?: KdfParams
 
   const vault = state.phase === "open" && state.vault instanceof Vault ? state.vault : null;
   const lock = useCallback(() => {
+    log("lock");
     vault?.lock();
     setState({ phase: "locked" });
   }, [vault]);
@@ -164,16 +166,21 @@ export function VaultProvider({ kdf = DEFAULT_KDF, children }: { kdf?: KdfParams
         throw error;
       }
       await open(created);
+      log("vault created", { passphrase: passphrase !== null });
     };
     return {
       state,
       persistence,
       create,
-      unlock: async (passphrase) => open(await unlockVault(passphrase)),
+      unlock: async (passphrase) => {
+        await open(await unlockVault(passphrase));
+        log("unlocked");
+      },
       lock,
       destroy: async () => {
         vault?.lock();
         await destroyVault();
+        log("vault destroyed");
         setState({ phase: "open", ...(await load(memoryStore())) });
       },
       changePassphrase: async (old, next) => {
@@ -189,6 +196,7 @@ export function VaultProvider({ kdf = DEFAULT_KDF, children }: { kdf?: KdfParams
         const merged = await mergeBackup(state.vault, await openBackup(file, passphrase));
         if (state.draft) await create(passphrase);
         else setState({ ...state, ...(await load(state.vault)), restored: state.restored + 1 });
+        log("backup restored");
         return merged;
       },
       saveSettings: async (patch) => {
@@ -203,6 +211,7 @@ export function VaultProvider({ kdf = DEFAULT_KDF, children }: { kdf?: KdfParams
         const settings = { ...state.settings, walletId: record.id };
         await saveSettings(state.vault, settings);
         setState({ ...state, settings, wallets: [...state.wallets, record], walletId: record.id });
+        log("wallet added", { network: record.network });
         return record;
       },
       renameWallet: async (id, name) => {
@@ -214,6 +223,7 @@ export function VaultProvider({ kdf = DEFAULT_KDF, children }: { kdf?: KdfParams
         if (state.phase !== "open") return;
         await deleteWallet(state.vault, id);
         const wallets = state.wallets.filter((w) => w.id !== id);
+        log("wallet removed");
         setState({ ...state, wallets, walletId: state.walletId === id ? (wallets[0]?.id ?? null) : state.walletId });
       },
       selectWallet: (id) => {

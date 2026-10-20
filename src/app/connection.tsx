@@ -3,6 +3,7 @@ import { ConnectionError, type ConnectionFailure, type WalletBackend } from "../
 import type { ConnectionStatus as Live, ElectrumBackend } from "../backend/electrum";
 import { LOOPBACK } from "../backend/handshake";
 import { genesisNetwork, type Network } from "../wallet/network";
+import { log } from "../log";
 
 export type Failure = ConnectionFailure | "invalid-url";
 
@@ -79,10 +80,12 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
       const stale = () => mine !== attempt.current;
       const early = precheck(url);
       if (early) {
+        log("connect failed", { failure: early });
         setConnection({ phase: "failed", url, failure: early, message: early });
         return false;
       }
       const next = factory(url);
+      log("connecting");
       setConnection({ phase: "connecting", url, software: null, tip: null, network: null });
       try {
         await next.connect();
@@ -90,7 +93,9 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
         next.close();
         if (stale()) return false;
         const failure = error instanceof ConnectionError ? error.failure : null;
-        setConnection({ phase: "failed", url, failure, message: String((error as Error)?.message ?? error) });
+        const message = String((error as Error)?.message ?? error);
+        log("connect failed", { failure, message });
+        setConnection({ phase: "failed", url, failure, message });
         return false;
       }
       if (stale()) {
@@ -98,12 +103,16 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
         return false;
       }
       const software = next.server?.()?.software ?? null;
+      log("connected", { software });
       setConnection({ phase: "connected", url, software, tip: null, network: null });
       current.current = next;
       setBackend(next);
       const update = (patch: Partial<{ phase: Live; tip: number; network: Network | null }>) =>
         !stale() && setConnection((c) => (c.phase === "failed" || c.phase === "idle" ? c : { ...c, ...patch }));
-      next.onStatus?.((phase) => update({ phase }));
+      next.onStatus?.((phase) => {
+        log("connection", { phase });
+        update({ phase });
+      });
       next.blockHeaders([0]).then(([genesis]) => update({ network: genesisNetwork(genesis!) }), () => {});
       next.chainTip().then(({ height }) => update({ tip: height }), () => {});
       next.subscribeHeaders(({ height }) => update({ tip: height })).catch(() => {});

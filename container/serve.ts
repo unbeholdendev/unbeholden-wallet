@@ -11,6 +11,8 @@ const headers = {
   "Referrer-Policy": "no-referrer",
 };
 
+const log = (event: string, detail: object = {}) => console.log(JSON.stringify({ at: new Date().toISOString(), event, ...detail }));
+
 type Link = { tcp: Socket; ws: { current?: ServerWebSocket<Link> } };
 
 async function bridge(req: Request, server: Bun.Server<Link>) {
@@ -32,17 +34,30 @@ async function bridge(req: Request, server: Bun.Server<Link>) {
       close: () => ws.current?.close(),
       error: () => ws.current?.close(),
     },
-  }).catch(() => null);
+  }).catch((error) => (log("electrum unreachable", { message: String(error?.message ?? error) }), null));
   if (!tcp) return new Response("Electrum server unreachable", { status: 502, headers });
   if (server.upgrade(req, { data: { tcp, ws } })) return undefined;
   tcp.end();
   return new Response("Bad WebSocket handshake", { status: 400, headers });
 }
 
+log("listening", { port: 8080, electrum: !!electrum });
+
 Bun.serve<Link>({
   port: 8080,
+  maxRequestBodySize: 2000,
   async fetch(req, server) {
     const { pathname, host, protocol } = new URL(req.url);
+    if (pathname === "/log" && req.method === "POST") {
+      const body = await req.text();
+      try {
+        log("browser", { browser: JSON.parse(body) });
+      } catch {
+        return new Response(null, { status: 400, headers });
+      }
+      return new Response(null, { status: 204, headers });
+    }
+    log("request", { method: req.method, path: pathname });
     if (electrum && pathname === "/electrum") return bridge(req, server);
     if (electrum && pathname === "/electrum.json") {
       return Response.json({ url: `${protocol === "https:" ? "wss" : "ws"}://${host}/electrum` }, { headers });
@@ -55,8 +70,14 @@ Bun.serve<Link>({
     });
   },
   websocket: {
-    open: (ws) => void (ws.data.ws.current = ws),
+    open: (ws) => {
+      log("electrum open");
+      ws.data.ws.current = ws;
+    },
     message: (ws, message) => void ws.data.tcp.write(`${message}\n`),
-    close: (ws) => void ws.data.tcp.end(),
+    close: (ws) => {
+      log("electrum close");
+      ws.data.tcp.end();
+    },
   },
 });

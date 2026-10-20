@@ -1,3 +1,5 @@
+import { log } from "../log";
+
 export const APP_VERSION = __APP_VERSION__;
 
 /**
@@ -7,10 +9,12 @@ export const APP_VERSION = __APP_VERSION__;
 export function registerServiceWorker(onUpdate: (apply: () => void) => void) {
   if (!import.meta.env.PROD || !("serviceWorker" in navigator)) return;
   const sw = navigator.serviceWorker;
-  sw.register("./sw.js").catch(() => null).then((registration) => {
+  sw.register("./sw.js").catch((error) => (log("service worker failed", { message: String(error?.message ?? error) }), null)).then((registration) => {
     if (!registration) return;
-    const offer = (worker: ServiceWorker) =>
+    const offer = (worker: ServiceWorker) => {
+      log("update ready");
       onUpdate(() => worker.postMessage("skip-waiting"));
+    };
     if (registration.waiting && sw.controller) offer(registration.waiting);
     registration.addEventListener("updatefound", () => {
       const worker = registration.installing;

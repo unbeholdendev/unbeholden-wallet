@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, useSyn
 import { openWallet, type WalletSession, type WalletSnapshot } from "../core/wallet";
 import { walletDescriptor } from "../core/wallets";
 import type { SendDraft } from "../screens/send/Send";
+import { log } from "../log";
 import type { Store } from "../vault/vault";
 import { walletKind } from "../wallet/select";
 import { useConnection } from "./connection";
@@ -59,7 +60,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     openWallet(vault, walletId, null).then(
       (opened) => (cancelled ? opened.close() : (opened.use(liveNow.current), setSession((open = opened)))),
-      (error) => cancelled || setFailed(String((error as Error)?.message ?? error)),
+      (error) => {
+        const message = String((error as Error)?.message ?? error);
+        log("wallet open failed", { message });
+        if (!cancelled) setFailed(message);
+      },
     );
     return () => {
       cancelled = true;

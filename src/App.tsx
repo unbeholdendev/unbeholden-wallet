@@ -3,6 +3,7 @@ import { BackendProvider, ConnectionProvider, useConnection, type BackendFactory
 import { Page } from "./app/layout";
 import { useRoute } from "./app/route";
 import { SessionProvider } from "./app/session";
+import { log } from "./log";
 import { Shell, type Tab } from "./app/Shell";
 import { useVault, useVaultState, VaultProvider } from "./app/vault";
 import { registerServiceWorker } from "./pwa/register";
@@ -104,6 +105,7 @@ function Insecure() {
 function Root() {
   const route = useRoute();
   const { state } = useVaultState();
+  useEffect(() => log("screen", { screen: route[0] ?? "home", vault: state.phase }), [route[0], state.phase]);
   if (route[0] === "trust") return <Trust />;
   if (route[0] === "guide") return <Guide />;
   if (!window.isSecureContext) return <Insecure />;
