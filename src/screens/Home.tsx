@@ -290,6 +290,12 @@ export function Home() {
         <div className={left}>
           <Pending snapshot={snapshot} waiting={built ? (built.signed ? "broadcast" : "sign") : null} />
         </div>
+        <div className={left}>
+          <Sources snapshot={snapshot} />
+        </div>
+        <div className={left}>
+          <Network />
+        </div>
         <div className="min-w-0 @min-[900px]/app:col-start-2 @min-[900px]/app:row-span-5 @min-[900px]/app:row-start-1">
           {fresh && snapshot.tip && !snapshot.progress ? (
             <Empty title="No transactions yet">
@@ -310,12 +316,6 @@ export function Home() {
           ) : (
             <History snapshot={snapshot} />
           )}
-        </div>
-        <div className={left}>
-          <Sources snapshot={snapshot} />
-        </div>
-        <div className={left}>
-          <Network />
         </div>
       </div>
     </div>
