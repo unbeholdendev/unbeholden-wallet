@@ -31,7 +31,8 @@ import {
   type WalletRecord,
 } from "../core/wallets";
 
-export type Settings = CoreSettings & { idleMinutes?: number; walletId?: string; notify?: boolean; skipForeignUnconfirmed?: boolean };
+export type Settings = CoreSettings & { idleMinutes?: number; walletId?: string; notify?: boolean; skipForeignUnconfirmed?: boolean; unit?: Unit };
+export type Unit = "btc" | "sats";
 
 export type Persistence = Awaited<ReturnType<typeof requestPersistence>>;
 
@@ -81,6 +82,12 @@ export function useVaultState(): VaultApi {
   const api = useContext(VaultContext);
   if (!api) throw new Error("useVaultState outside VaultProvider");
   return api;
+}
+
+/** How amounts are shown and typed; BTC until the vault is open. */
+export function useUnit(): Unit {
+  const state = useContext(VaultContext)?.state;
+  return (state?.phase === "open" && state.settings.unit) || "btc";
 }
 
 /** The unlocked vault and what the app keeps in it. Only for screens behind the unlock. */

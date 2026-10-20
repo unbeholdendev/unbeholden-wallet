@@ -3,6 +3,7 @@ import { Address, OutScript } from "@scure/btc-signer";
 import { useState } from "react";
 import { Icon } from "../../ui/icons";
 import type { Contact } from "../../core/wallets";
+import { useUnit } from "../../app/vault";
 import { Button, Field, inputClass, LinkButton, Panel } from "../../ui/kit";
 import { QrScanner } from "../../ui/QrScanner";
 import { Sheet } from "../../ui/sheet";
@@ -89,6 +90,12 @@ export function Recipients({
   const [choosing, setChoosing] = useState<number | null>(null);
   const [saving, setSaving] = useState<{ address: string; name: string } | null>(null);
   const [noting, setNoting] = useState(new Set<number>());
+  const sats = useUnit() === "sats";
+  const shown = (text: string) => {
+    const value = parseAmount(text);
+    if (sats) return value?.toString() ?? text.replace(/\s*sats?$/i, "");
+    return value !== null && /sats?$/i.test(text.trim()) ? btcText(value) : text;
+  };
   const usable = book.filter((c) => "script" in checkAddress(c.address, network));
   const nameOf = new Map(book.map((c) => [c.address, c.name]));
   const update = (i: number, patch: Partial<Draft>) =>
@@ -140,8 +147,8 @@ export function Recipients({
               )}
             </Field>
             <Field
-              label="Amount, BTC or sats"
-              error={!draft.max && draft.amount && amount === null ? "Write it as BTC with up to eight decimals, or as sats, like 5000 sats." : undefined}
+              label={sats ? "Amount, sats" : "Amount, BTC"}
+              error={!draft.max && draft.amount && amount === null ? (sats ? "Write it as whole sats, like 5000." : "Write it as BTC with up to eight decimals.") : undefined}
               hint={draft.max ? "Everything in the selected coins, less the fee" : undefined}
             >
               {(props) => (
@@ -149,12 +156,12 @@ export function Recipients({
                   <input
                     {...props}
                     className={`${inputClass} tabular-nums disabled:bg-sunk disabled:text-ink-2`}
-                    inputMode="decimal"
+                    inputMode={sats ? "numeric" : "decimal"}
                     autoComplete="off"
                     disabled={draft.max}
-                    value={draft.max ? btcText(maxAmounts[i] ?? 0) : draft.amount}
-                    placeholder="0.00"
-                    onChange={(e) => update(i, { amount: e.target.value })}
+                    value={draft.max ? (sats ? String(maxAmounts[i] ?? 0) : btcText(maxAmounts[i] ?? 0)) : shown(draft.amount)}
+                    placeholder={sats ? "0" : "0.00"}
+                    onChange={(e) => update(i, { amount: sats && e.target.value.trim() ? `${e.target.value} sats` : e.target.value })}
                   />
                   <button
                     type="button"
