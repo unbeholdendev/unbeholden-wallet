@@ -178,6 +178,12 @@ export function ImportWallet() {
             Browsers delete site data when you clear history, reset the device or run low on space. When that happens,
             you import this line again and the wallet comes back.
           </p>
+          {multi && (
+            <p>
+              Also scan it into each cosigner's signer. Until a signer holds it, it cannot tell your change from a payment,
+              so a tampered page could send change to someone else's multisig.
+            </p>
+          )}
         </div>
         {isIos() && (
           <Notice tone="warn">
