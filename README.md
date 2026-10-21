@@ -86,7 +86,7 @@ docker run --rm -p 127.0.0.1:8080:8080 -e ELECTRUM=192.168.1.20:50001 ghcr.io/un
 Or build the image from a checkout you have verified:
 
 ```sh
-docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -t unbeholden-wallet .
+docker build --build-arg APP_VERSION=$(git describe --tags --always) -t unbeholden-wallet .
 docker run --rm -p 127.0.0.1:8080:8080 unbeholden-wallet
 ```
 
@@ -107,7 +107,7 @@ checks that two builds of every commit match.
 ```sh
 git checkout <release tag>
 bun install --frozen-lockfile
-GIT_COMMIT=<short commit> bun run build
+bun run build
 bun run --silent hashes | diff - hashes.txt
 ```
 

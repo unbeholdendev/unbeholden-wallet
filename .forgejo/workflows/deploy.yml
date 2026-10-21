@@ -1,14 +1,8 @@
 name: deploy
 
 on:
-  workflow_dispatch:
-    inputs:
-      wallet:
-        type: boolean
-        default: true
-      demo:
-        type: boolean
-        default: false
+  push:
+    tags: ["v*"]
 
 # Runs queue rather than overlap, so an older deploy cannot finish last.
 concurrency:
@@ -16,25 +10,19 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  nothing-ticked:
-    if: format('{0}', inputs.wallet) != 'true' && format('{0}', inputs.demo) != 'true'
-    runs-on: docker
-    steps:
-      - run: echo "Tick wallet, demo or both." && exit 1
-
   deploy:
     runs-on: docker
     strategy:
       matrix:
         app: [wallet, demo]
-        # format() because an input may arrive as the string "false", which is truthy.
-        exclude:
-          - app: ${{ format('{0}', inputs.wallet) != 'true' && 'wallet' || 'none' }}
-          - app: ${{ format('{0}', inputs.demo) != 'true' && 'demo' || 'none' }}
     env:
       IMAGE: ${{ vars.REGISTRY }}/${{ github.repository }}${{ matrix.app == 'demo' && '-demo' || '' }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: v
+        run: echo "version=$(git describe --tags --always)" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v4
         with:
@@ -62,7 +50,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            GIT_COMMIT=${{ steps.meta.outputs.version }}
+            APP_VERSION=${{ steps.v.outputs.version }}
 
       - name: Pin image to commit and deploy
         env:
