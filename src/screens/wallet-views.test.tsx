@@ -190,6 +190,24 @@ describe("wallet views on the demo history", () => {
     expect(await screen.findByRole("button", { name: /^Landlord, edit label/ })).toBeTruthy();
   });
 
+  it("names an unlabelled transaction in the list after the coin it paid in", async () => {
+    const user = await openApp(`#/tx/${DEMO_TXIDS.ocean}`);
+    await user.click(await screen.findByRole("button", { name: /^Ocean payout, August, edit label/ }));
+    await user.clear(screen.getByLabelText("Label"));
+    await user.keyboard("{Enter}");
+    expect(await screen.findByRole("button", { name: "Label this transaction" })).toBeTruthy();
+    go("#/home");
+    expect(await screen.findByRole("link", { name: "Ocean mining payouts" })).toBeTruthy();
+  });
+
+  it("labels a transaction from the list", async () => {
+    const user = await openApp("#/home");
+    await user.click(await screen.findByRole("button", { name: /^Rent, October, edit label/ }));
+    await user.clear(screen.getByLabelText("Label"));
+    await user.type(screen.getByLabelText("Label"), "Rent, November{Enter}");
+    expect(await screen.findByRole("link", { name: "Rent, November" })).toBeTruthy();
+  });
+
   it("keeps a built replacement after locking and unlocking", async () => {
     const user = await openApp(`#/bump/${DEMO_TXIDS.rent}`);
     await user.click(await screen.findByRole("button", { name: "Build the replacement" }));
