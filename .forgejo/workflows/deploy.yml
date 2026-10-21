@@ -1,14 +1,20 @@
-name: demo
+name: deploy
 
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        type: choice
+        options: [wallet, demo]
+        default: wallet
 
 # A newer run supersedes an older deploy, so an older one cannot finish last.
 concurrency:
-  group: demo
+  group: deploy-${{ inputs.app }}
   cancel-in-progress: true
 
 env:
-  IMAGE: ${{ vars.REGISTRY }}/${{ github.repository }}-demo
+  IMAGE: ${{ vars.REGISTRY }}/${{ github.repository }}${{ inputs.app == 'demo' && '-demo' || '' }}
 
 jobs:
   deploy:
@@ -37,7 +43,7 @@ jobs:
       - uses: docker/build-push-action@v7
         with:
           context: .
-          target: demo
+          target: ${{ inputs.app == 'demo' && 'demo' || '' }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -48,10 +54,15 @@ jobs:
         env:
           DOKPLOY_URL: ${{ vars.DOKPLOY_URL }}
           DOKPLOY_TOKEN: ${{ secrets.DOKPLOY_TOKEN }}
-          APP_ID: ${{ vars.DOKPLOY_DEMO_APP_ID }}
+          APP: ${{ inputs.app }}
+          WALLET_APP_ID: ${{ vars.DOKPLOY_APP_ID }}
+          DEMO_APP_ID: ${{ vars.DOKPLOY_DEMO_APP_ID }}
           TAG: ${{ steps.meta.outputs.version }}
         run: |
           set -euo pipefail
+          # Picked here, not with `&& ||` in the expression: an empty demo ID would fall through to the wallet's.
+          if [ "$APP" = demo ]; then APP_ID=$DEMO_APP_ID; else APP_ID=$WALLET_APP_ID; fi
+          : "${APP_ID:?no Dokploy app ID set for $APP}"
           curl -fsS -X POST "$DOKPLOY_URL/api/application.update" \
             -H "x-api-key: $DOKPLOY_TOKEN" \
             -H "Content-Type: application/json" \
