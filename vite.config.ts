@@ -5,12 +5,10 @@ import { execSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import type { Plugin } from "vite";
 import { defineConfig } from "vitest/config";
-import pkg from "./package.json" with { type: "json" };
 
-const commit =
-  process.env.GIT_COMMIT ??
-  execSync("git rev-parse --short HEAD", { encoding: "utf8" }).trim();
-const version = `${pkg.version}+${commit}`;
+const version =
+  process.env.APP_VERSION ??
+  execSync("git describe --tags --always", { encoding: "utf8" }).trim();
 
 const csp = (mode: string) => [
   "default-src 'none'",
