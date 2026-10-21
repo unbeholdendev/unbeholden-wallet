@@ -1,4 +1,4 @@
-import { useUnit, useVault } from "../app/vault";
+import { useHidden, useUnit, useVault } from "../app/vault";
 import { Segmented } from "./kit";
 
 /** BTC with the eight decimals grouped as sats, `0.12 000 000`, split where the significant digits start. */
@@ -16,6 +16,7 @@ export function btcParts(sats: number) {
 
 export function Amount({ sats, unit = false, signed = false }: { sats: number; unit?: boolean; signed?: boolean }) {
   const inSats = useUnit() === "sats";
+  if (useHidden()) return <span aria-label="Hidden" className="whitespace-nowrap text-ink-3">••••••</span>;
   const { lead, rest } = inSats ? { lead: "", rest: groupSats(Math.abs(sats)) } : btcParts(sats);
   const incoming = signed && sats > 0;
   const sign = sats < 0 ? "−" : incoming ? "+" : "";
