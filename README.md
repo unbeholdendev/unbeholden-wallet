@@ -7,6 +7,8 @@ air-gapped signer over animated QR or a file.
 Supports `wpkh` and `tr` single-signature wallets on mainnet, signet and
 regtest.
 
+Website: https://wallet.unbeholden.dev. Demo: https://demo.wallet.unbeholden.dev.
+
 ## Why it exists
 
 I built it for myself: I wanted my on-chain wallet on any device I pick up,
@@ -52,6 +54,8 @@ For real money, prefer the container below or a copy whose hashes you have
 checked.
 
 ## Run it yourself
+
+The full guide is also at https://wallet.unbeholden.dev/self-hosting.html.
 
 The container serves the built app on `http://localhost:8080`. A localhost
 origin is a secure context that may open plain `ws://`, so this is also how

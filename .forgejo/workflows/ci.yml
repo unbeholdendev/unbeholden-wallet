@@ -24,3 +24,5 @@ jobs:
       - run: bun run build:demo
       - name: The wallet build holds no demo code
         run: "! grep -rq 'Kraken withdrawal' dist"
+      - run: bun install --frozen-lockfile && bun --bun run build
+        working-directory: site
