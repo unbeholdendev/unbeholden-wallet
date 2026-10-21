@@ -1,11 +1,8 @@
 name: demo
 
-on:
-  push:
-    branches: [main]
-  workflow_dispatch:
+on: workflow_dispatch
 
-# A newer push supersedes an older deploy, so an older one cannot finish last.
+# A newer run supersedes an older deploy, so an older one cannot finish last.
 concurrency:
   group: demo
   cancel-in-progress: true
