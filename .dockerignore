@@ -6,3 +6,5 @@ dist-demo
 .regtest
 test-results
 playwright-report
+site/node_modules
+site/dist

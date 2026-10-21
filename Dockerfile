@@ -22,6 +22,24 @@ EXPOSE 8080
 CMD ["bun", "serve.ts"]
 
 # https://registry-1.docker.io/v2/oven/bun/manifests/1.4
+FROM oven/bun:1.4@sha256:ec06c3b6cea04192ae6770c434f668ca41d343ad19fa6472216c7b48be39c598 AS site-build
+WORKDIR /site
+COPY site/package.json site/bun.lock ./
+RUN bun install --frozen-lockfile
+COPY site .
+RUN bun --bun run build
+
+# The landing page, built only with --target site.
+# https://registry-1.docker.io/v2/oven/bun/manifests/1.4
+FROM oven/bun:1.4@sha256:ec06c3b6cea04192ae6770c434f668ca41d343ad19fa6472216c7b48be39c598 AS site
+WORKDIR /app
+COPY container/serve.ts ./
+COPY --from=site-build /site/dist ./dist
+USER bun
+EXPOSE 8080
+CMD ["bun", "serve.ts"]
+
+# https://registry-1.docker.io/v2/oven/bun/manifests/1.4
 FROM oven/bun:1.4@sha256:ec06c3b6cea04192ae6770c434f668ca41d343ad19fa6472216c7b48be39c598
 WORKDIR /app
 COPY container/serve.ts ./

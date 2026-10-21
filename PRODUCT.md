@@ -22,7 +22,7 @@ transaction and sign it on an air-gapped signer such as a SeedSigner.
 
 A watch-only Bitcoin wallet in a browser tab. Imports a `wpkh` or `tr`
 descriptor (or an xpub normalised to one), syncs from the user's own Electrum
-server over WSS, shows balance, history, addresses and coins, builds PSBTs,
+server over WSS or an Esplora API, shows balance, history, addresses and coins, builds PSBTs,
 hands them to the signer over animated QR (`ur:crypto-psbt`) or file, takes
 the signed PSBT back and broadcasts through the same server. Holds no keys.
 
@@ -35,7 +35,8 @@ on-chain. Nothing else does this well; it is the feature to protect.
 ## Operating Context
 
 - First action is always connecting to the user's own server. There is no
-  default server and no demo. Self-signed certificates fail silently in
+  default server. A separate demo build with made-up
+  history runs on its own origin and talks to no server. Self-signed certificates fail silently in
   WebSockets; the user must open the `https://` URL in another tab and accept
   the certificate. The connection screen is the funnel.
 - Signing happens beside an air-gapped device: phone or laptop screen held up
@@ -45,7 +46,8 @@ on-chain. Nothing else does this well; it is the feature to protect.
 ## Capabilities and Constraints
 
 - Static SPA, React, Vite, TypeScript, Tailwind v4. No component library.
-- No outbound requests except the user's Electrum server: no CDN, no remote
+- No outbound requests except the user's server, and the app's own origin
+  to look for a container's Electrum bridge: no CDN, no remote
   fonts, no analytics. Strict CSP without `unsafe-inline`; no inline `style`
   attributes.
 - No fiat anywhere, by design.
@@ -61,7 +63,8 @@ on-chain. Nothing else does this well; it is the feature to protect.
 
 ## Evidence on Hand
 
-No logo, name mark, screenshots or user quotes exist. All wallet data in
+No logo, name mark or user quotes exist. Phone screenshots of the demo
+build are in `site/shots`. All wallet data in
 prototypes is synthetic.
 
 ## Product Principles

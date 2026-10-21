@@ -22,6 +22,12 @@ because the dev server's React refresh preamble is inline. So: no `style={{…}}
 attributes, style them with Tailwind classes. An inline style works in dev and
 is silently dropped in the build.
 
+`site/` is the landing page and docs at wallet.unbeholden.dev: Astro, its own
+`package.json`, built to static HTML with no client script. Docs go in
+`site/src/pages` as Markdown. Its CSP meta has no `unsafe-inline` either, which
+is why Shiki highlighting and stylesheet inlining are off.
+The app is at app.wallet.unbeholden.dev, the demo at demo.wallet.unbeholden.dev.
+
 Nothing checks the bundle for external origins. The CSP is the only thing
 holding the no-outbound-requests guarantee, so read what a new dependency ships.
 

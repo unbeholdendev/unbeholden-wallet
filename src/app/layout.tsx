@@ -33,6 +33,9 @@ export function Footer() {
       <a className={linkClass} href="#/guide">
         Reaching your node
       </a>
+      <a className={linkClass} href="https://wallet.unbeholden.dev/">
+        About
+      </a>
     </footer>
   );
 }

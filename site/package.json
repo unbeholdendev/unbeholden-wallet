@@ -1,0 +1,12 @@
+{
+  "name": "unbeholden-wallet-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build"
+  },
+  "dependencies": {
+    "astro": "7.4.2"
+  }
+}
