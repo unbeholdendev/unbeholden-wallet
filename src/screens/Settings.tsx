@@ -208,7 +208,8 @@ function Wallets() {
   const [name, setName] = useState("");
   const [removing, setRemoving] = useState<WalletRecord | null>(null);
   const [showing, setShowing] = useState<WalletRecord | null>(null);
-  const descriptor = showing && formatDescriptor(walletDescriptor(showing));
+  const parsed = showing && walletDescriptor(showing);
+  const descriptor = parsed && formatDescriptor(parsed);
   const qr = descriptor && qrPath(descriptor, "medium");
 
   const rename = async (event: FormEvent) => {
@@ -276,6 +277,12 @@ function Wallets() {
             </div>
             <DescriptorBackup name={showing.name} network={showing.network} descriptor={descriptor} />
             <p className="m-0 text-sm text-ink-3">It holds no keys: someone who sees it can see your balance and history, and cannot spend.</p>
+            {parsed?.multi && (
+              <p className="m-0 text-sm text-ink-2">
+                Scan it into each cosigner's signer. Until a signer holds it, it cannot tell your change from a payment, so a
+                tampered page could send change to someone else's multisig.
+              </p>
+            )}
           </>
         )}
       </Sheet>
