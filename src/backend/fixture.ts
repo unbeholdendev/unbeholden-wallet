@@ -9,7 +9,7 @@ import { fakeBackend } from "./fake";
 
 /**
  * A spending wallet with three months of history, for UI tests and
- * the e2e demo page. Only tests and `e2e/` import it.
+ * the e2e demo page and the public demo build.
  */
 export const DEMO_DESCRIPTOR = `wpkh([d34db33f/84h/0h/0h]${BIP84_ZPUB}/<0;1>/*)`;
 
@@ -87,7 +87,7 @@ export function demoBackend() {
 }
 
 /** A locked vault holding the demo wallet, synced once, with its labels. */
-export async function seedDemoVault(passphrase: string, kdf: KdfParams, server: string) {
+export async function seedDemoVault(passphrase: string | null, kdf: KdfParams, server: string) {
   const vault = await createVault(passphrase, kdf);
   await saveSettings(vault, { server });
   const wallet = await createWallet(vault, { name: "Spending", descriptor: DEMO_DESCRIPTOR, network: "mainnet" });
