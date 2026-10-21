@@ -10,7 +10,7 @@ import { confText, dateText, hostText, timeText, txFallback } from "../ui/format
 import { Icon } from "../ui/icons";
 import { Button, Chip, Empty, LinkButton, linkClass, Segmented } from "../ui/kit";
 import { reasons } from "./Connect";
-import { Opening } from "./parts";
+import { EditableLabel, Opening } from "./parts";
 import { parseAmount } from "./send/Recipients";
 import { stillPending } from "./send/Send";
 import { BalanceChart, Network, Pending, Sources } from "./HomePanels";
@@ -122,12 +122,14 @@ function HistoryRow({ tx }: { tx: WalletTx }) {
           </>
         )}
       </span>
-      <a
-        href={`#/tx/${tx.txid}`}
-        className={`col-start-1 row-start-1 min-w-0 truncate font-medium no-underline after:absolute after:inset-0 @min-[640px]:col-start-2 ${tx.label ? "text-ink" : "text-ink-2"}`}
-      >
-        {tx.label ?? txFallback(tx)}
-      </a>
+      <span className="col-start-1 row-start-1 flex min-w-0 items-baseline gap-1.5 @min-[640px]:col-start-2 [&:has(input)>a]:hidden [&>input]:flex-1">
+        <a href={`#/tx/${tx.txid}`} className={`min-w-0 truncate font-medium no-underline after:absolute after:inset-0 ${tx.label ? "text-ink" : "text-ink-2"}`}>
+          {tx.label ?? txFallback(tx)}
+        </a>
+        <EditableLabel type="tx" target={tx.txid} value={tx.label} placeholder="Label this transaction" className="relative z-[1] text-sm">
+          <span className="sr-only">{tx.label ?? "Label this transaction"}</span>
+        </EditableLabel>
+      </span>
       <span className="col-start-3 row-start-1 hidden text-right text-sm whitespace-nowrap text-ink-2 @min-[640px]:block">
         {pending ? <Chip tone="warn">Unconfirmed</Chip> : confText(tx.confirmations)}
       </span>

@@ -10,9 +10,14 @@ export const hostText = (url: string) => {
   }
 };
 
-/** What a transaction did, for one with no label. */
-export const txFallback = (tx: WalletTx) =>
-  ({ received: "Received", sent: "Sent", "to self": "Moved between your addresses" })[txDirection(tx)];
+/** For a transaction with no label: the label on a coin it paid in or a payment it made, else what it did. */
+export const txFallback = (tx: WalletTx) => {
+  const direction = txDirection(tx);
+  return (
+    tx.outputs.find((o) => o.label && !o.mine === (direction === "sent"))?.label ??
+    { received: "Received", sent: "Sent", "to self": "Moved between your addresses" }[direction]
+  );
+};
 
 /** Counted up to six, the depth past which a reorg is no longer a practical worry. */
 export const confText = (confirmations: number) =>
