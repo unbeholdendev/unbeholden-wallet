@@ -1,18 +1,38 @@
-name: demo
+name: deploy
 
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+    inputs:
+      wallet:
+        type: boolean
+        default: true
+      demo:
+        type: boolean
+        default: false
 
-# A newer run supersedes an older deploy, so an older one cannot finish last.
+# Runs queue rather than overlap, so an older deploy cannot finish last.
 concurrency:
-  group: demo
-  cancel-in-progress: true
-
-env:
-  IMAGE: ${{ vars.REGISTRY }}/${{ github.repository }}-demo
+  group: deploy
+  cancel-in-progress: false
 
 jobs:
+  nothing-ticked:
+    if: format('{0}', inputs.wallet) != 'true' && format('{0}', inputs.demo) != 'true'
+    runs-on: docker
+    steps:
+      - run: echo "Tick wallet, demo or both." && exit 1
+
   deploy:
     runs-on: docker
+    strategy:
+      matrix:
+        app: [wallet, demo]
+        # format() because an input may arrive as the string "false", which is truthy.
+        exclude:
+          - app: ${{ format('{0}', inputs.wallet) != 'true' && 'wallet' || 'none' }}
+          - app: ${{ format('{0}', inputs.demo) != 'true' && 'demo' || 'none' }}
+    env:
+      IMAGE: ${{ vars.REGISTRY }}/${{ github.repository }}${{ matrix.app == 'demo' && '-demo' || '' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -37,7 +57,7 @@ jobs:
       - uses: docker/build-push-action@v7
         with:
           context: .
-          target: demo
+          target: ${{ matrix.app == 'demo' && 'demo' || '' }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -48,10 +68,15 @@ jobs:
         env:
           DOKPLOY_URL: ${{ vars.DOKPLOY_URL }}
           DOKPLOY_TOKEN: ${{ secrets.DOKPLOY_TOKEN }}
-          APP_ID: ${{ vars.DOKPLOY_DEMO_APP_ID }}
+          APP: ${{ matrix.app }}
+          WALLET_APP_ID: ${{ vars.DOKPLOY_APP_ID }}
+          DEMO_APP_ID: ${{ vars.DOKPLOY_DEMO_APP_ID }}
           TAG: ${{ steps.meta.outputs.version }}
         run: |
           set -euo pipefail
+          # Picked here, not with `&& ||` in the expression: an empty demo ID would fall through to the wallet's.
+          if [ "$APP" = demo ]; then APP_ID=$DEMO_APP_ID; else APP_ID=$WALLET_APP_ID; fi
+          : "${APP_ID:?no Dokploy app ID set for $APP}"
           curl -fsS -X POST "$DOKPLOY_URL/api/application.update" \
             -H "x-api-key: $DOKPLOY_TOKEN" \
             -H "Content-Type: application/json" \
