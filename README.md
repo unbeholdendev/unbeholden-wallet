@@ -90,11 +90,12 @@ docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -t unbeholden-
 docker run --rm -p 127.0.0.1:8080:8080 unbeholden-wallet
 ```
 
-The same image serves the demo, a wallet with made-up history that talks to no
-server. Give it its own origin, so it shares no storage with a real vault:
+The demo, a wallet with made-up history that talks to no server, is its own
+image. Serve it on its own origin, so it shares no storage with a real vault:
 
 ```sh
-docker run --rm -p 127.0.0.1:8081:8080 -e ROOT=dist-demo ghcr.io/unbeholdendev/unbeholden-wallet
+docker build --target demo -t unbeholden-wallet-demo .
+docker run --rm -p 127.0.0.1:8081:8080 unbeholden-wallet-demo
 ```
 
 ## Verify a build
