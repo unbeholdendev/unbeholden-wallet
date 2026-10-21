@@ -77,6 +77,14 @@ describe("wallet views on the demo history", () => {
     expect(((await screen.findByLabelText("Amount, BTC")) as HTMLInputElement).value).toBe("0.00005");
   });
 
+  it("hides amounts behind the eye button and shows them again", async () => {
+    const user = await openApp();
+    await user.click(screen.getByRole("button", { name: "Hide amounts" }));
+    await waitFor(() => expect(spendable()).toBe("••••••"));
+    await user.click(screen.getByRole("button", { name: "Hide amounts" }));
+    await waitFor(() => expect(spendable()).toContain("BTC"));
+  });
+
   it("shows what is pending, where the coins came from, and the mempool, beside the history", async () => {
     await openApp();
     expect(screen.getByText("2 payments not yet confirmed")).toBeTruthy();

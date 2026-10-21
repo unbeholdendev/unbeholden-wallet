@@ -123,7 +123,7 @@ const barButton = "grid size-10 flex-none place-items-center rounded-control bor
 
 /** The signed-in frame: top bar, tab bar at the bottom on a phone. */
 export function Shell({ tab, children }: { tab: Tab | null; children: ReactNode }) {
-  const { lock, passphrase } = useVault();
+  const { lock, passphrase, settings, saveSettings } = useVault();
   usePaymentNotifications();
   return (
     <div className="@container/app flex min-h-dvh flex-col bg-paper">
@@ -142,6 +142,9 @@ export function Shell({ tab, children }: { tab: Tab | null; children: ReactNode 
           ))}
         </nav>
         <ConnectionStatus />
+        <button type="button" aria-label="Hide amounts" aria-pressed={!!settings.hide} onClick={() => void saveSettings({ hide: !settings.hide })} className={barButton}>
+          <Icon name={settings.hide ? "eyeOff" : "eye"} />
+        </button>
         <a href="#/settings" aria-label="Settings" className={barButton}>
           <Icon name="settings" />
         </a>
