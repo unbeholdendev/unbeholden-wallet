@@ -5,6 +5,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# A newer push supersedes an older deploy, so an older one cannot finish last.
+concurrency:
+  group: demo
+  cancel-in-progress: true
+
 env:
   IMAGE: ${{ vars.REGISTRY }}/${{ github.repository }}-demo
 
