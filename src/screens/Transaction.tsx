@@ -100,9 +100,12 @@ export function Transaction({ txid }: { txid: string | undefined }) {
       <div className="grid items-start gap-6 @min-[900px]/app:grid-cols-[minmax(0,1fr)_360px]">
         <section className="grid gap-4 rounded-panel border border-rule bg-sheet p-4 @min-[900px]/app:col-start-2 @min-[900px]/app:row-start-1">
           <div className="grid gap-1">
-            <h1 className="m-0 text-lg font-bold">
-              <EditableLabel type="tx" target={tx.txid} value={tx.label} placeholder={`${txFallback(tx)}, add a label`} />
-            </h1>
+            <h1 className="m-0 text-lg font-bold">{tx.label ? <EditableLabel type="tx" target={tx.txid} value={tx.label} /> : txFallback(tx)}</h1>
+            {!tx.label && (
+              <EditableLabel type="tx" target={tx.txid} value={null} placeholder="Label this transaction" className="justify-self-start text-sm">
+                <span className="text-carbon underline decoration-1 underline-offset-3">Label this transaction</span>
+              </EditableLabel>
+            )}
             <span className="text-2xl font-medium tracking-[-0.01em]">
               <Amount sats={tx.net} signed unit />
             </span>
