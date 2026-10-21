@@ -14,9 +14,9 @@ jobs:
     runs-on: docker
     strategy:
       matrix:
-        app: [wallet, demo]
+        app: [wallet, demo, site]
     env:
-      IMAGE: ${{ vars.REGISTRY }}/${{ github.repository }}${{ matrix.app == 'demo' && '-demo' || '' }}
+      IMAGE: ${{ vars.REGISTRY }}/${{ github.repository }}${{ matrix.app != 'wallet' && format('-{0}', matrix.app) || '' }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -45,7 +45,7 @@ jobs:
       - uses: docker/build-push-action@v7
         with:
           context: .
-          target: ${{ matrix.app == 'demo' && 'demo' || '' }}
+          target: ${{ matrix.app != 'wallet' && matrix.app || '' }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -59,11 +59,12 @@ jobs:
           APP: ${{ matrix.app }}
           WALLET_APP_ID: ${{ vars.DOKPLOY_APP_ID }}
           DEMO_APP_ID: ${{ vars.DOKPLOY_DEMO_APP_ID }}
+          SITE_APP_ID: ${{ vars.DOKPLOY_SITE_APP_ID }}
           TAG: ${{ steps.meta.outputs.version }}
         run: |
           set -euo pipefail
-          # Picked here, not with `&& ||` in the expression: an empty demo ID would fall through to the wallet's.
-          if [ "$APP" = demo ]; then APP_ID=$DEMO_APP_ID; else APP_ID=$WALLET_APP_ID; fi
+          # Picked here, not with `&& ||` in the expression: an empty demo or site ID would fall through to the wallet's.
+          case "$APP" in demo) APP_ID=$DEMO_APP_ID ;; site) APP_ID=$SITE_APP_ID ;; *) APP_ID=$WALLET_APP_ID ;; esac
           : "${APP_ID:?no Dokploy app ID set for $APP}"
           curl -fsS -X POST "$DOKPLOY_URL/api/application.update" \
             -H "x-api-key: $DOKPLOY_TOKEN" \

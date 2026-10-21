@@ -1,0 +1,34 @@
+---
+const { title, description, main = "page" } = Astro.props.frontmatter ?? Astro.props;
+const canonical = new URL(Astro.url.pathname.replace(/^\/index\.html$/, "/"), Astro.site);
+---
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; font-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+  <title>{title}</title>
+  <meta name="description" content={description}>
+  <link rel="canonical" href={canonical}>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="preload" href="/fonts/hanken-grotesk-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="bar">
+  <a class="name" href="/"><img src="/icon.svg" alt="" width="28" height="28">Unbeholden Wallet</a>
+  <nav>
+    <a href="/self-hosting.html">Self-hosting</a>
+    <a href="https://github.com/unbeholdendev/unbeholden-wallet">Source</a>
+  </nav>
+</header>
+<main class={main}>
+  <slot />
+</main>
+<footer class="foot">
+  <span>Made by <a href="https://unbeholden.dev/">Unbeholden</a>.</span>
+  <span>MIT licensed. No cookies, no analytics.</span>
+</footer>
+</body>
+</html>
