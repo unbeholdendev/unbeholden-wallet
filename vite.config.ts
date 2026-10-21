@@ -12,28 +12,28 @@ const commit =
   execSync("git rev-parse --short HEAD", { encoding: "utf8" }).trim();
 const version = `${pkg.version}+${commit}`;
 
-const csp = [
+const csp = (mode: string) => [
   "default-src 'none'",
   "script-src 'self'",
   "style-src 'self'",
   "img-src 'self' data: blob:",
   "media-src blob:",
   "font-src 'self'",
-  "connect-src 'self' ws: wss: http: https:",
+  mode === "demo" ? "connect-src 'self'" : "connect-src 'self' ws: wss: http: https:",
   "manifest-src 'self'",
   "worker-src 'self'",
   "base-uri 'none'",
   "form-action 'none'",
 ].join("; ");
 
-function cspMeta(): Plugin {
+function cspMeta(mode: string): Plugin {
   return {
     name: "csp-meta",
     apply: "build",
     transformIndexHtml: () => [
       {
         tag: "meta",
-        attrs: { "http-equiv": "Content-Security-Policy", content: csp },
+        attrs: { "http-equiv": "Content-Security-Policy", content: csp(mode) },
         injectTo: "head-prepend",
       },
     ],
@@ -63,13 +63,13 @@ function serviceWorker(): Plugin {
   };
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   base: "./",
   define: { __APP_VERSION__: JSON.stringify(version) },
   plugins: [
     react(),
     tailwindcss(),
-    cspMeta(),
+    cspMeta(mode),
     serviceWorker(),
     { ...basicSsl(), apply: (_, env) => env.command === "serve" && !env.isPreview },
   ],
@@ -78,10 +78,11 @@ export default defineConfig({
     strictPort: true,
     proxy: { "/electrum": { target: "ws://127.0.0.1:50003", ws: true, rewrite: () => "/" } },
   },
-  preview: { host: "0.0.0.0", headers: { "Content-Security-Policy": csp } },
+  build: { outDir: mode === "demo" ? "dist-demo" : "dist" },
+  preview: { host: "0.0.0.0", headers: { "Content-Security-Policy": csp(mode) } },
   test: {
     environment: "jsdom",
     setupFiles: ["./src/vitest.setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
   },
-});
+}));
