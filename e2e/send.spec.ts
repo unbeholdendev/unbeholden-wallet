@@ -79,8 +79,10 @@ test("send, sign from a file, broadcast, then bump and sign the replacement thro
   test.setTimeout(180_000);
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/");
+  await page.getByRole("link", { name: "Connect to your server" }).click();
   await page.getByLabel("Server address").fill(ELECTRUM_WS);
   await page.getByRole("button", { name: "Connect" }).click();
+  await page.getByRole("link", { name: "Next: add a wallet" }).click();
   await page.getByLabel("Descriptor or extended public key").fill(BIP84.text);
   await page.getByLabel("Name").fill("Regtest bench");
   await page.getByRole("button", { name: /Continue to backup/ }).click();

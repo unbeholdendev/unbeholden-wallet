@@ -8,7 +8,8 @@ import type { WalletSnapshot, WalletTx } from "../core/wallet";
 import { Amount, btcParts, groupSats, UnitSwitch } from "../ui/amount";
 import { confText, dateText, hostText, timeText, txFallback } from "../ui/format";
 import { Icon } from "../ui/icons";
-import { Button, Chip, Empty, LinkButton, linkClass, Segmented } from "../ui/kit";
+import { Button, buttonClass, Chip, Empty, LinkButton, linkClass, Panel, Segmented } from "../ui/kit";
+import { RestoreBackup } from "./Backup";
 import { reasons } from "./Connect";
 import { EditableLabel, Opening } from "./parts";
 import { parseAmount } from "./send/Recipients";
@@ -325,6 +326,45 @@ export function Home() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Home and the wallet tabs before there is a wallet. */
+export function Start() {
+  const { connection } = useConnection();
+  const { settings, draft } = useVault();
+  const connected = connection.phase === "connected" || connection.phase === "retrying";
+  return (
+    <div className="grid max-w-[720px] content-start gap-6">
+      <div className="grid gap-1">
+        <h1 className="m-0 text-xl font-bold">No wallet yet</h1>
+        <p className="m-0 text-ink-2">
+          Connect to your server and add a wallet, in either order.
+          {draft && " Nothing is saved in this browser until you add a wallet and choose a passphrase."}
+        </p>
+      </div>
+      <div className="grid gap-4 @min-[720px]/app:grid-cols-2">
+        <Panel title="Your server" aside={connected ? "Connected" : settings.server ? "Not connected" : undefined}>
+          <p className="m-0 text-sm text-ink-2">
+            {connected ? <>Connected to {hostText(connection.url)}.</> : "An Electrum server or Esplora API you run. The wallet talks to nothing else."}
+          </p>
+          <a className={`${buttonClass({ variant: connected ? "default" : "primary" })} justify-self-start`} href="#/connect">
+            {connected ? "See the connection" : "Connect to your server"}
+          </a>
+        </Panel>
+        <Panel title="Your wallet">
+          <p className="m-0 text-sm text-ink-2">An output descriptor or extended public key from your signer. No private keys.</p>
+          <a className={`${buttonClass({ variant: connected ? "primary" : "default" })} justify-self-start`} href="#/import">
+            Add a wallet
+          </a>
+        </Panel>
+      </div>
+      {draft && (
+        <Panel title="Or restore from a backup">
+          <RestoreBackup />
+        </Panel>
+      )}
     </div>
   );
 }

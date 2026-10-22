@@ -13,7 +13,7 @@ import { Guide, Trust } from "./screens/Guides";
 import { ImportWallet } from "./screens/ImportWallet";
 import { Addresses } from "./screens/Addresses";
 import { Coins } from "./screens/Coins";
-import { Home } from "./screens/Home";
+import { Home, Start } from "./screens/Home";
 import { Receive } from "./screens/Receive";
 import { Bump, type BumpMode } from "./screens/send/Bump";
 import { Send } from "./screens/send/Send";
@@ -22,8 +22,7 @@ import { Transaction } from "./screens/Transaction";
 import { CoinHistory } from "./screens/CoinHistory";
 import { Settings } from "./screens/Settings";
 import { Unlock } from "./screens/Unlock";
-import { RestoreBackup } from "./screens/Backup";
-import { Button, Empty, linkClass, LinkButton, Panel } from "./ui/kit";
+import { Button, Empty, linkClass } from "./ui/kit";
 import { ToastProvider } from "./ui/toast";
 import type { KdfParams } from "./vault/vault";
 
@@ -31,9 +30,8 @@ const TABS: string[] = ["home", "send", "receive", "coins"] satisfies Tab[];
 const BUMPS: Record<string, BumpMode | undefined> = { bump: "speed", cancel: "cancel", cpfp: "cpfp" };
 
 function Unlocked({ route }: { route: string[] }) {
-  const { settings, wallets, draft, passphrase, lock } = useVault();
-  const { connection, connect, disconnect } = useConnection();
-  const [reached, setReached] = useState(false);
+  const { settings, wallets, draft } = useVault();
+  const { connect, disconnect } = useConnection();
 
   // Once per unlock: the connect screen reconnects itself when the URL changes.
   useEffect(() => {
@@ -41,22 +39,7 @@ function Unlocked({ route }: { route: string[] }) {
     return disconnect;
   }, []);
 
-  useEffect(() => {
-    if (connection.phase === "connected") setReached(true);
-  }, [connection.phase]);
-
-  if (!wallets.length)
-    return (
-      <Page aside={passphrase ? <LinkButton onClick={lock}>Lock</LinkButton> : undefined}>
-        {reached ? <ImportWallet /> : <Connect onboarding />}
-        {draft && (
-          <Panel title="Or restore from a backup" className="max-w-[400px]">
-            <RestoreBackup />
-          </Panel>
-        )}
-      </Page>
-    );
-  if (draft)
+  if (draft && wallets.length)
     return (
       <SessionProvider>
         <CreateVault />
@@ -66,8 +49,9 @@ function Unlocked({ route }: { route: string[] }) {
   const [screen = "home", detail] = route;
   const body =
     screen === "settings" ? <Settings /> :
-    screen === "connect" ? <Connect /> :
+    screen === "connect" ? <Connect onboarding={!wallets.length} /> :
     screen === "import" ? <ImportWallet /> :
+    !wallets.length ? <Start /> :
     screen === "tx" ? <Transaction txid={detail} /> :
     screen === "coin" ? <CoinHistory point={detail} /> :
     screen === "send" ? <Send /> :

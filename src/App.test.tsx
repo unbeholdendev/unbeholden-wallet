@@ -79,8 +79,11 @@ afterEach(async () => {
 describe("onboarding", () => {
   it("holds server and wallet in memory, shows the balance, and writes nothing until the passphrase", async () => {
     const user = renderApp();
+    expect(await screen.findByRole("heading", { name: "No wallet yet" })).toBeTruthy();
+    await user.click(screen.getByRole("link", { name: "Connect to your server" }));
     await user.type(await screen.findByLabelText("Server address"), SERVER);
     await user.click(screen.getByRole("button", { name: "Connect" }));
+    await user.click(await screen.findByRole("link", { name: "Next: add a wallet" }));
     await user.click(await screen.findByLabelText("Descriptor or extended public key"));
     await user.paste(BIP84_ZPUB);
     expect(screen.queryByRole("group", { name: "Network" })).toBeNull();
@@ -131,6 +134,7 @@ describe("onboarding", () => {
 
   it("offers the container's bridge as the server when it has one", async () => {
     const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ url: "ws://localhost:8080/electrum" }));
+    location.hash = "#/connect";
     renderApp();
     await waitFor(() => expect((screen.getByLabelText("Server address") as HTMLInputElement).value).toBe("ws://localhost:3000/electrum"));
     expect(fetch).toHaveBeenCalledWith("electrum.json");
@@ -139,6 +143,7 @@ describe("onboarding", () => {
 
   it("leaves the server empty where the page fallback answers instead", async () => {
     const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("<!doctype html>"));
+    location.hash = "#/connect";
     renderApp();
     await waitFor(() => expect(fetch).toHaveBeenCalled());
     await act(() => Promise.resolve());
@@ -147,10 +152,12 @@ describe("onboarding", () => {
   });
 
   it("takes the network from the key and the server's genesis block, and warns when they disagree", async () => {
+    location.hash = "#/connect";
     render(<App kdf={CHEAP} factory={() => ({ ...fakeBackend(), blockHeaders: async () => [REGTEST_GENESIS] })} />);
     const user = userEvent.setup();
     await user.type(await screen.findByLabelText("Server address"), SERVER);
     await user.click(screen.getByRole("button", { name: "Connect" }));
+    await user.click(await screen.findByRole("link", { name: "Next: add a wallet" }));
     await user.click(await screen.findByLabelText("Descriptor or extended public key"));
     await user.paste(BIP84_ZPUB);
     expect(await screen.findByText(/This is a mainnet key, but your server is on regtest/)).toBeTruthy();
@@ -179,7 +186,7 @@ describe("onboarding", () => {
 
     await user.clear(screen.getByLabelText("Passphrase"));
     await unlock(user);
-    expect(await screen.findByRole("heading", { name: "Connect to your server" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "No wallet yet" })).toBeTruthy();
   });
 
   const guidance: [ConnectionFailure, RegExp][] = [
@@ -194,6 +201,7 @@ describe("onboarding", () => {
 
   it.each(guidance)("explains a %s failure in its own words", async (failure, title) => {
     await existingVault({ server: SERVER });
+    location.hash = "#/connect";
     const user = renderApp(failure);
     await unlock(user);
     expect(await screen.findByRole("heading", { name: title })).toBeTruthy();
@@ -205,6 +213,7 @@ describe("onboarding", () => {
 
   it("blames the container's link, not a certificate, when its own bridge fails", async () => {
     await existingVault({ server: "ws://localhost:3000/electrum" });
+    location.hash = "#/connect";
     const user = renderApp("certificate-rejected");
     await unlock(user);
     expect(await screen.findByRole("heading", { name: "The container couldn't reach your Electrum server" })).toBeTruthy();
@@ -213,6 +222,7 @@ describe("onboarding", () => {
 
   it("shows the descriptor a zpub implies and presses for the backup", async () => {
     await existingVault({ server: SERVER });
+    location.hash = "#/import";
     const user = renderApp();
     await unlock(user);
 
@@ -243,6 +253,7 @@ describe("onboarding", () => {
 
   it("asks a bare xpub for its script type", async () => {
     await existingVault({ server: SERVER });
+    location.hash = "#/import";
     const user = renderApp();
     await unlock(user);
     await user.click(await screen.findByLabelText("Descriptor or extended public key"));
@@ -254,6 +265,7 @@ describe("onboarding", () => {
 
   it("shows a multisig's k of n and each key's fingerprint", async () => {
     await existingVault({ server: SERVER });
+    location.hash = "#/import";
     const user = renderApp();
     await unlock(user);
     await user.click(await screen.findByLabelText("Descriptor or extended public key"));
@@ -267,6 +279,7 @@ describe("onboarding", () => {
 describe("scanning a descriptor", () => {
   it("collects an account in animated parts and asks which script type", async () => {
     await existingVault({ server: SERVER });
+    location.hash = "#/import";
     const user = renderApp();
     await unlock(user);
     await user.click(await screen.findByRole("button", { name: "Scan a QR code" }));
@@ -286,6 +299,7 @@ describe("scanning a descriptor", () => {
 
   it("refuses a script type the wallet does not support", async () => {
     await existingVault({ server: SERVER });
+    location.hash = "#/import";
     const user = renderApp();
     await unlock(user);
     await user.click(await screen.findByRole("button", { name: "Scan a QR code" }));
@@ -382,9 +396,11 @@ describe("no passphrase", () => {
   }
 
   it("keeps the wallet without one, opens straight to it after a reload, and offers no lock", async () => {
+    location.hash = "#/connect";
     let user = renderApp();
     await user.type(await screen.findByLabelText("Server address"), SERVER);
     await user.click(screen.getByRole("button", { name: "Connect" }));
+    await user.click(await screen.findByRole("link", { name: "Next: add a wallet" }));
     await user.click(await screen.findByLabelText("Descriptor or extended public key"));
     await user.paste(BIP84_ZPUB);
     await user.click(screen.getByRole("button", { name: /Continue to backup/ }));
