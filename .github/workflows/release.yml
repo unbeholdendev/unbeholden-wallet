@@ -42,8 +42,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           prev=$(git describe --tags --abbrev=0 "$GITHUB_REF_NAME^" 2>/dev/null || true)
-          git log --format='- %s' "${prev:+$prev..}$GITHUB_REF_NAME" \
-            | sed -E 's/ \(#[0-9]+\)$//' \
+          git log --format="- %s ([%h]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/%H))" "${prev:+$prev..}$GITHUB_REF_NAME" \
+            | sed -E 's/ \(#[0-9]+\)( \(\[)/\1/' \
             > notes.md
           gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md \
             hashes.txt "unbeholden-wallet-$GITHUB_REF_NAME.tar.gz"
