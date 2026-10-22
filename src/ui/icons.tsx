@@ -113,12 +113,16 @@ export function Icon({ name, className = "size-[18px]" }: { name: IconName; clas
   );
 }
 
-/** The app's mark: a manila exhibit tag with its punched hole. */
+/** The app's mark, the air-gap U, drawn as public/icon.svg. */
 export function Mark({ className = "size-[26px]" }: { className?: string }) {
+  // Fixed colours, not theme tokens: the mark matches the favicon in both themes.
   return (
-    <svg viewBox="0 0 26 26" aria-hidden="true" className={className}>
-      <path d="M9 6h15v14H9l-6-7z" className="fill-manila" />
-      <circle cx="8.5" cy="13" r="1.8" className="fill-paper" />
+    <svg viewBox="0 0 512 512" aria-hidden="true" className={className}>
+      <rect width="512" height="512" rx="112" fill="#2a3f9a" />
+      <path
+        d="M96 96V272A160 160 0 0 0 224 428.77V327.43A64 64 0 0 1 192 272V96ZM416 96V272A160 160 0 0 1 288 428.77V327.43A64 64 0 0 0 320 272V96Z"
+        fill="#fbfbf8"
+      />
     </svg>
   );
 }

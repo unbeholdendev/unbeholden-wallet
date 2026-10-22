@@ -44,6 +44,8 @@ pre code { font-size: 14px; }
 .bar nav svg { display: block; width: 22px; height: 22px; fill: currentColor; }
 
 .hero { padding: 40px 0 32px; max-width: 760px; }
+.hero:has(.pitch) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 440px); gap: 48px; align-items: center; max-width: none; }
+.hero .pitch { max-width: 760px; }
 h1 { margin: 0 0 20px; font-size: clamp(36px, 5vw, 56px); line-height: 1.04; letter-spacing: -0.025em; }
 .lead { font-size: 20px; line-height: 1.5; color: var(--ink-2); max-width: 60ch; }
 .note { font-size: 15px; color: var(--ink-3); }
@@ -98,6 +100,7 @@ h1 { margin: 0 0 20px; font-size: clamp(36px, 5vw, 56px); line-height: 1.04; let
 
 @media (max-width: 860px) {
   .entry { grid-template-columns: minmax(0, 1fr); row-gap: 24px; }
+  .hero:has(.pitch) { grid-template-columns: minmax(0, 1fr); }
   .shots { justify-content: start; }
 }
 
