@@ -22,9 +22,9 @@ show you wrong information or build a wrong transaction, and your signer still
 has to approve it. That's a far smaller risk than a wallet that can spend on its
 own.
 
-It was written by AI, under my direction. Writing it by hand would have taken
-far longer. I decided what it does and reviewed the work, but you should know
-how it was made before you trust it.
+It was written with the help of AI, under my direction. Writing it by hand
+would have taken far longer. I decided what it does and reviewed the work, but
+you should know how it was made before you trust it.
 
 ## What the hosted app can and can't protect you from
 
