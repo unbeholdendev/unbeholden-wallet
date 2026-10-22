@@ -13,7 +13,7 @@ import { reasons } from "./Connect";
 import { EditableLabel, Opening } from "./parts";
 import { parseAmount } from "./send/Recipients";
 import { stillPending } from "./send/Send";
-import { BalanceChart, Network, Pending, Sources } from "./HomePanels";
+import { BalanceChart, Network, Pending, Sources, Stats } from "./HomePanels";
 
 const stages = { history: "Checking addresses", transactions: "Fetching transactions", blocks: "Fetching block times" };
 
@@ -285,7 +285,7 @@ export function Home() {
           </button>
         </div>
       )}
-      <div className="grid items-start gap-6 @min-[900px]/app:grid-cols-[360px_minmax(0,1fr)] @min-[900px]/app:grid-rows-[auto_auto_auto_auto_1fr]">
+      <div className="grid items-start gap-6 @min-[900px]/app:grid-cols-[360px_minmax(0,1fr)] @min-[900px]/app:grid-rows-[auto_auto_auto_auto_auto_1fr]">
         <div className={left}>
           <Balance snapshot={snapshot} />
         </div>
@@ -298,7 +298,10 @@ export function Home() {
         <div className={left}>
           <Network />
         </div>
-        <div className="min-w-0 @min-[900px]/app:col-start-2 @min-[900px]/app:row-span-5 @min-[900px]/app:row-start-1">
+        <div className={left}>
+          {!fresh && <Stats snapshot={snapshot} />}
+        </div>
+        <div className="min-w-0 @min-[900px]/app:col-start-2 @min-[900px]/app:row-span-6 @min-[900px]/app:row-start-1">
           {fresh && snapshot.tip && !snapshot.progress ? (
             <Empty title="No transactions yet">
               <p className="m-0">
