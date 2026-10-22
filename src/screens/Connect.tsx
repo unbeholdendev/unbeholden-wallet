@@ -392,6 +392,11 @@ function Status({ connection }: { connection: Connection }) {
             This server is on {network}, but {w.name} is a {w.network} wallet. It will look empty here.
           </Notice>
         ))}
+        {!wallets.length && (
+          <a className={`${buttonClass({ variant: "primary" })} justify-self-start`} href="#/import">
+            Next: add a wallet
+          </a>
+        )}
       </section>
     );
   }
