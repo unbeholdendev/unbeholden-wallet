@@ -24,10 +24,12 @@ function SyncLine({ snapshot }: { snapshot: WalletSnapshot }) {
   const server = settings.server ? hostText(settings.server) : "your server";
   const { progress, error, tip } = snapshot;
   const failed = connection.phase === "failed";
+  const synced = snapshot.syncedAt === null ? "" : `, ${dateText(snapshot.syncedAt / 1000)} at ${timeText(snapshot.syncedAt / 1000)}`;
+  const stale = `Balances are as of the last sync${synced}.`;
   const [dot, text] = failed
-    ? ["bg-bad", `Not connected to ${server}. ${connection.failure ? reasons[connection.failure] : connection.message} Balances are as of the last sync.`]
+    ? ["bg-bad", `Not connected to ${server}. ${connection.failure ? reasons[connection.failure] : connection.message} ${stale}`]
     : connection.phase === "retrying"
-      ? ["bg-warn animate-pulse", `Lost ${server}, trying again. Balances are as of the last sync.`]
+      ? ["bg-warn animate-pulse", `Lost ${server}, trying again. ${stale}`]
       : connection.phase !== "connected"
         ? ["bg-warn animate-pulse", `Connecting to ${server}.`]
         : progress

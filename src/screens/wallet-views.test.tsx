@@ -432,6 +432,7 @@ describe("the connection", () => {
   it("says why it could not connect and leads to what to do about it", async () => {
     const user = await unlockWith(() => fakeBackend({ failure: "refused" }));
     expect(await screen.findByText(/Not connected to node.example.ts.net:50004. Nothing there accepted the connection/)).toBeTruthy();
+    expect(screen.getByText(/Balances are as of the last sync, \d{1,2} \w{3,4} \d{4} at \d\d:\d\d\./)).toBeTruthy();
     expect(spendable()).toContain("0.30 926 773");
     await user.click(screen.getByRole("link", { name: "What to do" }));
     expect(await screen.findByRole("heading", { name: "Nothing at node.example.ts.net:50004 accepted the connection" })).toBeTruthy();

@@ -274,6 +274,7 @@ export async function openWallet(
       heights.forEach((h, i) => (cache.times[h] = blockTime(headers[i]!)));
     }
     for (const e of entries) if (e.height === null) cache.seen[e.txid] ??= now();
+    cache.syncedAt = now();
 
     await persist();
     rebuild();
