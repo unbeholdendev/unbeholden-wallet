@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useWallet } from "../app/session";
 import { useVault } from "../app/vault";
-import { txWhen } from "../core/view";
+import { isOutgoing, txWhen } from "../core/view";
 import type { WalletSnapshot } from "../core/wallet";
 import { Amount, groupSats } from "../ui/amount";
 import { dateText } from "../ui/format";
@@ -146,6 +146,32 @@ export function Network() {
       ) : (
         <p className="m-0 text-sm text-ink-2">The mempool is empty. Any fee from 1 sat/vB gets into the next block.</p>
       )}
+    </Panel>
+  );
+}
+
+/** Worked out from the cached history alone: what sending has cost, and the coins held. */
+export function Stats({ snapshot }: { snapshot: WalletSnapshot }) {
+  const sends = snapshot.transactions.filter(isOutgoing);
+  const fees = sends.reduce((a, t) => a + (t.fee ?? 0), 0);
+  const when = new Map(snapshot.transactions.map((t) => [t.txid, txWhen(t)]));
+  const oldest = Math.min(...snapshot.coins.flatMap((c) => when.get(c.txid) ?? []));
+  return (
+    <Panel title="Statistics">
+      <dl className="m-0 grid grid-cols-[minmax(0,1fr)_auto] gap-x-6 gap-y-1.5 text-sm">
+        <dt className="text-ink-2">Fees paid, {sends.length === 1 ? "1 send" : `${sends.length} sends`}</dt>
+        <dd className="m-0 text-right tabular-nums">
+          <Amount sats={fees} />
+        </dd>
+        <dt className="text-ink-2">Coins held</dt>
+        <dd className="m-0 text-right tabular-nums">{groupSats(snapshot.coins.length)}</dd>
+        {oldest !== Infinity && (
+          <>
+            <dt className="text-ink-2">Oldest coin</dt>
+            <dd className="m-0 text-right tabular-nums">{dateText(oldest)}</dd>
+          </>
+        )}
+      </dl>
     </Panel>
   );
 }

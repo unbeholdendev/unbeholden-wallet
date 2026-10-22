@@ -85,13 +85,17 @@ describe("wallet views on the demo history", () => {
     await waitFor(() => expect(spendable()).toContain("BTC"));
   });
 
-  it("shows what is pending, where the coins came from, and the mempool, beside the history", async () => {
+  it("shows what is pending, where the coins came from, the mempool and statistics, beside the history", async () => {
     await openApp();
     expect(screen.getByText("2 payments not yet confirmed")).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Where it came from" })).toBeTruthy();
     expect(screen.getByText("Kraken withdrawals").closest("li")!.textContent).toContain("47%");
     expect(screen.getByRole("link", { name: "All 7 sources" }).getAttribute("href")).toBe("#/coins");
     expect(await screen.findByText(/The mempool is empty/)).toBeTruthy();
+    const stats = screen.getByRole("heading", { name: "Statistics" }).closest("section")!.textContent;
+    expect(stats).toContain("Fees paid, 2 sends0.00 003 560");
+    expect(stats).toContain("Coins held8");
+    expect(stats).toMatch(/Oldest coin[5-7] Aug 2026/);
     const chart = screen.getByRole("img", { name: /^Balance over time, from / }).querySelector("path")!.getAttribute("d")!;
     for (const x of chart.matchAll(/H([\d.]+)/g)) expect(Number(x[1])).toBeLessThanOrEqual(320);
   });
