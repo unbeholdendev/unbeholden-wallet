@@ -4,6 +4,9 @@ import type { FeeBucket } from "../../backend/backend";
 import { feeTargets, MAX_FEE_RATE, MIN_FEE_RATE, mempoolPosition, type FeeTargets } from "../../wallet/fees";
 import { LinkButton, Panel } from "../../ui/kit";
 
+// A NaN rate passes every comparison, so it would get past the fee clamp and the bump checks.
+const valid = ({ feeRate, vsize }: FeeBucket) => Number.isFinite(feeRate) && feeRate > 0 && Number.isFinite(vsize) && vsize >= 0;
+
 /** The node's mempool histogram, fetched again on each block and every minute. Null until the first answer. */
 export function useFeeHistogram(): FeeBucket[] | null {
   const { backend, connection } = useConnection();
@@ -12,7 +15,7 @@ export function useFeeHistogram(): FeeBucket[] | null {
   useEffect(() => {
     if (!backend) return;
     let live = true;
-    const load = () => backend.feeHistogram().then((h) => live && setHistogram([...h]), () => {});
+    const load = () => backend.feeHistogram().then((h) => live && setHistogram(h.filter(valid)), () => {});
     load();
     const timer = setInterval(load, 60_000);
     return () => {

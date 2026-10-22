@@ -249,6 +249,7 @@ export async function openWallet(
     while (pending.length) {
       emit({ progress: { stage: "history", done, total: done + pending.length } });
       const histories = await backend!.history(pending);
+      if (histories.flat().some((e) => !/^[0-9a-f]{64}$/.test(e.txid))) throw new Error("The server sent a malformed txid");
       pending.forEach((hash, i) => {
         if (histories[i]!.length) cache.histories[hash] = histories[i]!;
         else delete cache.histories[hash];
@@ -308,7 +309,7 @@ export async function openWallet(
       } catch (error) {
         if (closed) return;
         full = true;
-        log("sync failed", { message: (error as Error).message });
+        log("sync failed", { name: (error as Error).name });
         emit({ error: backend ? (error as Error).message : null, progress: null });
       } finally {
         loop = null;
