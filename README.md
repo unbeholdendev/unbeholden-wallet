@@ -7,6 +7,9 @@ air-gapped signer over animated QR or a file.
 Supports `wpkh` and `tr` single-signature wallets on mainnet, signet and
 regtest.
 
+A static single-page app in React and TypeScript, with `@scure` and `@noble`
+for the Bitcoin parts. There's no backend.
+
 Website: https://wallet.unbeholden.dev. Demo: https://demo.wallet.unbeholden.dev.
 
 ## Why it exists
