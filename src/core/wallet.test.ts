@@ -218,6 +218,13 @@ describe.each(SERVERS)("scanning, served by %s", (_, serve) => {
     expect(session.getSnapshot().balance.confirmed).toBe(80_000);
   });
 
+  it("keeps when it last synced, and shows it with no server", async () => {
+    (await open(withMempool(serve), walletId, () => 5678)).close();
+    const offline = await openWallet(vault, walletId, null);
+    sessions.push(offline);
+    expect(offline.getSnapshot().syncedAt).toBe(5678);
+  });
+
   it("measures a first sync of 500 transactions", async () => {
     const payments = Array.from({ length: 500 }, (_, i) =>
       tx([[FAUCET, i]], [[mine(0, i), 1_000 + i], [theirs(1), 990_000]]),
