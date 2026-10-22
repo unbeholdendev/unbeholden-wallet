@@ -70,6 +70,8 @@ export type Cache = {
   /** Block time by height. */
   times: Record<string, number>;
   seen: Record<string, number>;
+  /** When the last sync finished, by the injected clock. Absent from caches saved before it existed. */
+  syncedAt?: number;
 };
 
 export type Parsed = HistoryTx & { vsize: number };
@@ -293,6 +295,7 @@ export function deriveView(source: ViewSource) {
   const total = (list: WalletCoin[]) => sum(list.map((c) => c.value));
   return {
     tip,
+    syncedAt: cache.syncedAt ?? null,
     balance: {
       confirmed: total(coins.filter((c) => c.status === "confirmed")),
       unconfirmed: total(coins.filter((c) => c.status !== "confirmed")),
