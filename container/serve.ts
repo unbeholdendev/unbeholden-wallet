@@ -17,6 +17,9 @@ type Link = { tcp: Socket; ws: { current?: ServerWebSocket<Link> } };
 
 async function bridge(req: Request, server: Bun.Server<Link>) {
   if (req.headers.get("upgrade")?.toLowerCase() !== "websocket") return new Response("WebSocket only", { status: 426, headers });
+  // Browsers apply no CORS to WebSockets, so without this any site the user visits could reach the server.
+  const origin = req.headers.get("origin");
+  if (origin && URL.parse(origin)?.host !== new URL(req.url).host) return new Response("Wrong origin", { status: 403, headers });
   const ws: Link["ws"] = {};
   const decoder = new TextDecoder();
   let rest = "";
