@@ -175,7 +175,7 @@ describe("onboarding", () => {
     await existingVault({ server: null });
     const user = renderApp();
     await unlock(user, "incorrect horse battery staple");
-    expect(await screen.findByText(/That passphrase does not open this vault/)).toBeTruthy();
+    expect(await screen.findByText(/That passphrase doesn't open this vault/)).toBeTruthy();
 
     await user.clear(screen.getByLabelText("Passphrase"));
     await unlock(user);
@@ -185,11 +185,11 @@ describe("onboarding", () => {
   const guidance: [ConnectionFailure, RegExp][] = [
     ["certificate-rejected", /The browser rejected this server's certificate/],
     ["refused", /Nothing at node\.example\.ts\.net:50004 accepted the connection/],
-    ["timeout", /node\.example\.ts\.net:50004 did not answer within 10 seconds/],
-    ["not-electrum", /Something answered, but it is not an Electrum server/],
-    ["mixed-content", /This page cannot open a plain ws:\/\/ or http:\/\/ connection/],
-    ["not-esplora", /Something answered, but it is not an Esplora API/],
-    ["cors", /Your server answered, but did not let this app read it/],
+    ["timeout", /node\.example\.ts\.net:50004 didn't answer within 10 seconds/],
+    ["not-electrum", /Something answered, but it's not an Electrum server/],
+    ["mixed-content", /This page can't open a plain ws:\/\/ or http:\/\/ connection/],
+    ["not-esplora", /Something answered, but it's not an Esplora API/],
+    ["cors", /Your server answered, but didn't let this app read it/],
   ];
 
   it.each(guidance)("explains a %s failure in its own words", async (failure, title) => {
@@ -207,7 +207,7 @@ describe("onboarding", () => {
     await existingVault({ server: "ws://localhost:3000/electrum" });
     const user = renderApp("certificate-rejected");
     await unlock(user);
-    expect(await screen.findByRole("heading", { name: "The container could not reach your Electrum server" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "The container couldn't reach your Electrum server" })).toBeTruthy();
     expect(screen.queryByRole("heading", { name: /certificate/ })).toBeNull();
   });
 
@@ -225,12 +225,12 @@ describe("onboarding", () => {
     await user.type(screen.getByLabelText("Name"), "Spending");
     await user.click(screen.getByRole("button", { name: /Continue to backup/ }));
     expect(screen.getByText(descriptor)).toBeTruthy();
-    expect(screen.getByText(/You have not copied or downloaded it yet/)).toBeTruthy();
+    expect(screen.getByText(/You haven't copied or downloaded it yet/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Finish" })).toBeNull();
 
     await user.click(screen.getByRole("button", { name: "Copy" }));
     expect(await navigator.clipboard.readText()).toBe(descriptor);
-    expect(screen.queryByText(/You have not copied or downloaded it yet/)).toBeNull();
+    expect(screen.queryByText(/You haven't copied or downloaded it yet/)).toBeNull();
     await user.click(screen.getByRole("button", { name: "Finish" }));
 
     expect(await screen.findByRole("heading", { name: "Home" })).toBeTruthy();
@@ -418,7 +418,7 @@ describe("no passphrase", () => {
     await unlock(user);
     await user.type(await screen.findByLabelText("Current passphrase"), "incorrect horse");
     await user.click(screen.getByRole("button", { name: "Remove passphrase" }));
-    expect(await screen.findByText("The current passphrase is not right.")).toBeTruthy();
+    expect(await screen.findByText("The current passphrase isn't right.")).toBeTruthy();
     await user.clear(screen.getByLabelText("Current passphrase"));
     await user.type(screen.getByLabelText("Current passphrase"), PASSPHRASE);
     await user.click(screen.getByRole("button", { name: "Remove passphrase" }));
@@ -478,7 +478,7 @@ describe("backup", () => {
 
     await user.type(await screen.findByLabelText("Vault passphrase, to confirm"), "incorrect horse");
     await user.click(screen.getByRole("button", { name: "Download backup" }));
-    expect(await screen.findByText("That is not the vault passphrase.")).toBeTruthy();
+    expect(await screen.findByText("That's not the vault passphrase.")).toBeTruthy();
     expect(file).toBeUndefined();
     await user.clear(screen.getByLabelText("Vault passphrase, to confirm"));
     await user.type(screen.getByLabelText("Vault passphrase, to confirm"), PASSPHRASE);
@@ -496,7 +496,7 @@ describe("backup", () => {
     await user.upload(await screen.findByLabelText("Choose backup file"), new File([text], "wallet-backup.json"));
     await user.type(screen.getByLabelText("Passphrase of the backup"), "incorrect horse");
     await user.click(screen.getByRole("button", { name: "Restore" }));
-    expect(await screen.findByText("The passphrase is not right for this backup.")).toBeTruthy();
+    expect(await screen.findByText("That passphrase isn't right for this backup.")).toBeTruthy();
     await user.clear(screen.getByLabelText("Passphrase of the backup"));
     await user.type(screen.getByLabelText("Passphrase of the backup"), PASSPHRASE);
     await user.click(screen.getByRole("button", { name: "Restore" }));

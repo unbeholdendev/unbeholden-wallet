@@ -99,7 +99,7 @@ export function Receive() {
   const saveRequests = (list: PaymentRequest[], done: () => void) =>
     vault.put(`requests/${id}`, list).then(
       () => (setRequests(list), done()),
-      () => toast("The request list was not saved"),
+      () => toast("The request list wasn't saved"),
     );
   const save = () =>
     saveRequests([{ address: next.address, sats }, ...requests!.filter((r) => r.address !== next.address)], () => {
@@ -136,12 +136,12 @@ export function Receive() {
           {multi && (
             <p className="m-0 text-sm text-ink-2">
               A {multi.threshold}-of-{keys.length} multisig address. Check it on a cosigner device before you share it, so a
-              tampered page cannot hand out an address the multisig does not control.
+              tampered page can't hand out an address the multisig doesn't control.
             </p>
           )}
         </div>
         <div className="grid gap-1 border-t border-rule pt-3">
-          <span className="text-sm text-ink-2">Who is paying, or what for</span>
+          <span className="text-sm text-ink-2">Who's paying, or what for</span>
           <EditableLabel type="addr" target={next.address} value={next.label} placeholder="Label it before you share it" />
           {next.label && (
             <label className="flex items-center gap-2 text-sm text-ink-2">
@@ -189,7 +189,7 @@ export function Receive() {
               look up the derivation path above and compare every character.
             </p>
             <a className={linkClass} href="#/trust">
-              What this app can and cannot protect you from
+              What this app can and can't protect you from
             </a>
           </div>
         </details>

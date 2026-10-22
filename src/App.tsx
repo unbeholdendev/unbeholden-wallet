@@ -91,7 +91,7 @@ function Insecure() {
         <div className="grid gap-3">
           <p>
             The vault needs your browser's encryption, and a browser only offers it to a secure page. Plain http to a network
-            address is not one. Open the app over https, or at http://localhost on the computer running it.
+            address isn't one. Open the app over https, or at http://localhost on the computer running it.
           </p>
           <a className={linkClass} href="#/guide">
             How to reach it from another device

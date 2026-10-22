@@ -152,7 +152,7 @@ export function FeePanel({
         <p className="m-0 text-sm text-ink-3">Asking your node for its mempool.</p>
       ) : rates.every((r) => r === rates[0]) ? (
         <p className="m-0 text-sm text-ink-2">
-          {histogram.length === 0 && "Your node's mempool is empty, so there is nothing to outbid. "}Any rate from {rateText(rates[0]!)} sat/vB makes the next block.
+          {histogram.length === 0 && "Your node's mempool is empty, so there's nothing to outbid. "}Any rate from {rateText(rates[0]!)} sat/vB makes the next block.
         </p>
       ) : (
         <div className="grid gap-3 @min-[640px]:grid-cols-2 @min-[640px]:items-start">

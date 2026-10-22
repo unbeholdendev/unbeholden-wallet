@@ -323,7 +323,7 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
       <Sheet open={!!pending} onClose={() => setPending(null)} title="Spend someone else's unconfirmed payment?">
         <p className="m-0 text-ink-2">
           {pending && <><Amount sats={pending.value} unit /> {pending.label ? `(${pending.label}) ` : ""}</>}
-          has not confirmed yet, and it came from someone else. Until it confirms they can replace it with a transaction that pays you nothing, and anything that spends it disappears too.
+          hasn't confirmed yet, and it came from someone else. Until it confirms they can replace it with a transaction that pays you nothing, and anything that spends it disappears too.
         </p>
         <p className="m-0 text-ink-2">Waiting for one confirmation is the safe choice.</p>
         <div className="flex flex-wrap gap-2">

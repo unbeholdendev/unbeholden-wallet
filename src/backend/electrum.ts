@@ -84,7 +84,7 @@ export function electrumBackend(
     const open = socket;
     if (!open) {
       return calls.map(() =>
-        Promise.reject(new Error("The backend is not connected")),
+        Promise.reject(new Error("The backend isn't connected")),
       );
     }
     const requests = calls.map(([method, params]) => ({
@@ -99,7 +99,7 @@ export function electrumBackend(
           // Well past the handshake timeout: a batch of large transactions can be slow to arrive.
           const timer = setTimeout(() => {
             pending.delete(id);
-            reject(new Error("The server did not answer in time"));
+            reject(new Error("The server didn't answer in time"));
           }, timeout * 6);
           pending.set(id, {
             resolve: (result) => {
@@ -229,7 +229,7 @@ export function electrumBackend(
   }
 
   function connected(): void {
-    if (!socket) throw new Error("The backend is not connected");
+    if (!socket) throw new Error("The backend isn't connected");
   }
 
   return {

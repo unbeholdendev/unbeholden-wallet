@@ -31,7 +31,7 @@ function expand(payload: string): number[] {
     const value = INPUT_CHARSET.indexOf(character);
     if (value === -1) {
       throw new Error(
-        `Descriptor contains a character that cannot appear in one: ${JSON.stringify(character)}`,
+        `Descriptor contains a character that can't appear in one: ${JSON.stringify(character)}`,
       );
     }
     symbols.push(value & 31);
@@ -69,7 +69,7 @@ export function stripChecksum(text: string): string {
     throw new Error("Descriptor checksum must be eight bech32 characters");
   }
   if (descriptorChecksum(payload) !== checksum) {
-    throw new Error("Descriptor checksum does not match the descriptor");
+    throw new Error("Descriptor checksum doesn't match the descriptor");
   }
   return payload;
 }

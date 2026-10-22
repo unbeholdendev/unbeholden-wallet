@@ -179,7 +179,7 @@ export async function sealBackup(
 
 /** @throws {WrongPassphrase} or {BadBackup} */
 export async function openBackup(text: string, passphrase: string): Promise<Record<string, unknown>> {
-  const notOne = new BadBackup("This is not a backup file from this app.");
+  const notOne = new BadBackup("This isn't a backup file from this app.");
   let file;
   try {
     file = JSON.parse(text);
@@ -204,7 +204,7 @@ export async function openBackup(text: string, passphrase: string): Promise<Reco
   try {
     return (await unseal(key, BACKUP_DATA, data)).records;
   } catch {
-    throw new BadBackup("This backup has been changed or damaged since it was made, so it cannot be read.");
+    throw new BadBackup("This backup has been changed or damaged since it was made, so it can't be read.");
   }
 }
 

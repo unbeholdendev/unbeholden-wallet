@@ -50,7 +50,7 @@ export function ExportBackup() {
       setConfirm("");
       toast("Backup saved");
     } catch (e) {
-      setError(e instanceof WrongPassphrase ? "That is not the vault passphrase." : (e as Error).message);
+      setError(e instanceof WrongPassphrase ? "That's not the vault passphrase." : (e as Error).message);
     }
     setBusy(false);
   };
@@ -99,7 +99,7 @@ export function RestoreBackup() {
       setDone(report(await restoreBackup(await file!.text(), passphrase)));
       setPassphrase("");
     } catch (e) {
-      setError(e instanceof WrongPassphrase ? "The passphrase is not right for this backup." : (e as Error).message);
+      setError(e instanceof WrongPassphrase ? "That passphrase isn't right for this backup." : (e as Error).message);
     }
     setBusy(false);
   };
@@ -109,7 +109,7 @@ export function RestoreBackup() {
       <p className="m-0 text-sm text-ink-2">
         {draft
           ? "Bring your wallets, labels and settings from a backup file. Its passphrase becomes this vault's."
-          : "Adds the wallets this vault does not have and the labels it lacks. Nothing here is replaced."}
+          : "Adds the wallets this vault doesn't have and the labels it lacks. Nothing here is replaced."}
       </p>
       <label className={`${buttonClass({})} cursor-pointer justify-self-start`}>
         <Icon name="upload" />

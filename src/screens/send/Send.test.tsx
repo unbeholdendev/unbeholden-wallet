@@ -345,7 +345,7 @@ describe("the send screen", () => {
 
     await user.clear(field);
     await user.type(field, PAYEE.slice(0, -1) + (PAYEE.endsWith("q") ? "p" : "q"));
-    expect(screen.getByText(/its checksum does not match/)).toBeTruthy();
+    expect(screen.getByText(/its checksum doesn't match/)).toBeTruthy();
   });
 
   it("keeps the note behind a link until asked, and forgets it with its recipient", async () => {
@@ -489,7 +489,7 @@ describe("signing and broadcasting", () => {
     stranger.addInput({ txid: id(faucet), index: 5, witnessUtxo: { script: theirs, amount: 100_000_000n } });
     stranger.addOutput({ script: theirs, amount: 99_999_000n });
     await upload(user, stranger.toPSBT());
-    expect(await screen.findByText("This PSBT was refused: Input 1 is not one of this wallet's unspent coins.")).toBeTruthy();
+    expect(await screen.findByText("This PSBT was refused: Input 1 isn't one of this wallet's unspent coins.")).toBeTruthy();
 
     const bare = Transaction.fromPSBT(signPsbt(built, BIP84));
     for (let i = 0; i < bare.outputsLength; i++) bare.updateOutput(i, { bip32Derivation: undefined }, true);

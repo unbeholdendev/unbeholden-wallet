@@ -24,15 +24,15 @@ const breaks: Record<Failure, string> = {
 
 /** Each failure in one sentence, for where its guidance does not fit. */
 export const reasons: Record<Failure, string> = {
-  bridge: "The container could not reach your Electrum server.",
+  bridge: "The container couldn't reach your Electrum server.",
   "certificate-rejected": "The browser rejected its certificate.",
-  "mixed-content": "This page cannot open a plain ws:// or http:// connection.",
+  "mixed-content": "This page can't open a plain ws:// or http:// connection.",
   refused: "Nothing there accepted the connection.",
-  timeout: "It did not answer within 10 seconds.",
+  timeout: "It didn't answer within 10 seconds.",
   "not-electrum": "Something answered, but not an Electrum server.",
   "not-esplora": "Something answered, but not an Esplora API.",
-  cors: "It answered, but did not let this app read the answer.",
-  "invalid-url": "Its address is not a wss://, ws://, https:// or http:// URL.",
+  cors: "It answered, but didn't let this app read the answer.",
+  "invalid-url": "Its address isn't a wss://, ws://, https:// or http:// URL.",
 };
 
 /** The connection drawn as a route from this tab to the server, broken where it failed. */
@@ -101,7 +101,7 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
         <>
           <p className="m-0">
             Your server at <span className="font-mono text-[0.86em]">{h}</span> answered, but with a certificate this
-            browser does not trust, usually because it is self-signed. WebSocket connections have no "proceed anyway"
+            browser doesn't trust, usually because it's self-signed. WebSocket connections have no "proceed anyway"
             button, so you accept the certificate once in an ordinary tab.
           </p>
           <Steps>
@@ -124,7 +124,7 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
             </li>
             <li>
               <div>
-                <b className="font-bold">Expect a blank page or an error there.</b> That is normal. Close that tab.
+                <b className="font-bold">Expect a blank page or an error there.</b> That's normal. Close that tab.
               </div>
             </li>
             <li>
@@ -138,11 +138,11 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
       more: certificate,
     },
     "mixed-content": {
-      title: "This page cannot open a plain ws:// or http:// connection",
+      title: "This page can't open a plain ws:// or http:// connection",
       body: (
         <>
           <p className="m-0">
-            This app was loaded over https, and browsers do not let an https page open an unencrypted ws:// or http:// connection to
+            This app was loaded over https, and browsers don't let an https page open an unencrypted ws:// or http:// connection to
             another machine. There are two ways round it.
           </p>
           <Steps>
@@ -183,8 +183,8 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
                 </div>
               ) : (
                 <div>
-                  <b className="font-bold">The port is the WebSocket one.</b> Fulcrum's TCP ports (50001, 50002) do
-                  not speak WebSocket; the <span className="font-mono text-[0.86em]">ws</span> and{" "}
+                  <b className="font-bold">The port is the WebSocket one.</b> Fulcrum's TCP ports (50001, 50002) don't
+                  speak WebSocket; the <span className="font-mono text-[0.86em]">ws</span> and{" "}
                   <span className="font-mono text-[0.86em]">wss</span> settings in fulcrum.conf name the right ports. A server with only a TCP port, such as electrs, is
                   reached through the local container.{" "}
                   <a className={linkClass} href="#/guide">How to run it</a>
@@ -194,14 +194,14 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
             <li>
               <div>
                 <b className="font-bold">Nothing between you blocks it:</b> a firewall on the node, or a router that
-                does not forward the port.
+                doesn't forward the port.
               </div>
             </li>
             {/^(wss|https):/.test(url) && (
               <li>
                 <div>
                   <b className="font-bold">A self-signed certificate can look exactly like this.</b> Open{" "}
-                  <Url>{httpsForm(url)}</Url> in a new tab, accept the warning if it is about your own server, then
+                  <Url>{httpsForm(url)}</Url> in a new tab, accept the warning if it's about your own server, then
                   come back and retry.{" "}
                   <a className={`${buttonClass({ size: "sm" })} mt-1 align-middle`} href={httpsForm(url)} target="_blank" rel="noreferrer">
                     Open it <Icon name="ext" className="size-4" />
@@ -215,14 +215,14 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
       more: certificate,
     },
     timeout: {
-      title: `${h} did not answer within 10 seconds`,
+      title: `${h} didn't answer within 10 seconds`,
       body: (
         <>
-          <p className="m-0">Nothing came back at all, which usually means this device cannot reach that address:</p>
+          <p className="m-0">Nothing came back at all, which usually means this device can't reach that address:</p>
           <Steps>
             <li>
               <div>
-                <b className="font-bold">A home network address while you are away from home.</b> Addresses like
+                <b className="font-bold">A home network address while you're away from home.</b> Addresses like
                 192.168… only work on that network.
               </div>
             </li>
@@ -233,7 +233,7 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
             </li>
             <li>
               <div>
-                <b className="font-bold">A server still indexing the chain.</b> Fulcrum does not answer until its
+                <b className="font-bold">A server still indexing the chain.</b> Fulcrum doesn't answer until its
                 first sync is done.
               </div>
             </li>
@@ -243,7 +243,7 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
       more: certificate,
     },
     bridge: {
-      title: "The container could not reach your Electrum server",
+      title: "The container couldn't reach your Electrum server",
       body: (
         <>
           <p className="m-0">
@@ -276,36 +276,36 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
       ),
     },
     "not-electrum": {
-      title: "Something answered, but it is not an Electrum server",
+      title: "Something answered, but it's not an Electrum server",
       body: (
         <p className="m-0">
-          A service at <span className="font-mono text-[0.86em]">{h}</span> accepted the connection and did not speak the
+          A service at <span className="font-mono text-[0.86em]">{h}</span> accepted the connection and didn't speak the
           Electrum protocol. Check that the port is your Electrum server's WebSocket port and not, say, a web server or
-          bitcoind's RPC port. Fulcrum and ElectrumX serve WebSocket; electrs does not, so run the local container with{" "}
+          bitcoind's RPC port. Fulcrum and ElectrumX serve WebSocket; electrs doesn't, so run the local container with{" "}
           <span className="font-mono text-[0.86em]">ELECTRUM=host:port</span> set to its TCP port.
         </p>
       ),
     },
     "not-esplora": {
-      title: "Something answered, but it is not an Esplora API",
+      title: "Something answered, but it's not an Esplora API",
       body: (
         <p className="m-0">
           A web server at <span className="font-mono text-[0.86em]">{h}</span> answered, but{" "}
-          <span className="font-mono text-[0.86em]">{url.replace(/\/+$/, "")}/blocks/tip/hash</span> did not give a block
+          <span className="font-mono text-[0.86em]">{url.replace(/\/+$/, "")}/blocks/tip/hash</span> didn't give a block
           hash. Check that the address is the API's own and not the explorer's page. It often ends in{" "}
           <span className="font-mono text-[0.86em]">/api</span>.
         </p>
       ),
     },
     cors: {
-      title: "Your server answered, but did not let this app read it",
+      title: "Your server answered, but didn't let this app read it",
       body: (
         <>
           <p className="m-0">
             A browser only lets a page read an answer from another site when that site allows it, with an{" "}
             <span className="font-mono text-[0.86em]">Access-Control-Allow-Origin</span> header naming the page. Your
-            server at <span className="font-mono text-[0.86em]">{h}</span> did not name this app, which is at{" "}
-            <span className="font-mono text-[0.86em]">{location.origin}</span>. Esplora does not send the header unless
+            server at <span className="font-mono text-[0.86em]">{h}</span> didn't name this app, which is at{" "}
+            <span className="font-mono text-[0.86em]">{location.origin}</span>. Esplora doesn't send the header unless
             told to.
           </p>
           <Steps>
@@ -381,7 +381,7 @@ function Status({ connection }: { connection: Connection }) {
             <>
               <dt className="text-ink-2">Updates</dt>
               <dd className="m-0">
-                Asks for a new block every {POLL_SECONDS} seconds. Esplora cannot announce a payment, so one still in the
+                Asks for a new block every {POLL_SECONDS} seconds. Esplora can't announce a payment, so one still in the
                 mempool shows at the next block or when you refresh.
               </dd>
             </>
@@ -434,7 +434,7 @@ export function Connect({ onboarding = false }: { onboarding?: boolean }) {
     <div className="grid gap-8">
       <div className="grid gap-4">
         <Heading title={onboarding ? "Connect to your server" : "Your server"}>
-          This wallet talks only to a server you run. Nothing about your wallet is sent anywhere else.
+          This wallet talks only to a server you run.
         </Heading>
         <RouteLine connection={connection.phase === "failed" && !failed ? { phase: "idle" } : connection} />
       </div>
@@ -464,7 +464,7 @@ export function Connect({ onboarding = false }: { onboarding?: boolean }) {
             {failed && !invalid ? "Retry connection" : busy ? "Connecting" : connection.phase === "connected" && connection.url === url.trim() ? "Reconnect" : "Connect"}
           </Button>
           <p className="m-0 text-sm text-ink-3">
-            There is no default or public server. If yours is unreachable, this app does nothing rather than ask someone
+            There's no default or public server. If yours is unreachable, this app does nothing rather than ask someone
             else.
           </p>
         </form>

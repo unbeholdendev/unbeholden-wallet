@@ -8,7 +8,7 @@ function decodeText(text: string): Uint8Array {
     const decoder = psbtUrDecoder();
     decoder.receive(trimmed);
     if (!decoder.result) {
-      throw new Error("This is not a complete single-part ur:crypto-psbt");
+      throw new Error("This isn't a complete single-part ur:crypto-psbt");
     }
     return psbtFromUr(decoder.result);
   }
@@ -33,7 +33,7 @@ export function readPsbt(input: Uint8Array | string): Uint8Array {
       : decodeText(
           typeof input === "string" ? input : new TextDecoder().decode(input),
         );
-  if (!hasMagic(psbt)) throw new Error("This is not a PSBT");
+  if (!hasMagic(psbt)) throw new Error("This isn't a PSBT");
   parsePsbt(psbt);
   return psbt;
 }

@@ -45,14 +45,14 @@ function parseIndex(text: string, allowHardened: boolean): number {
   const hardened = text.endsWith("h") || text.endsWith("'");
   const digits = hardened ? text.slice(0, -1) : text;
   if (!/^\d+$/.test(digits)) {
-    throw new Error(`${JSON.stringify(text)} is not a derivation step`);
+    throw new Error(`${JSON.stringify(text)} isn't a derivation step`);
   }
   const index = Number(digits);
   if (index >= HARDENED) throw new Error(`Derivation step ${digits} is too big`);
   if (!hardened) return index;
   if (!allowHardened) {
     throw new Error(
-      "A descriptor cannot derive hardened steps from a public key",
+      "A descriptor can't derive hardened steps from a public key",
     );
   }
   return index + HARDENED;
@@ -75,7 +75,7 @@ function parsePath(steps: string[]): PathStep[] {
     if (step === "*") return "*";
     if (step === "*h" || step === "*'") {
       throw new Error(
-        "A descriptor cannot derive hardened steps from a public key",
+        "A descriptor can't derive hardened steps from a public key",
       );
     }
     if (step.startsWith("<") && step.endsWith(">")) {
@@ -121,7 +121,7 @@ function parseKey(text: string, network: Network): DescriptorKey {
 export function parseDescriptor(text: string, network: Network): Descriptor {
   const body = stripChecksum(text.trim());
   const match = /^([a-zA-Z]+)\((.*)\)$/.exec(body);
-  if (!match) throw new Error("This is not a descriptor");
+  if (!match) throw new Error("This isn't a descriptor");
   const scriptType = match[1]!;
   const inner = match[2]!;
   if (scriptType === "wsh") {
@@ -143,7 +143,7 @@ export function parseDescriptor(text: string, network: Network): Descriptor {
   }
   if (inner.includes(",")) {
     throw new Error(
-      `${scriptType}() must hold a single key; script trees and multiple keys are not supported`,
+      `${scriptType}() must hold a single key; script trees and multiple keys aren't supported`,
     );
   }
   return { scriptType, keys: [parseKey(inner, network)] };
@@ -165,7 +165,7 @@ export function descriptorFromExtendedKey(
     const parsed = parseOrigin(origin[1]!);
     const purpose = BIP44_PURPOSES[parsed.path[0]! - HARDENED];
     if (!purpose) {
-      throw new Error("This key's path is not a wpkh (84h) or tr (86h) account. For a multisig, paste its whole descriptor");
+      throw new Error("This key's path isn't a wpkh (84h) or tr (86h) account. For a multisig, paste its whole descriptor");
     }
     const { key, path } = descriptorFromExtendedKey(origin[2]!, network, purpose).keys[0]!;
     return { scriptType: purpose, keys: [{ origin: parsed, key, path }] };
@@ -186,7 +186,7 @@ export function descriptorFromExtendedKey(
   const chosen = normalised.scriptType ?? scriptType;
   if (!chosen) {
     throw new Error(
-      "This key's prefix does not say which script type to use. Choose wpkh or tr",
+      "This key's prefix doesn't say which script type to use. Choose wpkh or tr",
     );
   }
   return {

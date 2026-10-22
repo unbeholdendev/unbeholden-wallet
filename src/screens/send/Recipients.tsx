@@ -28,8 +28,8 @@ export function checkAddress(text: string, network: Network): { script: string; 
     } catch {}
   }
   if (/^(bc|tb|bcrt)1/i.test(address))
-    return { error: "This address has a mistake in it: its checksum does not match. Check every character." };
-  return { error: "This is not a Bitcoin address." };
+    return { error: "This address has a mistake in it: its checksum doesn't match. Check every character." };
+  return { error: "This isn't a Bitcoin address." };
 }
 
 // 21 million BTC, well inside exact integer range.

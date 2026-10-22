@@ -133,7 +133,7 @@ export function CoinHistory({ point }: { point: string | undefined }) {
         </ol>
         {missing > 0 && (
           <p className="m-0 text-sm text-warn">
-            {missing === 1 ? "An earlier transaction is" : `${missing} earlier transactions are`} not in this wallet&rsquo;s cache, so the trail stops short.
+            {missing === 1 ? "An earlier transaction isn't" : `${missing} earlier transactions aren't`} in this wallet&rsquo;s cache, so the trail stops short.
             Syncing again may fetch {missing === 1 ? "it" : "them"}.
           </p>
         )}
