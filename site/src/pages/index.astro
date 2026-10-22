@@ -58,8 +58,43 @@ import Base from "../layouts/Base.astro";
 
     <li class="entry">
       <div class="text wide">
-        <h2>How it was built</h2>
-        <p>It was written by AI, under my direction. I decided what it does and reviewed the work, but you should know how it was made before you trust it. The source is <a href="https://github.com/unbeholdendev/unbeholden-wallet" target="_blank" rel="noreferrer">on GitHub</a>, and its README has the technical details.</p>
+        <h2>Questions</h2>
+        <details>
+          <summary>Why a wallet in a browser?</summary>
+          <p>So you can reach your bitcoin from any device without installing anything. Desktop wallets do this well, but only on the desktop they're installed on. A browser tab works on your phone, on a new laptop, or on a friend's computer.</p>
+        </details>
+        <details>
+          <summary>Can it spend my bitcoin?</summary>
+          <p>No. It's watch-only: you give it your public key or descriptor, never your seed. It can show your balance and build a transaction, but only your signing device can sign one. With no keys in the browser, there's nothing in it for an attacker to steal and spend. What it does store, your descriptor, history and labels, is encrypted in the browser, and locked with your passphrase if you set one.</p>
+        </details>
+        <details>
+          <summary>Then what's the worst that can happen?</summary>
+          <p>A bug or a tampered copy could show you wrong information, or build a transaction that pays the wrong address. Your signer shows the addresses and amounts before you approve, so check them there. A tampered copy could also show you a receive address that isn't yours, or send your addresses to someone else. For large amounts, check receive addresses on your signer too.</p>
+        </details>
+        <details>
+          <summary>Should I trust the hosted copy?</summary>
+          <p>Only as far as you trust whoever runs the website, because they could serve you different code. That's fine for trying it, or for small amounts. For real money, <a href="/self-hosting.html">run your own copy</a>. Builds are reproducible, so you can check the files you run match the published source.</p>
+        </details>
+        <details>
+          <summary>Who sees my addresses and balance?</summary>
+          <p>Only your own server, Electrum or Esplora. The wallet has no default server, no analytics and no third-party requests, and won't fall back to a public server if yours is down.</p>
+        </details>
+        <details>
+          <summary>What if someone gets hold of my phone or laptop?</summary>
+          <p>Your wallet data is stored in the browser, encrypted with your passphrase. Without a passphrase, anyone who opens the browser can see your balance and history, but still can't spend. On a computer that isn't yours, delete the vault in Settings when you're done.</p>
+        </details>
+        <details>
+          <summary>Which signers work with it?</summary>
+          <p>Any signer that reads and writes PSBTs over animated QR codes or files, such as a SeedSigner or a Coldcard. It supports single-signature native SegWit and Taproot wallets.</p>
+        </details>
+        <details>
+          <summary>What can't it do yet?</summary>
+          <p>Multisig, hardware wallets over USB, Tor, Lightning, coinjoin and payjoin, silent payments, message signing and fiat prices. Each is written down as a possible addition, but none is promised. Fiat prices would mean a request to a price service, so they'd only ever come as an opt-in.</p>
+        </details>
+        <details>
+          <summary>How was it built?</summary>
+          <p>With the help of AI, under my direction. I decided what it does and reviewed the work, but you should know how it was made before you trust it. The source is <a href="https://github.com/unbeholdendev/unbeholden-wallet" target="_blank" rel="noreferrer">on GitHub</a>, and its README has the technical details.</p>
+        </details>
       </div>
     </li>
   </ol>

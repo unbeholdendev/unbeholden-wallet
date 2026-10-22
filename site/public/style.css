@@ -85,6 +85,11 @@ h1 { margin: 0 0 20px; font-size: clamp(36px, 5vw, 56px); line-height: 1.04; let
 .notice svg { flex: none; width: 20px; height: 20px; margin-top: 3px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .notice p { margin: 0; color: var(--ink); }
 
+details { border-top: 1px solid var(--rule); }
+details:last-child { border-bottom: 1px solid var(--rule); }
+summary { padding: 14px 0; color: var(--ink); font-weight: 700; cursor: pointer; }
+details p { margin-top: -4px; }
+
 .close { padding: 64px 0 24px; }
 .close h2 { margin: 0; font-size: 28px; line-height: 1.15; }
 
