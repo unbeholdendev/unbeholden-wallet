@@ -6,14 +6,27 @@ import Base from "../layouts/Base.astro";
   description="A watch-only Bitcoin wallet that runs in a browser tab, talks only to your own Electrum or Esplora server, holds no keys and hands transactions to an air-gapped signer over animated QR."
 >
   <section class="hero">
-    <h1>A Bitcoin wallet for any device, that never holds your keys</h1>
-    <p class="lead">It runs in a browser tab, so there's nothing to install. Open it on your phone or on a computer that isn't yours. Your own signer signs each transaction.</p>
-    <div class="actions">
-      <a class="button primary" href="https://demo.wallet.unbeholden.dev/" target="_blank" rel="noreferrer">Try the demo</a>
-      <a class="button" href="https://app.wallet.unbeholden.dev/" target="_blank" rel="noreferrer">Open the wallet</a>
-      <a class="button" href="/self-hosting.html">Run it yourself</a>
+    <div class="pitch">
+      <h1>A Bitcoin wallet for any device, that never holds your keys</h1>
+      <p class="lead">It runs in a browser tab, so there's nothing to install. Open it on your phone or on a computer that isn't yours. Your own signer signs each transaction.</p>
+      <div class="actions">
+        <a class="button primary" href="https://demo.wallet.unbeholden.dev/" target="_blank" rel="noreferrer">Try the demo</a>
+        <a class="button" href="https://app.wallet.unbeholden.dev/" target="_blank" rel="noreferrer">Open the wallet</a>
+        <a class="button" href="/self-hosting.html">Run it yourself</a>
+      </div>
+      <p class="note">The demo has made-up history and talks to no server. You don't need a node to try it.</p>
     </div>
-    <p class="note">The demo has made-up history and talks to no server. You don't need a node to try it.</p>
+    <figure class="exhibit shots">
+      <picture>
+        <source srcset="/shots/home-dark.png" media="(prefers-color-scheme: dark)">
+        <img src="/shots/home.png" width="390" height="844" alt="The demo on a phone: balance, pending payments, and where the coins came from, by source.">
+      </picture>
+      <picture>
+        <source srcset="/shots/sign-dark.png" media="(prefers-color-scheme: dark)">
+        <img src="/shots/sign.png" width="390" height="844" alt="The demo on a phone, showing a QR code for the signer, part 3 of 3, with a button to scan the signed transaction back.">
+      </picture>
+      <figcaption>The demo on a phone.</figcaption>
+    </figure>
   </section>
 
   <ol class="ledger">
@@ -21,26 +34,15 @@ import Base from "../layouts/Base.astro";
       <div class="text wide">
         <h2>Nothing to install, on any device</h2>
         <p>I built it after selling bitcoin in person on a new Linux laptop. Sparrow couldn't open the camera because a library was missing, and I had no quick alternative to finish the deal. A wallet in a browser tab would have done it. Sparrow is great, but it only runs on a desktop.</p>
-        <p>Open <a href="https://app.wallet.unbeholden.dev/" target="_blank" rel="noreferrer">app.wallet.unbeholden.dev</a> on your phone, or on a borrowed laptop in an emergency. On a computer that isn't yours, delete the vault in Settings when you're done. Or host it yourself and open it on all your devices.</p>
+        <p>Open <a href="https://app.wallet.unbeholden.dev/" target="_blank" rel="noreferrer">app.wallet.unbeholden.dev</a> on your phone, or on a borrowed laptop in an emergency. On a computer that isn't yours, delete the vault in Settings when you're done. Or <a href="/self-hosting.html">host it yourself</a> and open it on all your devices.</p>
       </div>
     </li>
 
     <li class="entry">
-      <div class="text">
+      <div class="text wide">
         <h2>Your keys stay on your signer</h2>
         <p>The wallet only watches. To send, it shows the transaction as a QR code, your signing device signs it, and you scan it back. It connects only to your own Bitcoin node.</p>
       </div>
-      <figure class="exhibit shots">
-        <picture>
-          <source srcset="/shots/home-dark.png" media="(prefers-color-scheme: dark)">
-          <img src="/shots/home.png" width="390" height="844" alt="The demo on a phone: balance, pending payments, and where the coins came from, by source." loading="lazy">
-        </picture>
-        <picture>
-          <source srcset="/shots/sign-dark.png" media="(prefers-color-scheme: dark)">
-          <img src="/shots/sign.png" width="390" height="844" alt="The demo on a phone, showing a QR code for the signer, part 3 of 3, with a button to scan the signed transaction back." loading="lazy">
-        </picture>
-        <figcaption>The demo on a phone.</figcaption>
-      </figure>
     </li>
 
     <li class="entry">

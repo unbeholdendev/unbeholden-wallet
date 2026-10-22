@@ -382,6 +382,25 @@ Notes on the tokens:
   toasts, and the phone docks on Send and Coins. Panels sit flat with a 1 px
   `rule` border.
 
+## Mark
+
+The air-gap U: a heavy U split at the base, the gap between the wallet and
+the keys. `paper` (`#fbfbf8`) on a `carbon` (`#2a3f9a`) tile, 112/512 corner
+radius. Fixed colours in both themes, like the QR plate. It is not drawn from
+the source tags or the join colours; those mean things inside the app.
+
+- On a 512 grid the arms are 96 wide at x 96 and 320, top at y 96, the bowl
+  centred at (256, 272), the gap 64 wide. Every edge falls on the 32-unit
+  pixel grid of a 16 px favicon.
+- `public/icon.svg` is the source, copied to `site/public/icon.svg` and drawn
+  inline by `Mark` in `src/ui/icons.tsx`. Change all three together.
+- PNGs are screenshots of that SVG in Chromium: `icon-192` and `icon-512`
+  as is; `apple-touch-icon` (180) on a square tile, since iOS rounds it;
+  `icon-maskable-512` on a square tile with the U at 75 %, inside the safe
+  circle.
+- Lockup: the mark at 26 to 28 px, then "Unbeholden Wallet" in Hanken
+  Grotesk bold, 10 px apart.
+
 ## Layout and navigation
 
 **Desktop (app container 720 px and up).** A 56 px `sheet` top bar with a
