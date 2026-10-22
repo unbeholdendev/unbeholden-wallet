@@ -137,7 +137,7 @@ export function SignFlow({
   const leaving = payments.filter((o) => !o.mine).reduce((a, o) => a + o.value, 0);
   const notices =
     review.fee > leaving / 10 && leaving > 0
-      ? [...warnings, `The fee is ${Math.round((review.fee / leaving) * 100)}% of what you are sending. Make sure that is what you meant.`]
+      ? [...warnings, `The fee is ${Math.round((review.fee / leaving) * 100)}% of what you're sending. Make sure that's what you meant.`]
       : warnings;
 
   const check = (
@@ -168,7 +168,7 @@ export function SignFlow({
       />
       {!external && (
         <p className="m-0 text-sm text-ink-2">
-          <Chip tone="carbon">Replaceable (RBF)</Chip> Every transaction this wallet builds can be replaced, so you can raise its fee later if it is slow to confirm.
+          <Chip tone="carbon">Replaceable (RBF)</Chip> Every transaction this wallet builds can be replaced, so you can raise its fee later if it's slow to confirm.
         </p>
       )}
       {notices.map((w) => (
@@ -257,7 +257,7 @@ export function SignFlow({
             <p className="m-0 text-sm text-ink-3">
               {connection.phase === "connected"
                 ? `Broadcasting sends the transaction to ${hostText(connection.url)} only. Your server relays it to the network.`
-                : "Not connected to your server, so there is nowhere to broadcast. Reconnect, then try again."}
+                : "Not connected to your server, so there's nowhere to broadcast. Reconnect, then try again."}
             </p>
             {failure && (
               <div role="alert" className="grid gap-1.5 rounded-control bg-bad-tint px-3 py-2.5 text-sm text-bad">

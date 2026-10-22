@@ -28,7 +28,7 @@ export function Footer() {
     <footer className="flex flex-wrap gap-x-4 gap-y-1 border-t border-rule pt-4 text-sm text-ink-3">
       <span>Version {APP_VERSION}</span>
       <a className={linkClass} href="#/trust">
-        What this app can and cannot protect you from
+        What this app can and can't protect you from
       </a>
       <a className={linkClass} href="#/guide">
         Reaching your node

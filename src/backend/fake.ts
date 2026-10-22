@@ -176,7 +176,7 @@ export function fakeBackend(fixture: Partial<Fixture> = {}): FakeBackend {
   }
 
   function requireConnection(): void {
-    if (!connected) throw new Error("The backend is not connected");
+    if (!connected) throw new Error("The backend isn't connected");
   }
 
   reindex();

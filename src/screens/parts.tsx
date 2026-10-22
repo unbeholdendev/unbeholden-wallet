@@ -89,7 +89,7 @@ export function Opening({ title }: { title: string }) {
       {failed ? (
         <>
           <Notice tone="bad">
-            This wallet could not be opened. {failed.message}
+            This wallet couldn't be opened. {failed.message}
           </Notice>
           <p className="m-0 text-ink-2">
             Try again. If it still fails, remove the wallet in <a href="#/settings" className={linkClass}>Settings</a> and add it again.

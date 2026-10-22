@@ -27,15 +27,15 @@ const c = "font-mono text-[0.86em] text-ink";
 export function Trust() {
   return (
     <Doc
-      title="What this app can and cannot protect you from"
+      title="What this app can and can't protect you from"
       lede="Read this before trusting a hosted copy with real money."
     >
       <ul className="m-0 grid list-none gap-4 p-0 [&_li]:grid [&_li]:grid-cols-[22px_1fr] [&_li]:gap-2.5">
         <li>
           <Icon name="warn" className="mt-0.5 size-5 text-bad" />
           <p>
-            <strong>It cannot protect you from whoever controls the domain.</strong> They can serve different code to you
-            than to everyone else. A malicious build could show you a receive address that is not yours, or quietly send
+            <strong>It can't protect you from whoever controls the domain.</strong> They can serve different code to you
+            than to everyone else. A malicious build could show you a receive address that isn't yours, or quietly send
             your addresses somewhere. Nothing in a web page can rule that out.
           </p>
         </li>
@@ -52,7 +52,7 @@ export function Trust() {
           <p>
             <strong>It does protect you from leaking to third parties.</strong> The app makes no requests to anyone except
             the server you enter, Electrum or Esplora. There is no default server, no analytics, no CDN and no remote
-            fonts. A strict Content Security Policy blocks every other kind of request, but it cannot name your server in
+            fonts. A strict Content Security Policy blocks every other kind of request, but it can't name your server in
             advance, so it allows a WebSocket or an HTTP request to any host. That the app only asks your server is a
             property of its code, not something the policy enforces.
           </p>
@@ -61,7 +61,7 @@ export function Trust() {
           <Icon name="check" className="mt-0.5 size-5 text-ok" />
           <p>
             <strong>It does protect your history at rest.</strong> Wallet data in the browser is encrypted with a key
-            derived from your passphrase (Argon2id, AES-GCM). Set no passphrase and it does not: anyone using the
+            derived from your passphrase (Argon2id, AES-GCM). Set no passphrase and it doesn't: anyone using the
             browser can see your wallets.
           </p>
         </li>
@@ -74,7 +74,7 @@ export function Trust() {
         </li>
       </ul>
       <p>
-        For real money, prefer the local container or a copy whose hashes you have checked.{" "}
+        For real money, prefer the local container or a copy whose hashes you've checked.{" "}
         <a className="font-medium text-carbon underline underline-offset-3" href="#/guide">
           How to run it yourself
         </a>
@@ -87,7 +87,7 @@ export function Guide() {
   return (
     <Doc
       title="Reaching your node"
-      lede="A browser will not open wss:// to a self-signed certificate, and an https:// page cannot open ws:// at all. Two ways through."
+      lede="A browser won't open wss:// to a self-signed certificate, and an https:// page can't open ws:// at all. Two ways through."
     >
       <h2>A certificate your browser trusts</h2>
       <p>Any way of getting one works. The common ones:</p>
@@ -146,7 +146,7 @@ export function Guide() {
       <Code>{`docker run --rm -p 127.0.0.1:8080:8080 -e ELECTRUM=192.168.1.20:50001 unbeholden-wallet`}</Code>
       <p>
         From another device, such as your phone, put https in front of the container: plain http to a network address is
-        not a secure page, and the app will not run there. With Tailscale, run this on the machine with the container, then
+        not a secure page, and the app won't run there. With Tailscale, run this on the machine with the container, then
         open <span className={c}>https://&lt;machine&gt;.&lt;tailnet&gt;.ts.net</span>. The bridge then offers wss:// on that name.
       </p>
       <Code>{`tailscale serve --bg 8080`}</Code>

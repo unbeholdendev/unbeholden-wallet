@@ -23,7 +23,7 @@ export function Unlock() {
     } catch (e) {
       setError(
         e instanceof WrongPassphrase
-          ? "That passphrase does not open this vault. Check caps lock and try again."
+          ? "That passphrase doesn't open this vault. Check caps lock and try again."
           : (e as Error).message,
       );
       setBusy(false);

@@ -30,7 +30,7 @@ function status(coin: WalletCoin): { text: string; tone?: "ok" | "warn"; icon?: 
   if (coin.frozen) return { text: "Frozen", icon: "lock" };
   if (coin.status === "own-change") return { text: "Your change, unconfirmed", tone: "ok" };
   if (coin.status === "foreign-unconfirmed") return { text: "Unconfirmed, from someone else", tone: "warn", icon: "warn" };
-  if (coin.status === "unconfirmed-parents") return { text: "Waits on an unconfirmed parent, cannot be spent yet" };
+  if (coin.status === "unconfirmed-parents") return { text: "Waits on an unconfirmed parent, can't be spent yet" };
   return null;
 }
 
