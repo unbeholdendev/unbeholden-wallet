@@ -12,7 +12,7 @@ import { asVersion, BIP84_ZPUB, BIP86_XPUB, VERSION } from "./vectors";
 
 describe("BIP174 vectors", () => {
   it.each(INVALID)("refuses: %s", (_, psbt) => {
-    expect(() => parsePsbt(base64.decode(psbt))).toThrow("not a valid PSBT");
+    expect(() => parsePsbt(base64.decode(psbt))).toThrow("isn't a valid PSBT");
   });
 
   // These carry a redeemScript that does not hash to the input's script.
@@ -220,7 +220,7 @@ describe.each(wallets)("a $name wallet", (wallet) => {
     tx.finalize();
     const other = Transaction.fromRaw(tx.extract());
     other.updateOutput(0, { amount: 1_000n }, true);
-    expect(() => finaliseSigned(psbt, other.toBytes(true, true))).toThrow("The signed transaction is not the one built");
+    expect(() => finaliseSigned(psbt, other.toBytes(true, true))).toThrow("The signed transaction isn't the one built");
   });
 
   it("refuses a returned PSBT with a changed output amount", () => {
@@ -249,7 +249,7 @@ describe.each(wallets)("a $name wallet", (wallet) => {
       wallet.root.derive(`m/${wallet.name === "wpkh" ? 84 : 86}'/0'/0'/0/0`).privateKey!,
       0,
     );
-    expect(() => finaliseSigned(psbt, tx.toPSBT())).toThrow("Input 2 is not signed");
+    expect(() => finaliseSigned(psbt, tx.toPSBT())).toThrow("Input 2 isn't signed");
   });
 
   it("refuses signatures that do not commit to every output", () => {
@@ -287,7 +287,7 @@ describe.each(wallets)("a $name wallet", (wallet) => {
     expect(Transaction.fromRaw(raw).id).toBe(Transaction.fromPSBT(psbt).id);
 
     expect(() => finaliseExternal(signed(psbt, wallet.root), wallet.coins.slice(1))).toThrow(
-      "Input 1 is not one of this wallet's unspent coins",
+      "Input 1 isn't one of this wallet's unspent coins",
     );
     const richer = wallet.coins.map((c, i) => (i === 1 ? { ...c, value: c.value + 1 } : c));
     expect(() => finaliseExternal(signed(psbt, wallet.root), richer)).toThrow(
@@ -335,7 +335,7 @@ describe("building", () => {
         coins: [{ ...coin(BIP84.receive0, 0, 0, 10_000, 1), index: 1 }],
         recipients: [{ address: BIP86.receive0, value: 9_000 }],
       }),
-    ).toThrow("does not belong to this wallet");
+    ).toThrow("doesn't belong to this wallet");
   });
 
   it("refuses outputs worth more than the coins", () => {
@@ -362,7 +362,7 @@ describe("building", () => {
         coins: [coin(BIP84.receive0, 0, 0, 10_000, 1)],
         recipients: [{ address: signetAddress, value: 9_000 }],
       }),
-    ).toThrow("is not a valid mainnet address");
+    ).toThrow("isn't a valid mainnet address");
   });
 });
 

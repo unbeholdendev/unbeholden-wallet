@@ -43,7 +43,7 @@ export function ScanBack({ onSigned, error }: { onSigned: (signed: Uint8Array) =
       if (!b.done) return;
       restart();
       if (b.type !== "P" && b.type !== "T") return setScanError("This code holds neither a PSBT nor a transaction.");
-      b.result().then(onSigned, () => setScanError("This code could not be read. Starting the scan again."));
+      b.result().then(onSigned, () => setScanError("This code couldn't be read. Starting the scan again."));
       return;
     }
     if (!/^ur:/i.test(text.trim())) {

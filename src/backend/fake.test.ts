@@ -111,7 +111,7 @@ describe("connecting", () => {
   });
 
   it("serves nothing until it is connected", async () => {
-    await expect(fakeBackend().chainTip()).rejects.toThrow(/not connected/i);
+    await expect(fakeBackend().chainTip()).rejects.toThrow(/isn't connected/i);
   });
 });
 

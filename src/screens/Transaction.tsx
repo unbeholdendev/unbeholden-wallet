@@ -60,7 +60,7 @@ function Facts({ tx }: { tx: WalletTx }) {
     ["Status", tx.confirmations ? `${confText(tx.confirmations)}${tx.confirmations >= 6 ? `, ${groupSats(tx.confirmations)} blocks deep` : ""}` : "Waiting for a block"],
     ["Block", tx.height === null ? "None yet" : groupSats(tx.height)],
     [tx.time === null ? "First seen" : "Block time", when === null ? "Unknown" : `${dateText(when)}, ${timeText(when)}`],
-    ["Fee", tx.fee === null ? "Unknown, an input's amount is not known" : satsText(tx.fee)],
+    ["Fee", tx.fee === null ? "Unknown, an input's amount isn't known" : satsText(tx.fee)],
     ["Size", `${groupSats(tx.vsize)} vB`],
     ["Fee rate", rate === null ? "Unknown" : `${rate} sat/vB`],
   ];
@@ -119,8 +119,8 @@ export function Transaction({ txid }: { txid: string | undefined }) {
             <div className="grid gap-2 rounded-control bg-sunk p-3 text-sm text-ink-2">
               <p className="m-0">
                 {outgoing
-                  ? "Not in a block yet. If it is stuck, you can replace it with a higher fee, or cancel it before it confirms."
-                  : "Not in a block yet. If it is stuck, you can spend what it pays you in a child transaction with a fee high enough for both."}
+                  ? "Not in a block yet. If it's stuck, you can replace it with a higher fee, or cancel it before it confirms."
+                  : "Not in a block yet. If it's stuck, you can spend what it pays you in a child transaction with a fee high enough for both."}
               </p>
               <div className="flex flex-wrap gap-2">
                 {outgoing && (

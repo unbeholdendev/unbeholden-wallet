@@ -71,7 +71,7 @@ describe("a server that stops answering", () => {
     await vi.advanceTimersByTimeAsync(10);
     await connecting;
     const history = backend.history(["00".repeat(32)]);
-    const failed = expect(history).rejects.toThrow("The server did not answer in time");
+    const failed = expect(history).rejects.toThrow("The server didn't answer in time");
     await vi.advanceTimersByTimeAsync(6000);
     await failed;
   });

@@ -7,7 +7,7 @@ main: page doc
 
 <section class="hero">
   <h1>Self-hosting</h1>
-  <p class="lead">Run your own copy, so the only code you trust is code you've chosen. It's one container, and it can also bridge to an Electrum server that has no WebSocket.</p>
+  <p class="lead">Run your own copy, so you pick the version of the code you're trusting. It's one container, and it can also bridge to an Electrum server that has no WebSocket.</p>
 </section>
 
 <ul class="contents">

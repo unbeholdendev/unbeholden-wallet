@@ -96,17 +96,17 @@ export function CreateVault() {
           </Button>
         </form>
         <section className="grid content-start gap-3 rounded-panel border border-rule bg-sheet p-4 text-ink-2">
-          <h2 className="m-0 text-md font-bold text-ink">There is no reset</h2>
+          <h2 className="m-0 text-md font-bold text-ink">There's no reset</h2>
           <p className="m-0">
             Nobody can recover this passphrase, including the people who made this app. If you forget it, you delete the
             vault and import your wallets again from their descriptors.
           </p>
           <p className="m-0">
-            The vault holds no keys. Someone who opens it sees your balances and history, and cannot spend.
+            The vault holds no keys. Someone who opens it sees your balances and history, but can't spend.
           </p>
           <p className="m-0">Close this tab before you set it and nothing is kept.</p>
           <a className={linkClass} href="#/trust">
-            What this app can and cannot protect you from
+            What this app can and can't protect you from
           </a>
         </section>
       </div>

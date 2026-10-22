@@ -20,14 +20,14 @@ import { MIN_LENGTH, NO_PASSPHRASE, PassphraseInput, Strength, strength } from "
 const idleOptions = [1, 5, 15, 60].map((m) => ({ value: String(m), label: m === 60 ? "1 hour" : `${m} min` }));
 
 const persistenceText = {
-  persisted: { tone: "ok" as const, text: "The browser has agreed to keep this site's data until you delete it." },
+  persisted: { tone: "ok" as const, text: "The browser will keep this site's data until you delete it." },
   denied: {
     tone: "warn" as const,
-    text: "The browser has not agreed to keep this site's data, and may delete it when space runs low. Keep your descriptors backed up. Installing the app or bookmarking it can change the browser's mind.",
+    text: "The browser hasn't promised to keep this site's data, and may delete it when space runs low. Keep your descriptors backed up. Installing the app or bookmarking it can make the browser keep it.",
   },
   unsupported: {
     tone: "warn" as const,
-    text: "This browser does not say whether it will keep this site's data. Keep your descriptors backed up.",
+    text: "This browser doesn't say whether it will keep this site's data. Keep your descriptors backed up.",
   },
 };
 
@@ -100,7 +100,7 @@ function ChangePassphrase() {
     } catch (e) {
       setError(
         e instanceof WrongPassphrase
-          ? "The current passphrase is not right."
+          ? "The current passphrase isn't right."
           : e instanceof VaultChanged
             ? "Another tab changed the vault meanwhile. Nothing was changed; try again."
             : (e as Error).message,
@@ -276,10 +276,10 @@ function Wallets() {
               </svg>
             </div>
             <DescriptorBackup name={showing.name} network={showing.network} descriptor={descriptor} />
-            <p className="m-0 text-sm text-ink-3">It holds no keys: someone who sees it can see your balance and history, and cannot spend.</p>
+            <p className="m-0 text-sm text-ink-3">It holds no keys: someone who sees it can see your balance and history, but can't spend.</p>
             {parsed?.multi && (
               <p className="m-0 text-sm text-ink-2">
-                Scan it into each cosigner's signer. Until a signer holds it, it cannot tell your change from a payment, so a
+                Scan it into each cosigner's signer. Until a signer holds it, it can't tell your change from a payment, so a
                 tampered page could send change to someone else's multisig.
               </p>
             )}
@@ -289,10 +289,10 @@ function Wallets() {
       <Sheet open={!!removing} onClose={() => setRemoving(null)} title={`Remove ${removing?.name ?? "this wallet"}`}>
         <div className="grid gap-3 text-ink-2">
           <p className="m-0">
-            This removes the wallet from this browser, with its history, labels and frozen coins. Your coins are not
+            This removes the wallet from this browser, with its history, labels and frozen coins. Your coins aren't
             affected.
           </p>
-          <p className="m-0">To see it here again you will need its descriptor. Labels you have not exported are lost.</p>
+          <p className="m-0">To see it here again you'll need its descriptor. Labels you haven't exported are lost.</p>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
           <Button onClick={() => setRemoving(null)}>Keep it</Button>
@@ -311,7 +311,7 @@ function Notifications() {
   if (typeof Notification === "undefined")
     return (
       <Panel title="Notifications">
-        <p className="m-0 text-sm text-ink-3">This browser cannot show notifications.</p>
+        <p className="m-0 text-sm text-ink-3">This browser can't show notifications.</p>
       </Panel>
     );
   const toggle = async (on: boolean) => {
@@ -362,7 +362,7 @@ export function Settings() {
             trusting a hosted copy with real money.
           </p>
           <a className={linkClass} href="#/trust">
-            What this app can and cannot protect you from
+            What this app can and can't protect you from
           </a>
           <a className={linkClass} href="#/guide">
             Reaching your node: certificates and the local container
@@ -393,7 +393,7 @@ export function Settings() {
           </label>
           <p className="m-0 text-sm text-ink-2">
             Until it confirms, the sender can replace a payment, and a transaction that spends it fails with it. Off,
-            they are left out of automatic picks and Max, and you are asked before picking one. Your own
+            they're left out of automatic picks and Max, and you're asked before picking one. Your own
             unconfirmed change is spent either way.
           </p>
         </Panel>
@@ -409,7 +409,7 @@ export function Settings() {
         </Panel>
         <Panel title="Delete the vault">
           <p className="m-0 text-sm text-ink-2">
-            Removes every wallet, label and setting from this browser. Your coins are not affected.
+            Removes every wallet, label and setting from this browser. Your coins aren't affected.
           </p>
           <Button variant="danger" className="justify-self-start" onClick={() => setDestroying(true)}>
             Delete the vault

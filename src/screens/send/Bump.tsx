@@ -42,23 +42,23 @@ const COPY = {
 function why(problem: BumpProblem, mode: BumpMode): string {
   switch (problem.kind) {
     case "confirmed":
-      return "This transaction is already in a block, so there is nothing to speed up.";
+      return "This transaction is already in a block, so there's nothing to speed up.";
     case "not-ours":
-      return "Some of its coins are not this wallet's, so it cannot be rebuilt and signed here.";
+      return "Some of its coins aren't this wallet's, so it can't be rebuilt and signed here.";
     case "has-children":
-      return "A later transaction of yours spends its change. Replacing this one would cancel that one too, so it is not offered.";
+      return "A later transaction of yours spends its change. Replacing this one would cancel that one too, so it isn't offered.";
     case "unsupported-output":
-      return "It has an output with no address, such as an OP_RETURN, which this wallet cannot rebuild.";
+      return "It has an output with no address, such as an OP_RETURN, which this wallet can't rebuild.";
     case "fee-unknown":
-      return "Its fee is unknown, because this wallet does not have the transactions its coins came from, so it cannot work out what the child must pay.";
+      return "Its fee is unknown: this wallet doesn't have the transactions its coins came from, so it can't work out what the child must pay.";
     case "nothing-to-spend":
-      return "Nothing it pays this wallet is left unspent and unfrozen, so there is no coin for a child to spend.";
+      return "Nothing it pays this wallet is left unspent and unfrozen, so there's no coin for a child to spend.";
     case "below-minimum":
       return mode === "cpfp"
         ? `It already pays about that. Choose at least ${rateText(problem.minFeeRate)} sat/vB.`
         : `A replacement has to pay at least ${rateText(problem.minFeeRate)} sat/vB, or your node will refuse it.`;
     case "nothing-left":
-      return "At this rate the fee takes nearly all of its coins, leaving too little to send back to you, so it cannot be cancelled at this rate.";
+      return "At this rate the fee takes nearly all of its coins and leaves too little to send back to you, so it can't be cancelled.";
     case "insufficient":
       return mode === "cpfp"
         ? `What this transaction pays you is ${groupSats(problem.missing)} sats short of the child's fee.`
@@ -79,7 +79,7 @@ export function Bump({ txid, mode }: { txid: string; mode: BumpMode }) {
   const tx = snapshot.transactions.find((t) => t.txid === txid);
   if (!tx)
     return (
-      <Empty title="This transaction is not in this wallet">
+      <Empty title="This transaction isn't in this wallet">
         <p className="m-0">It may belong to another wallet, or a replacement has already taken its place.</p>
       </Empty>
     );
@@ -183,12 +183,12 @@ export function Bump({ txid, mode }: { txid: string; mode: BumpMode }) {
           )}
           {plan.partial && (
             <Notice tone="warn">
-              It, or a transaction before it, spends coins from one this wallet does not have, and your server says something it spends from is not in a block yet. Miners count that too, so the rate with the child may be lower than shown.
+              It, or a transaction before it, spends coins from one this wallet doesn't have, and your server says something it spends from is not in a block yet. Miners count that too, so the rate with the child may be lower than shown.
             </Notice>
           )}
           {added.length > 0 && (
             <Notice tone="warn">
-              Change could not cover the higher fee, so {added.length === 1 ? "this coin is" : "these coins are"} added:{" "}
+              Change couldn't cover the higher fee, so {added.length === 1 ? "this coin is" : "these coins are"} added:{" "}
               {added.map((c, i) => (
                 <span key={`${c.txid}:${c.vout}`}>
                   {i ? ", " : ""}

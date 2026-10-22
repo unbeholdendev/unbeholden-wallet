@@ -172,7 +172,7 @@ export function ImportWallet() {
         <div className="grid gap-2 text-ink-2 [&_p]:m-0 [&_p]:max-w-[62ch]">
           <p>
             Keep it with your signer's backup, or anywhere you keep things for years. It holds no keys: someone who finds
-            it can see your balance and history, and cannot spend.
+            it can see your balance and history, but can't spend.
           </p>
           <p>
             Browsers delete site data when you clear history, reset the device or run low on space. When that happens,
@@ -180,7 +180,7 @@ export function ImportWallet() {
           </p>
           {multi && (
             <p>
-              Also scan it into each cosigner's signer. Until a signer holds it, it cannot tell your change from a payment,
+              Also scan it into each cosigner's signer. Until a signer holds it, it can't tell your change from a payment,
               so a tampered page could send change to someone else's multisig.
             </p>
           )}
@@ -193,7 +193,7 @@ export function ImportWallet() {
         )}
         {!saved && (
           <Notice tone="warn">
-            You have not copied or downloaded it yet. If this browser's data is cleared, the wallet goes with it.
+            You haven't copied or downloaded it yet. If this browser's data is cleared, the wallet goes with it.
           </Notice>
         )}
         <div className="flex flex-wrap gap-2">
@@ -254,7 +254,7 @@ export function ImportWallet() {
               onChange={setScriptType}
             />
             <p className="m-0 text-sm text-ink-3">
-              This key's prefix does not say how its addresses are made. Your signer shows it: addresses starting bc1q
+              This key's prefix doesn't say how its addresses are made. Your signer shows it: addresses starting bc1q
               are wpkh, bc1p are tr.
             </p>
           </div>
@@ -289,7 +289,7 @@ export function ImportWallet() {
             <p className="m-0 text-sm text-ink-3">It appears here once the text above reads as a descriptor or a key.</p>
           )}
         </section>
-        <Field label="Name" hint={`Only you see it. Left empty, it is ${fallbackName}.`}>
+        <Field label="Name" hint={`Only you see it. Left empty, it's ${fallbackName}.`}>
           {(props) => (
             <input {...props} className={inputClass} value={typedName} placeholder={fallbackName} onChange={(e) => setTypedName(e.target.value)} autoComplete="off" />
           )}

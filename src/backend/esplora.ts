@@ -123,7 +123,7 @@ export function esploraBackend(
   }
 
   function connected(): void {
-    if (status === "disconnected" || !tip) throw new Error("The backend is not connected");
+    if (status === "disconnected" || !tip) throw new Error("The backend isn't connected");
   }
 
   async function history(scriptHash: string): Promise<Tx[]> {
@@ -138,7 +138,7 @@ export function esploraBackend(
       txs.push(...page);
     }
     if (txs.length < total) {
-      throw new Error(`The server sent ${txs.length} of an address's ${total} transactions. It does not page history the way Esplora does.`);
+      throw new Error(`The server sent ${txs.length} of an address's ${total} transactions. It doesn't page history the way Esplora does.`);
     }
     return txs.reverse();
   }

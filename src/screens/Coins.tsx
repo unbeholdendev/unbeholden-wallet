@@ -168,7 +168,7 @@ function Join({ snapshot, sources, rate }: { snapshot: WalletSnapshot; sources: 
       <p className="m-0 max-w-[64ch] text-ink-2">
         Everything waiting in your node&rsquo;s mempool fits in the next six blocks, so {rateText(rate)} sat/vB should confirm within
         about an hour. Joining a source&rsquo;s small coins into one now costs less than spending them one by one if fees rise to{" "}
-        {BUSY_RATE} sat/vB, as they have on busy days. That is an example, not a forecast. Coins are only joined within one source,
+        {BUSY_RATE} sat/vB, as they have on busy days. That's an example, not a forecast. Coins are only joined within one source,
         so nothing new is linked.
       </p>
       <ul className="m-0 grid list-none gap-2 p-0">

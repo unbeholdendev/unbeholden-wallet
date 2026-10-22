@@ -157,7 +157,7 @@ export function buildPsbt(request: PsbtRequest): BuiltPsbt {
     );
     if (hex.encode(script) !== coin.script) {
       throw new Error(
-        `Coin ${outpoint(coin)} does not belong to this wallet at ${coin.chain}/${coin.index}`,
+        `Coin ${outpoint(coin)} doesn't belong to this wallet at ${coin.chain}/${coin.index}`,
       );
     }
     tx.addInput({
@@ -176,7 +176,7 @@ export function buildPsbt(request: PsbtRequest): BuiltPsbt {
         script = OutScript.encode(Address(params).decode(recipient.address));
       } catch {
         throw new Error(
-          `${recipient.address} is not a valid ${network} address`,
+          `${recipient.address} isn't a valid ${network} address`,
         );
       }
       return { script, amount: BigInt(recipient.value) };
@@ -215,7 +215,7 @@ export function parsePsbt(psbt: Uint8Array): Transaction {
   try {
     return Transaction.fromPSBT(psbt, { unknown: "ignore" });
   } catch {
-    throw new Error("This is not a valid PSBT");
+    throw new Error("This isn't a valid PSBT");
   }
 }
 
@@ -360,7 +360,7 @@ function spent(tx: Transaction, coins: Coin[]): Coin[] {
   return Array.from({ length: tx.inputsLength }, (_, i) => {
     const input = tx.getInput(i);
     const coin = owned.get(outpoint({ txid: hex.encode(input.txid!), vout: input.index! }));
-    if (!coin) throw new Error(`Input ${i + 1} is not one of this wallet's unspent coins`);
+    if (!coin) throw new Error(`Input ${i + 1} isn't one of this wallet's unspent coins`);
     const utxo = input.witnessUtxo;
     if (!utxo || hex.encode(utxo.script) !== coin.script || utxo.amount !== BigInt(coin.value)) {
       throw new Error(`Input ${i + 1} describes its coin differently from your server`);
@@ -377,7 +377,7 @@ function withWitnesses(ours: Transaction, raw: Uint8Array): Transaction {
   } catch {
     throw new Error("This is neither a PSBT nor a transaction");
   }
-  if (!equalBytes(tx.unsignedTx, ours.unsignedTx)) throw new Error("The signed transaction is not the one built");
+  if (!equalBytes(tx.unsignedTx, ours.unsignedTx)) throw new Error("The signed transaction isn't the one built");
   const theirs = ours.clone();
   for (let i = 0; i < tx.inputsLength; i++) {
     const witness = tx.getInput(i).finalScriptWitness;
@@ -392,7 +392,7 @@ function finalise(theirs: Transaction, ours: Transaction): Uint8Array {
     try {
       if (!theirs.getInput(i).finalScriptWitness) theirs.finalizeIdx(i);
     } catch {
-      throw new Error(`Input ${i + 1} is not signed`);
+      throw new Error(`Input ${i + 1} isn't signed`);
     }
     const type = OutScript.decode(ours.getInput(i).witnessUtxo!.script).type;
     if (!signsEverything(theirs.getInput(i).finalScriptWitness!, type)) {

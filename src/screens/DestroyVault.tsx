@@ -18,17 +18,17 @@ export function DestroyVault({ open, onClose }: { open: boolean; onClose: () => 
     <Sheet open={open} onClose={close} title="Delete the vault and every wallet in it">
       <div className="grid gap-3 text-ink-2">
         <p className="m-0">
-          This removes every wallet, label and setting from this browser. It cannot be undone, and nothing is kept
+          This removes every wallet, label and setting from this browser. It can't be undone, and nothing is kept
           anywhere else.
         </p>
         <p className="m-0">
-          Your coins are not affected: they stay on the chain, under your signer's keys. To see them here again you will
-          need each wallet's descriptor. Labels you have not exported are lost.
+          Your coins aren't affected: they stay on the chain, under your signer's keys. To see them here again you'll
+          need each wallet's descriptor. Labels you haven't exported are lost.
         </p>
       </div>
       <Field
         label={`Type ${WORD} to confirm`}
-        error={failed ? "Another tab still has this app open. Close it and the vault is deleted then." : undefined}
+        error={failed ? "Another tab still has this app open. Close it and the vault will be deleted." : undefined}
       >
         {(props) => (
           <input {...props} className={inputClass} value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" spellCheck={false} autoCapitalize="none" />

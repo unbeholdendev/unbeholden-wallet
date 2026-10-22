@@ -312,7 +312,7 @@ describe("backup file", () => {
     expect(await openBackup(file, PASSPHRASE)).toEqual(wallets);
 
     await expect(openBackup(file, "incorrect horse")).rejects.toThrow(WrongPassphrase);
-    await expect(openBackup("{}", PASSPHRASE)).rejects.toThrow("This is not a backup file from this app.");
+    await expect(openBackup("{}", PASSPHRASE)).rejects.toThrow("This isn't a backup file from this app.");
     await expect(openBackup("not json", PASSPHRASE)).rejects.toThrow(BadBackup);
 
     const parsed = JSON.parse(file);

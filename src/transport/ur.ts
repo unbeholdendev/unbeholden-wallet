@@ -334,7 +334,7 @@ function keypath(item: Cbor | undefined) {
     if (Array.isArray(c) && c.length === 4) steps.push(`<${step(c[0], c[1])};${step(c[2], c[3])}>`);
     else if (Array.isArray(c) && c.length === 0) steps.push(step("*", components[++i]));
     else if (typeof c === "number") steps.push(step(c, components[++i]));
-    else throw new Error("This key path holds a range of children, which this wallet does not read");
+    else throw new Error("This key path holds a range of children, which this wallet doesn't read");
   }
   return { steps, fingerprint: field(path, 2) as number | undefined, depth: field(path, 3) as number | undefined };
 }
@@ -347,7 +347,7 @@ function keyText(item: Cbor | undefined, master: number | undefined): string {
   const data = field(item.value, 3);
   if (!(data instanceof Uint8Array)) throw new Error("Unexpected CBOR");
   if (ECKEY.includes(item.tag)) return hex.encode(data);
-  if (!HDKEY.includes(item.tag)) throw new Error("This descriptor holds a kind of key this wallet does not read");
+  if (!HDKEY.includes(item.tag)) throw new Error("This descriptor holds a kind of key this wallet doesn't read");
 
   const origin = keypath(field(item.value, 6));
   const children = keypath(field(item.value, 7));

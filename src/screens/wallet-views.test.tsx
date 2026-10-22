@@ -444,7 +444,7 @@ describe("the connection", () => {
     await vault.put(key!, { ...(await vault.get<object>(key!)), descriptor: "wpkh(nonsense)" });
     vault.lock();
     await unlockWith(demoBackend);
-    expect(await screen.findByText(/This wallet could not be opened/)).toBeTruthy();
+    expect(await screen.findByText(/This wallet couldn't be opened/)).toBeTruthy();
     expect(within(screen.getByRole("main")).getByRole("link", { name: "Settings" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
   });

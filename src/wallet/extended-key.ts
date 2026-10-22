@@ -54,9 +54,9 @@ export function normaliseExtendedKey(
   try {
     raw = base58check(sha256).decode(text);
   } catch {
-    throw new Error("This is not an extended public key");
+    throw new Error("This isn't an extended public key");
   }
-  if (raw.length !== 78) throw new Error("This is not an extended public key");
+  if (raw.length !== 78) throw new Error("This isn't an extended public key");
   // A BIP32 private key is a zero byte followed by the 32 key bytes, where a
   // public key starts 0x02 or 0x03. This catches every `prv` prefix at once.
   if (raw[45] === 0) {
@@ -65,15 +65,15 @@ export function normaliseExtendedKey(
 
   const view = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
   const version = VERSIONS.get(view.getUint32(0));
-  if (!version) throw new Error("This is not an extended public key");
+  if (!version) throw new Error("This isn't an extended public key");
   if (version.kind === "sh-wpkh") {
     throw new Error(
-      "This is a wrapped SegWit key, a script type this wallet does not support",
+      "This is a wrapped SegWit key, a script type this wallet doesn't support",
     );
   }
   if (version.kind === "sh-wsh") {
     throw new Error(
-      "This is a wrapped SegWit multisig key, a script type this wallet does not support",
+      "This is a wrapped SegWit multisig key, a script type this wallet doesn't support",
     );
   }
 

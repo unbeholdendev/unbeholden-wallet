@@ -93,7 +93,7 @@ export function QrScanner({ onResult, onBlocked }: { onResult: (text: string) =>
       )}
       {state === "no-camera" && (
         <p role="alert" className="m-0 text-sm text-ink-2">
-          <b className="font-bold text-ink">No camera is available here.</b> The browser found none it can use on
+          <b className="font-bold text-ink">No camera.</b> The browser can't find one it can use on
           this page. Paste the text instead.
         </p>
       )}
