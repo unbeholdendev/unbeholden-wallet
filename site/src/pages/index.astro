@@ -7,10 +7,10 @@ import Base from "../layouts/Base.astro";
 >
   <section class="hero">
     <h1>A Bitcoin wallet for any device, that never holds your keys</h1>
-    <p class="lead">It's watch-only and runs in a browser tab. It talks only to your own node and hands each transaction to your air-gapped signer as an animated QR.</p>
+    <p class="lead">It runs in a browser tab, so there's nothing to install. Open it on your phone or on a computer that isn't yours. Your own signer signs each transaction.</p>
     <div class="actions">
-      <a class="button primary" href="https://demo.wallet.unbeholden.dev/">Try the demo</a>
-      <a class="button" href="https://app.wallet.unbeholden.dev/">Open the wallet</a>
+      <a class="button primary" href="https://demo.wallet.unbeholden.dev/" target="_blank" rel="noreferrer">Try the demo</a>
+      <a class="button" href="https://app.wallet.unbeholden.dev/" target="_blank" rel="noreferrer">Open the wallet</a>
       <a class="button" href="/self-hosting.html">Run it yourself</a>
     </div>
     <p class="note">The demo has made-up history and talks to no server. You don't need a node to try it.</p>
@@ -18,36 +18,17 @@ import Base from "../layouts/Base.astro";
 
   <ol class="ledger">
     <li class="entry">
-      <span class="no">01</span>
-      <div class="text">
-        <h2>It shows what a spend would link</h2>
-        <p>You send by picking coins, not typing an amount. As you pick, the custody log says what a chain analyst would write down: which sources you'd join for good, and who already knows you.</p>
+      <div class="text wide">
+        <h2>Nothing to install, on any device</h2>
+        <p>I built it after selling bitcoin in person on a new Linux laptop. Sparrow couldn't open the camera because a library was missing, and I had no quick alternative to finish the deal. A wallet in a browser tab would have done it. Sparrow is great, but it only runs on a desktop.</p>
+        <p>Open <a href="https://app.wallet.unbeholden.dev/" target="_blank" rel="noreferrer">app.wallet.unbeholden.dev</a> on your phone, or on a borrowed laptop in an emergency. On a computer that isn't yours, delete the vault in Settings when you're done. Or host it yourself and open it on all your devices.</p>
       </div>
-      <figure class="exhibit">
-        <div class="panel log">
-          <div class="log-head">
-            <strong>Custody log</strong>
-            <span class="chip join"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8.5 11.5a3.5 3.5 0 005 0l2.5-2.5a3.5 3.5 0 00-5-5l-1 1M11.5 8.5a3.5 3.5 0 00-5 0L4 11a3.5 3.5 0 005 5l1-1"/></svg>Joins 3</span>
-          </div>
-          <p class="log-sub">What a chain analyst would write down about this transaction.</p>
-          <ol class="sources">
-            <li><span class="no">01</span><span class="who"><span class="tag">Bisq trade #4417</span><span>Not marked as knowing who you are</span><span>1 coin picked</span></span><span class="amt"><i>0.0</i>5 842 113</span></li>
-            <li><span class="no">02</span><span class="who"><span class="tag">Ocean mining payouts</span><span>Not marked as knowing who you are</span><span>1 coin picked</span></span><span class="amt"><i>0.0</i>6 000 000</span></li>
-            <li><span class="no">03</span><span class="who"><span class="tag">Kraken withdrawals</span><span>Not marked as knowing who you are</span><span>1 coin picked</span></span><span class="amt"><i>0.</i>14 586 100</span></li>
-          </ol>
-          <div class="tape"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8.5 11.5a3.5 3.5 0 005 0l2.5-2.5a3.5 3.5 0 00-5-5l-1 1M11.5 8.5a3.5 3.5 0 00-5 0L4 11a3.5 3.5 0 005 5l1-1"/></svg>Joined in one transaction</div>
-        </div>
-        <figcaption>From the demo wallet. Made-up sources and amounts.</figcaption>
-      </figure>
     </li>
 
     <li class="entry">
-      <span class="no">02</span>
       <div class="text">
         <h2>Your keys stay on your signer</h2>
-        <p>The wallet builds a PSBT and shows it as an animated QR (<code>ur:crypto-psbt</code>), or saves it as a file. Your signer approves it, and you scan the signed one back to broadcast. The worst a bug or a tampered copy can do is show you wrong information or build a wrong transaction, so check the address and amount on the signer's own screen.</p>
-        <p>I built it because I wanted my on-chain wallet on any device I pick up, without installing anything. Sparrow is great, but only on desktop.</p>
-        <p>It supports <code>wpkh</code> and <code>tr</code> single-signature wallets on mainnet, signet and regtest, keeps several wallets in one vault, and imports and exports labels as BIP329.</p>
+        <p>The wallet only watches. To send, it shows the transaction as a QR code, your signing device signs it, and you scan it back. It connects only to your own Bitcoin node.</p>
       </div>
       <figure class="exhibit shots">
         <picture>
@@ -63,54 +44,29 @@ import Base from "../layouts/Base.astro";
     </li>
 
     <li class="entry">
-      <span class="no">03</span>
-      <div class="text wide">
-        <h2>It talks only to your node</h2>
-        <p>You connect it to your own Electrum server over WebSocket, or to an Esplora API. There's no default server to fall back to, and no analytics, CDN or remote fonts. Besides your server, it only asks the origin it was loaded from whether a container's Electrum bridge is there.</p>
-        <p>A strict Content Security Policy blocks every other kind of request. It can't name your server in advance, though, so it allows a WebSocket or an HTTP request to any host. That the app only ever asks the one server is a property of its code, not something the policy enforces.</p>
-        <p>Wallet data stays in your browser, encrypted with a key from your passphrase (Argon2id, AES-GCM). If you set no passphrase, anyone using the browser can see your wallets.</p>
-      </div>
-    </li>
-
-    <li class="entry">
-      <span class="no">04</span>
       <div class="text wide">
         <h2>What it can't protect you from</h2>
         <div class="notice">
           <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3l8 14H2zM10 8v4M10 14.5v.01"/></svg>
-          <p>Whoever controls the domain can serve you different code from everyone else. A malicious copy could show you a receive address that isn't yours, or send your addresses somewhere. Nothing in a web page can rule that out.</p>
+          <p>Whoever runs the website could change the code, for example to show you a receive address that isn't yours.</p>
         </div>
-        <p>An installed wallet only changes when you install or update it. A web page is served again every time. To narrow that gap, a service worker pins the code after the first load. A new version only runs when you choose to reload into it, or after every tab of the app has been closed, and the running version is always shown. Builds are reproducible, so you can check the files against each release's hashes.</p>
-        <table>
-          <thead><tr><th scope="col"><span class="sr">Question</span></th><th scope="col">Unbeholden</th><th scope="col">Desktop wallet</th><th scope="col">Mobile wallet</th></tr></thead>
-          <tbody>
-            <tr><th scope="row">Install</th><td data-label="Unbeholden">Nothing. Open a page.</td><td data-label="Desktop wallet">On each computer</td><td data-label="Mobile wallet">From an app store</td></tr>
-            <tr><th scope="row">Devices</th><td data-label="Unbeholden">Any with a modern browser</td><td data-label="Desktop wallet">Computers</td><td data-label="Mobile wallet">Phones</td></tr>
-            <tr><th scope="row">Keys</th><td data-label="Unbeholden">Never. Your signer has them.</td><td data-label="Desktop wallet">Can be watch-only</td><td data-label="Mobile wallet">Usually holds them</td></tr>
-            <tr><th scope="row">Who decides what code runs</th><td data-label="Unbeholden">Whoever serves the page, or you if you host it</td><td data-label="Desktop wallet">You, when you install or update</td><td data-label="Mobile wallet">The developer and the app store, on update</td></tr>
-          </tbody>
-        </table>
-        <p>So for real money, use a copy you serve yourself, or one whose hashes you've checked. It's one container:</p>
-        <pre><code>curl -O https://raw.githubusercontent.com/unbeholdendev/unbeholden-wallet/main/compose.yaml
-docker compose up -d</code></pre>
-        <p>The <a href="/self-hosting.html">self-hosting guide</a> covers reaching it from your phone, connecting Fulcrum, electrs or Esplora, and verifying a build.</p>
+        <p>For everyday use with real money, run your own copy. The <a href="/self-hosting.html">self-hosting guide</a> shows how.</p>
       </div>
     </li>
 
     <li class="entry">
-      <span class="no">05</span>
       <div class="text wide">
         <h2>How it was built</h2>
-        <p>It's a static single-page app in React and TypeScript, with the <code>@scure</code> and <code>@noble</code> libraries for the Bitcoin parts. There's no backend.</p>
-        <p>It was written by AI, under my direction. Writing it by hand would have taken far longer. I decided what it does and reviewed the work, but you should know how it was made before you trust it. The source is Apache 2.0 licensed and <a href="https://github.com/unbeholdendev/unbeholden-wallet">on GitHub</a>.</p>
+        <p>It was written by AI, under my direction. I decided what it does and reviewed the work, but you should know how it was made before you trust it. The source is <a href="https://github.com/unbeholdendev/unbeholden-wallet" target="_blank" rel="noreferrer">on GitHub</a>, and its README has the technical details.</p>
       </div>
     </li>
   </ol>
 
   <section class="close">
-    <h2>See it with made-up coins first</h2>
+    <h2>Open it in any browser</h2>
     <div class="actions">
-      <a class="button primary" href="https://demo.wallet.unbeholden.dev/">Try the demo</a>
+      <a class="button primary" href="https://demo.wallet.unbeholden.dev/" target="_blank" rel="noreferrer">Try the demo</a>
+      <a class="button" href="https://app.wallet.unbeholden.dev/" target="_blank" rel="noreferrer">Open the wallet</a>
       <a class="button" href="/self-hosting.html">Run it yourself</a>
     </div>
   </section>
