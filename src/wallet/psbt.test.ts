@@ -207,6 +207,49 @@ describe.each(wallets)("a $name wallet", (wallet) => {
     expect(estimate).toBeLessThanOrEqual(tx.vsize + tx.inputsLength);
   });
 
+  it.each([false, true])("finalises a trimmed signed PSBT (finalised: %s)", (finalised) => {
+    const { psbt } = build();
+    const signedTx = Transaction.fromPSBT(signed(psbt, wallet.root));
+    if (finalised) signedTx.finalize();
+    const returned = Transaction.fromRaw(signedTx.unsignedTx);
+    for (let i = 0; i < signedTx.inputsLength; i++) {
+      const { partialSig, tapKeySig, finalScriptWitness } = signedTx.getInput(i);
+      returned.updateInput(i, { partialSig, tapKeySig, finalScriptWitness }, true);
+    }
+    const expected = finaliseSigned(psbt, signedTx.toPSBT());
+    expect(hex.encode(finaliseSigned(psbt, returned.toPSBT()))).toBe(hex.encode(expected));
+  });
+
+  it("refuses changed previous-output amounts even when another input's data is missing", () => {
+    const { psbt } = build();
+    const signedTx = Transaction.fromPSBT(signed(psbt, wallet.root));
+    const returned = Transaction.fromRaw(signedTx.unsignedTx);
+    for (let i = 0; i < signedTx.inputsLength; i++) {
+      const { partialSig, tapKeySig, witnessUtxo } = signedTx.getInput(i);
+      returned.updateInput(i, {
+        partialSig,
+        tapKeySig,
+        ...(i === 0 && { witnessUtxo: { ...witnessUtxo!, amount: witnessUtxo!.amount + 1n } }),
+      }, true);
+    }
+    expect(() => finaliseSigned(psbt, returned.toPSBT())).toThrow("The signer saw a fee of 2001 sats, but the one built pays 2000 sats");
+  });
+
+  it("refuses conflicting previous-output scripts even when the fee matches", () => {
+    const { psbt } = build();
+    const signedTx = Transaction.fromPSBT(signed(psbt, wallet.root));
+    const returned = Transaction.fromRaw(signedTx.unsignedTx);
+    for (let i = 0; i < signedTx.inputsLength; i++) {
+      const { partialSig, tapKeySig, witnessUtxo } = signedTx.getInput(i);
+      returned.updateInput(i, {
+        partialSig,
+        tapKeySig,
+        witnessUtxo: { ...witnessUtxo!, script: signedTx.getInput(1 - i).witnessUtxo!.script },
+      }, true);
+    }
+    expect(() => finaliseSigned(psbt, returned.toPSBT())).toThrow("Its details differ from the transaction built");
+  });
+
   it("finalises a transaction the signer finished itself", () => {
     const { psbt } = build();
     const tx = Transaction.fromPSBT(signed(psbt, wallet.root));
@@ -419,6 +462,23 @@ describe("a 2-of-3 multisig wallet", () => {
     expect(final.getInput(0).finalScriptWitness).toHaveLength(4);
     expect(reviewPsbt(built, descriptor, "regtest").vsize - final.vsize).toBeGreaterThanOrEqual(0);
     expect(reviewPsbt(built, descriptor, "regtest").vsize - final.vsize).toBeLessThanOrEqual(1);
+  });
+
+  it("collects trimmed cosigner PSBTs using the original input data", () => {
+    const built = build();
+    const trimmed = (psbt: Uint8Array) => {
+      const signedTx = Transaction.fromPSBT(psbt);
+      const returned = Transaction.fromRaw(signedTx.unsignedTx);
+      for (let i = 0; i < signedTx.inputsLength; i++) {
+        returned.updateInput(i, { partialSig: signedTx.getInput(i).partialSig }, true);
+      }
+      return returned.toPSBT();
+    };
+    const first = collectSigned(built, built, trimmed(regtest.signPsbt(built, cosigners[0]!)), 2);
+    expect(first).toMatchObject({ signed: 1, signers: [fingerprints[0]], raw: null });
+    const done = collectSigned(built, first.psbt, trimmed(regtest.signPsbt(built, cosigners[1]!)), 2);
+    expect(done.signed).toBe(2);
+    expect(Transaction.fromRaw(done.raw!).getInput(0).finalScriptWitness).toHaveLength(4);
   });
 
   it("finalises a PSBT that already carries both signatures, and marks the change", () => {
