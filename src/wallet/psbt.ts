@@ -298,6 +298,9 @@ function matching(built: Uint8Array, returned: Uint8Array): { ours: Transaction;
     if (!equalBytes(a.txid!, b.txid!) || a.index !== b.index) {
       throw new Error(`Input ${i + 1} spends a different coin from the one built`);
     }
+    if (!b.witnessUtxo && !b.nonWitnessUtxo) {
+      theirs.updateInput(i, { witnessUtxo: a.witnessUtxo }, true);
+    }
   }
   if (theirs.outputsLength !== ours.outputsLength) {
     const extra = theirs.outputsLength - ours.outputsLength;
@@ -328,6 +331,11 @@ function matching(built: Uint8Array, returned: Uint8Array): { ours: Transaction;
     throw new Error(
       "The signed transaction differs from the one built in its version, lock time or sequence numbers",
     );
+  }
+  try {
+    theirs.combine(ours);
+  } catch {
+    throw new Error("Its details differ from the transaction built");
   }
   return { ours, theirs };
 }
