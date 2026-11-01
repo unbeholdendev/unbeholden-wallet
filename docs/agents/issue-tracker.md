@@ -1,14 +1,10 @@
-# Issue tracker: Forgejo (via MCP)
+# Issue tracker: Forgejo (via `tea`)
 
 Issues and specs for this repo live in Forgejo at
-`https://git.unbeholden.dev/unbeholden/unbeholden-wallet`.
+`https://git.home.unbeholden.dev/unbeholden/unbeholden-wallet`.
 
-There is no `gh` or `glab` equivalent here. All operations go through the
-`forgejo` MCP connector, whose tools are deferred: load a schema with
-`ToolSearch` (`select:mcp__forgejo__create_issue`) before calling it.
-
-Owner is `unbeholden`, repo is `unbeholden-wallet`. Both are required parameters on
-nearly every call.
+`gh` and `glab` don't apply here. Use `tea` for every operation, from inside the
+repo, and `tea api <path>` for what it lacks.
 
 ## External reports on GitHub
 
@@ -24,33 +20,24 @@ a report, open a Forgejo issue that links to it.
 
 ## Conventions
 
-- **Create an issue**: `mcp__forgejo__create_issue` with `owner`, `repo`,
-  `title`, `body`.
-- **Read an issue**: `mcp__forgejo__get_issue_by_index`, plus
-  `mcp__forgejo__list_issue_comments` for the discussion.
-- **List issues**: `mcp__forgejo__list_repo_issues`.
-- **Comment**: `mcp__forgejo__create_issue_comment`.
-- **Apply / remove labels**: `mcp__forgejo__add_issue_labels` /
-  `mcp__forgejo__remove_issue_labels`.
-- **Close**: `mcp__forgejo__issue_state_change`.
-- **List / create labels**: `mcp__forgejo__list_repo_labels` /
-  `mcp__forgejo__create_repo_label`.
+- **Create an issue**: `tea issues create --title <title> --description-file <file>`.
+- **Read an issue**: `tea issues <index>`, plus
+  `tea api repos/unbeholden/unbeholden-wallet/issues/<index>/comments` for the
+  discussion.
+- **List issues**: `tea issues list`.
+- **Comment**: `tea comment <index> <body>`.
+- **Apply / remove labels**: `tea issues edit <index> --add-labels <names>` /
+  `--remove-labels <names>`.
+- **Close**: `tea issues close <index>`.
+- **List / create labels**: `tea labels list` /
+  `tea labels create --name <name> --color <hex>`.
 
 ## Known quirks
 
 These cost time if rediscovered each session.
 
-- **Labels are applied by numeric ID, not name.** `add_issue_labels` and
-  `remove_issue_labels` take label IDs despite the parameter being called
-  `labels`. Get the ID from `list_repo_labels` or from the `create_repo_label`
-  response. Passing a name fails with a `ParseInt` error.
-- **`list_repo_labels` fails with `include_org_labels` at its default.** The
-  token lacks `read:organization`, so the org-label merge 403s. Pass
-  `include_org_labels: false`.
-- **`get_my_user_info` fails.** The token lacks `read:user`. Repo-scoped
-  operations are unaffected.
 - **Git pushes** use a per-host credential helper configured in
-  `/root/.gitconfig` under `credential.https://git.unbeholden.dev.helper`. A
+  `/root/.gitconfig` under `credential.https://git.home.unbeholden.dev.helper`. A
   missing credential presents as `Repository not found`, because the repo is
   private, not as an auth error.
 
@@ -61,7 +48,7 @@ These cost time if rediscovered each session.
 
 ## When a skill says "publish to the issue tracker"
 
-Create a Forgejo issue with `mcp__forgejo__create_issue`.
+Create a Forgejo issue with `tea issues create`.
 
 A spec covering a whole release is an **epic**, not a work item. Publish it as
 one issue labelled `epic`, then break it into children that each have their own
@@ -70,8 +57,7 @@ and only those whose blockers are already closed.
 
 ## When a skill says "fetch the relevant ticket"
 
-`mcp__forgejo__get_issue_by_index`, then
-`mcp__forgejo__list_issue_comments` for the same index.
+`tea issues <index>`, then `tea api` on its `comments`.
 
 ## Wayfinding operations
 
