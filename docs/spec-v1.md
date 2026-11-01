@@ -333,8 +333,6 @@ classification, the certificate guide and the local container path exist
 to address this specific problem and should be treated as product surface, not
 plumbing.
 
-**Dev server port.** The devcontainer maps host 5173 to container 5173, Vite's
-default. The Vite configuration must bind to 0.0.0.0 rather than localhost, or
-the forwarded port will refuse connections from outside the container, and must
-set `strictPort`, or a busy 5173 silently moves the server to a port nothing
-maps.
+**Dev server port.** The dev server uses Vite's default, 5173. The Vite
+configuration must set `strictPort`, or a busy 5173 silently moves the server to
+another port.
