@@ -295,7 +295,10 @@ last two are standing decisions and have none.
 - Wallet statistics and analytics of any kind. Deferred without a chosen form (#96).
 - Message signing and verification (#97).
 - Anything Lightning (#98).
-- Multiple accounts per descriptor (#99).
+- Deriving sibling hardened accounts from an imported extended public key.
+  Multiple named accounts are supported by explicitly importing each account’s
+  descriptor into a wallet group. Balance, receive, coins and send use the
+  selected account; spending never combines accounts.
 - Legacy `pkh` and wrapped `sh(wpkh)` script types (#100).
 - Any server operated by the project: no default Electrum endpoint, no bundled
   server list, no proxy. The demo build talks to no Bitcoin server at all.

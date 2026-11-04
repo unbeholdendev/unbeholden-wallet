@@ -55,7 +55,10 @@ function WalletSwitcher() {
   return (
     <details ref={menu} className="group relative min-w-0">
       <summary className="flex min-w-0 cursor-pointer list-none items-center gap-2.5 rounded-control px-2 py-1.5 hover:bg-sunk [&::-webkit-details-marker]:hidden">
-        <span className="truncate font-bold">{current.name}</span>
+        <span className="grid min-w-0">
+          {current.group && <span className="truncate text-xs text-ink-3">{current.group.name}</span>}
+          <span className="truncate font-bold">{current.name}</span>
+        </span>
         <span className="hidden text-sm font-medium text-ink-3 @min-[720px]/app:inline">{scriptType(current)}</span>
         <NetworkBadge wallet={current} />
         <Icon name="chev" className="size-4 transition-transform group-open:rotate-180" />
@@ -72,7 +75,7 @@ function WalletSwitcher() {
             }}
             className="flex items-baseline justify-between gap-3 rounded-control px-2.5 py-2 text-left hover:bg-sunk aria-[current=true]:bg-carbon-tint"
           >
-            <span className="font-medium">{w.name}</span>
+            <span className="font-medium">{w.group ? `${w.group.name} / ${w.name}` : w.name}</span>
             <span className="flex items-center gap-1.5 text-xs text-ink-3">
               {scriptType(w)} <NetworkBadge wallet={w} />
             </span>

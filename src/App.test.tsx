@@ -577,3 +577,29 @@ describe("backup", () => {
     reopened.lock();
   }, 30_000);
 });
+
+it("imports a named account into a wallet and keeps the account selected after reload", async () => {
+  await existingVault({ server: SERVER });
+  let vault = await unlockVault(PASSPHRASE);
+  const first = await createWallet(vault, { name: "Savings", descriptor: BIP84_ZPUB, network: "mainnet" });
+  vault.lock();
+  const user = renderApp();
+  await unlock(user);
+  location.hash = "#/import";
+  window.dispatchEvent(new HashChangeEvent("hashchange"));
+  await user.type(await screen.findByLabelText("Descriptor or extended public key"), `tr(${BIP86_XPUB}/<0;1>/*)`);
+  await user.selectOptions(screen.getByLabelText("Wallet"), first.id);
+  await user.type(screen.getByLabelText("Account name"), "Daily");
+  await user.click(screen.getByRole("button", { name: /Continue to backup/ }));
+  await user.click(await screen.findByRole("button", { name: "Finish without a backup" }));
+  expect(await screen.findByRole("button", { name: /Savings \/ Daily/ })).toBeTruthy();
+  cleanup();
+  renderApp();
+  await unlock(user);
+  expect(await screen.findByRole("button", { name: /Savings \/ Daily/ })).toBeTruthy();
+  vault = await unlockVault(PASSPHRASE);
+  const accounts = await listWallets(vault);
+  expect(accounts.map((w) => w.name)).toEqual(["Savings", "Daily"]);
+  expect(accounts[0]!.group).toEqual(accounts[1]!.group);
+  vault.lock();
+}, 30_000);

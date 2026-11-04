@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { BackendProvider, ConnectionProvider, useConnection, type BackendFactory } from "./app/connection";
 import { Page } from "./app/layout";
 import { useRoute } from "./app/route";
@@ -30,7 +30,7 @@ const TABS: string[] = ["home", "send", "receive", "coins"] satisfies Tab[];
 const BUMPS: Record<string, BumpMode | undefined> = { bump: "speed", cancel: "cancel", cpfp: "cpfp" };
 
 function Unlocked({ route }: { route: string[] }) {
-  const { settings, wallets, draft } = useVault();
+  const { settings, wallets, draft, walletId } = useVault();
   const { connect, disconnect } = useConnection();
 
   // Once per unlock: the connect screen reconnects itself when the URL changes.
@@ -63,7 +63,9 @@ function Unlocked({ route }: { route: string[] }) {
     <Home />;
   return (
     <SessionProvider>
-      <Shell tab={BUMPS[screen] || screen === "broadcast" ? "send" : screen === "coin" ? "coins" : TABS.includes(screen) ? (screen as Tab) : null}>{body}</Shell>
+      <Shell tab={BUMPS[screen] || screen === "broadcast" ? "send" : screen === "coin" ? "coins" : TABS.includes(screen) ? (screen as Tab) : null}>
+        <Fragment key={["settings", "connect", "import"].includes(screen) ? screen : walletId}>{body}</Fragment>
+      </Shell>
     </SessionProvider>
   );
 }

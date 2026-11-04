@@ -17,10 +17,12 @@ export type WalletRecord = {
   /** Only needed for a bare `xpub` or `tpub`, whose prefix does not say. */
   scriptType: ScriptType | null;
   createdAt: number;
+  group?: { id: string; name: string };
 };
 
 export type NewWallet = Pick<WalletRecord, "name" | "descriptor" | "network"> & {
   scriptType?: ScriptType;
+  accountOf?: string;
 };
 
 export type Settings = { server: string | null };
@@ -54,6 +56,13 @@ export async function createWallet(
     createdAt: Math.max(now(), newest + 1),
   };
   walletDescriptor(record);
+  if (wallet.accountOf) {
+    const parent = await getWallet(vault, wallet.accountOf);
+    if (parent.network !== record.network) throw new Error("Accounts in a wallet must use the same network");
+    const group = parent.group ?? { id: crypto.randomUUID(), name: parent.name };
+    record.group = group;
+    await vault.put(`wallet/${parent.id}`, { ...parent, group });
+  }
   await vault.put(`wallet/${record.id}`, record);
   return record;
 }
@@ -73,6 +82,14 @@ export async function getWallet(vault: Store, id: string): Promise<WalletRecord>
 
 export async function renameWallet(vault: Store, id: string, name: string): Promise<void> {
   await vault.put(`wallet/${id}`, { ...(await getWallet(vault, id)), name });
+}
+
+export async function renameWalletGroup(vault: Store, accountId: string, name: string): Promise<void> {
+  const account = await getWallet(vault, accountId);
+  if (!account.group) return renameWallet(vault, accountId, name);
+  for (const wallet of await listWallets(vault))
+    if (wallet.group?.id === account.group.id)
+      await vault.put(`wallet/${wallet.id}`, { ...wallet, group: { ...wallet.group, name } });
 }
 
 /** Removes the wallet with its cached chain data, labels, frozen and KYC marks, unfinished send and payment requests. */
@@ -97,8 +114,17 @@ export type Merged = { added: string[]; skipped: string[]; labels: number; kept:
  */
 export async function mergeBackup(vault: Store, records: Record<string, unknown>): Promise<Merged> {
   const same = (w: WalletRecord) => `${w.network} ${formatDescriptor(walletDescriptor(w))}`;
-  const here = new Map((await listWallets(vault)).map((w) => [same(w), w.id]));
+  const existing = await listWallets(vault);
+  const here = new Map(existing.map((w) => [same(w), w.id]));
   const merged: Merged = { added: [], skipped: [], labels: 0, kept: 0 };
+  const groups = new Map<string, { id: string; name: string }>();
+  for (const [key, value] of Object.entries(records)) {
+    if (!key.startsWith("wallet/")) continue;
+    const incoming = value as WalletRecord;
+    const local = existing.find((w) => same(w) === same(incoming));
+    if (incoming.group && local?.group && !groups.has(`${incoming.network} ${incoming.group.id}`))
+      groups.set(`${incoming.network} ${incoming.group.id}`, local.group);
+  }
   for (const [key, value] of Object.entries(records)) {
     if (!key.startsWith("wallet/")) continue;
     const wallet = value as WalletRecord;
@@ -107,7 +133,12 @@ export async function mergeBackup(vault: Store, records: Record<string, unknown>
     if (to) merged.skipped.push(wallet.name);
     else {
       to = crypto.randomUUID();
-      await vault.put(`wallet/${to}`, { ...wallet, id: to });
+      let group = wallet.group && groups.get(`${wallet.network} ${wallet.group.id}`);
+      if (wallet.group && !group) {
+        group = { id: crypto.randomUUID(), name: wallet.group.name };
+        groups.set(`${wallet.network} ${wallet.group.id}`, group);
+      }
+      await vault.put(`wallet/${to}`, { ...wallet, id: to, group });
       here.set(same(wallet), to);
       merged.added.push(wallet.name);
     }

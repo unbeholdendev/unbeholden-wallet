@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Heading, isIos } from "../app/layout";
 import { navigate } from "../app/route";
 import { useConnection } from "../app/connection";
@@ -97,6 +97,9 @@ export function ImportWallet() {
   const { wallets, addWallet } = useVault();
   const { connection } = useConnection();
   const toast = useToast();
+  const [accountOf, setAccountOf] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [scriptType, setScriptType] = useState<ScriptType | null>(null);
   const [typedName, setTypedName] = useState("");
@@ -110,8 +113,11 @@ export function ImportWallet() {
 
   const server = connection.phase === "connected" || connection.phase === "retrying" ? connection.network : null;
   const network = keyNetwork(text, server ?? wallets.find((w) => w.network !== "mainnet")?.network ?? null);
+  useEffect(() => {
+    if (accountOf && !wallets.some((w) => w.id === accountOf && w.network === network)) setAccountOf("");
+  }, [accountOf, wallets, network]);
   const reading = interpret(text, network, scriptType);
-  const duplicate = wallets.find((w) => canonical(w) === reading.descriptor);
+  const duplicate = wallets.find((w) => w.network === network && canonical(w) === reading.descriptor);
   const { multi } = reading;
   const fallbackName = reading.fingerprint ?? (multi ? `${multi.threshold}-of-${multi.fingerprints.length} multisig` : `Wallet ${wallets.length + 1}`);
   const name = typedName.trim() || fallbackName;
@@ -156,9 +162,17 @@ export function ImportWallet() {
   };
 
   const finish = async () => {
-    await addWallet({ name, descriptor: text.trim(), network, scriptType: reading.needsType ? scriptType! : undefined });
-    toast(`${name} added`);
-    navigate("/home");
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await addWallet({ accountOf: accountOf || undefined, name, descriptor: text.trim(), network, scriptType: reading.needsType ? scriptType! : undefined });
+      toast(`${name} added`);
+      navigate("/home");
+    } catch {
+      setSaveError("Couldn’t save the account. Try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (step === "backup")
@@ -196,11 +210,12 @@ export function ImportWallet() {
             You haven't copied or downloaded it yet. If this browser's data is cleared, the wallet goes with it.
           </Notice>
         )}
+        {saveError && <Notice tone="bad">{saveError}</Notice>}
         <div className="flex flex-wrap gap-2">
-          <Button variant={saved ? "primary" : "default"} onClick={finish}>
+          <Button variant={saved ? "primary" : "default"} disabled={saving} onClick={finish}>
             {saved ? "Finish" : "Finish without a backup"}
           </Button>
-          <Button onClick={() => setStep("key")}>Back</Button>
+          <Button disabled={saving} onClick={() => setStep("key")}>Back</Button>
         </div>
       </div>
     );
@@ -289,7 +304,14 @@ export function ImportWallet() {
             <p className="m-0 text-sm text-ink-3">It appears here once the text above reads as a descriptor or a key.</p>
           )}
         </section>
-        <Field label="Name" hint={`Only you see it. Left empty, it's ${fallbackName}.`}>
+        {!!wallets.length && <Field label="Wallet" hint="Import each account’s own descriptor from your signer. Coins stay separate.">
+          {(props) => <select {...props} className={inputClass} value={accountOf} onChange={(e) => setAccountOf(e.target.value)}>
+            <option value="">New wallet</option>
+            {wallets.filter((w, i) => w.network === network && (!w.group || wallets.findIndex((other) => other.group?.id === w.group!.id) === i)).map((w) =>
+              <option key={w.id} value={w.id}>{w.group?.name ?? w.name}</option>)}
+          </select>}
+        </Field>}
+        <Field label={accountOf ? "Account name" : "Name"} hint={`Only you see it. Left empty, it's ${fallbackName}.`}>
           {(props) => (
             <input {...props} className={inputClass} value={typedName} placeholder={fallbackName} onChange={(e) => setTypedName(e.target.value)} autoComplete="off" />
           )}

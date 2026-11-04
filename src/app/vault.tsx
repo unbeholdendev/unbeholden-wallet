@@ -24,6 +24,7 @@ import {
   listWallets,
   mergeBackup,
   renameWallet,
+  renameWalletGroup,
   saveSettings,
   type Merged,
   type Contact,
@@ -73,6 +74,7 @@ type VaultApi = {
   saveSettings(patch: Partial<Settings>): Promise<void>;
   addWallet(wallet: NewWallet): Promise<WalletRecord>;
   renameWallet(id: string, name: string): Promise<void>;
+  renameWalletGroup(id: string, name: string): Promise<void>;
   removeWallet(id: string): Promise<void>;
   selectWallet(id: string): void;
 };
@@ -223,7 +225,7 @@ export function VaultProvider({ kdf = DEFAULT_KDF, children }: { kdf?: KdfParams
         const record = await createWallet(state.vault, wallet);
         const settings = { ...state.settings, walletId: record.id };
         await saveSettings(state.vault, settings);
-        setState({ ...state, settings, wallets: [...state.wallets, record], walletId: record.id });
+        setState({ ...state, settings, wallets: await listWallets(state.vault), walletId: record.id });
         log("wallet added", { network: record.network });
         return record;
       },
@@ -231,6 +233,11 @@ export function VaultProvider({ kdf = DEFAULT_KDF, children }: { kdf?: KdfParams
         if (state.phase !== "open") return;
         await renameWallet(state.vault, id, name);
         setState({ ...state, wallets: state.wallets.map((w) => (w.id === id ? { ...w, name } : w)) });
+      },
+      renameWalletGroup: async (id, name) => {
+        if (state.phase !== "open") return;
+        await renameWalletGroup(state.vault, id, name);
+        setState({ ...state, wallets: await listWallets(state.vault) });
       },
       removeWallet: async (id) => {
         if (state.phase !== "open") return;
