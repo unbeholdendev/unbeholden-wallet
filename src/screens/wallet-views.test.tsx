@@ -64,6 +64,48 @@ afterEach(async () => {
 });
 
 describe("wallet views on the demo history", () => {
+  it("saves network-specific explorer links, keeps them after unlocking and turns them off when cleared", async () => {
+    const user = await openApp(`#/tx/${DEMO_TXIDS.tom}`);
+    expect(screen.queryByRole("link", { name: "View in explorer" })).toBeNull();
+    go("#/settings");
+    const url = await screen.findByLabelText("Explorer URL");
+    const network = screen.getByLabelText("Explorer network");
+    const current = (network as HTMLSelectElement).value;
+    await user.type(url, "https://explorer.example/bitcoin/");
+    await user.click(screen.getByRole("button", { name: "Save explorer" }));
+    await screen.findByText("Explorer saved");
+    await user.selectOptions(network, current === "mainnet" ? "signet" : "mainnet");
+    expect((url as HTMLInputElement).value).toBe("");
+    await user.selectOptions(network, current);
+    expect((url as HTMLInputElement).value).toBe("https://explorer.example/bitcoin");
+    go(`#/tx/${DEMO_TXIDS.tom}`);
+    const link = await screen.findByRole("link", { name: "View in explorer" });
+    expect(link.getAttribute("href")).toBe(`https://explorer.example/bitcoin/tx/${DEMO_TXIDS.tom}`);
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(screen.getAllByRole("link").some((a) => a.getAttribute("href")?.startsWith("https://explorer.example/bitcoin/address/"))).toBe(true);
+    await user.click(screen.getByRole("button", { name: "Lock" }));
+    await user.type(await screen.findByLabelText("Passphrase"), PASSPHRASE);
+    await user.click(screen.getByRole("button", { name: "Unlock" }));
+    go(`#/tx/${DEMO_TXIDS.tom}`);
+    expect((await screen.findByRole("link", { name: "View in explorer" })).getAttribute("href")).toContain(DEMO_TXIDS.tom);
+    go("#/settings");
+    await user.clear(await screen.findByLabelText("Explorer URL"));
+    await user.click(screen.getByRole("button", { name: "Save explorer" }));
+    await screen.findByText("Explorer links turned off");
+    go(`#/tx/${DEMO_TXIDS.tom}`);
+    expect(screen.queryByRole("link", { name: "View in explorer" })).toBeNull();
+  });
+
+  it("rejects unsafe explorer URLs without saving them", async () => {
+    const user = await openApp("#/settings");
+    await user.type(await screen.findByLabelText("Explorer URL"), "javascript:alert(1)");
+    await user.click(screen.getByRole("button", { name: "Save explorer" }));
+    expect(await screen.findByText("Enter an http:// or https:// base URL without a login, query or fragment.")).toBeTruthy();
+    go(`#/tx/${DEMO_TXIDS.tom}`);
+    expect(screen.queryByRole("link", { name: "View in explorer" })).toBeNull();
+  });
+
   it("switches amounts to sats from the balance and back from the send form", async () => {
     const user = await openApp();
     await user.click(within(screen.getByRole("region", { name: "Balance" })).getByRole("button", { name: "sats" }));

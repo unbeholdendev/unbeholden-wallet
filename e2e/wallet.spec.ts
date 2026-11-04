@@ -43,3 +43,25 @@ test("freezing a coin takes it out of the spendable balance", async ({ page }) =
   await expect(spendable).not.toHaveText(before!);
   await expect(page.getByRole("button", { name: /^Unfreeze 0\.06/ })).toBeVisible();
 });
+
+test("custom explorer links stay idle until opened and fit phone and desktop screens", async ({ page }) => {
+  const requests: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().startsWith("https://explorer.example/")) requests.push(request.url());
+  });
+  await open(page);
+  await page.evaluate(() => (location.hash = "#/settings"));
+  await page.getByLabel("Explorer URL").fill("https://explorer.example/bitcoin/");
+  await page.getByRole("button", { name: "Save explorer", exact: true }).click();
+  await expect(page.getByText("Explorer saved", { exact: true })).toBeVisible();
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: 844 });
+    for (const route of ["home", "receive", "addresses", "coins"]) {
+      await page.evaluate((r) => (location.hash = `#/${r}`), route);
+      if (route === "home") await page.getByRole("link", { name: "Rent, October", exact: true }).click();
+      await expect(page.locator('a[href^="https://explorer.example/bitcoin/"]').first()).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    }
+  }
+  expect(requests).toEqual([]);
+});

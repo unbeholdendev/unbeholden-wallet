@@ -1,3 +1,4 @@
+import { ExplorerLink } from "../ui/explorer";
 import { useRef, useState, type ReactNode } from "react";
 import { useOpenFailure, useWalletSession } from "../app/session";
 import type { LabelType } from "../core/wallet";
@@ -70,13 +71,15 @@ export function EditableLabel({
 /** An address in groups of four, to read against a signer's screen; copies without the gaps. */
 export function GroupedAddress({ address, className = "" }: { address: string; className?: string }) {
   return (
-    <span className={`min-w-0 font-mono ${className}`}>
-      {address.match(/.{1,4}/g)!.map((chunk, i) => (
-        <span key={i} className="mr-[0.45ch] inline-block">
-          {chunk}
-        </span>
-      ))}
-    </span>
+    <ExplorerLink type="address" value={address}>
+      <span className={`min-w-0 font-mono ${className}`}>
+        {address.match(/.{1,4}/g)!.map((chunk, i) => (
+          <span key={i} className="mr-[0.45ch] inline-block">
+            {chunk}
+          </span>
+        ))}
+      </span>
+    </ExplorerLink>
   );
 }
 

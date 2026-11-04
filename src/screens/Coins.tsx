@@ -1,3 +1,4 @@
+import { ExplorerLink } from "../ui/explorer";
 import { useState } from "react";
 import { navigate } from "../app/route";
 import { useSendDraft, useWallet, useWalletSession, useWalletSnapshot } from "../app/session";
@@ -83,7 +84,7 @@ function CoinRow({ coin, snapshot, picking, rate }: { coin: WalletCoin; snapshot
         <EditableLabel type="output" target={`${coin.txid}:${coin.vout}`} value={coin.label} placeholder="Label this coin" className="text-sm" />
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-3">
           <span className="@min-[720px]:hidden">{when}</span>
-          <span className="font-mono">{shortId(coin.address, 10, 6)}</span>
+          <ExplorerLink type="address" value={coin.address}><span className="font-mono">{shortId(coin.address, 10, 6)}</span></ExplorerLink>
           {path && <span className="font-mono">{path}</span>}
           {cost !== null && <span>Costs {groupSats(cost)} sats to spend</span>}
         </span>

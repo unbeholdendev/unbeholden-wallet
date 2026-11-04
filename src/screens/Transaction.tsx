@@ -1,3 +1,4 @@
+import { ExplorerLink } from "../ui/explorer";
 import type { ReactNode } from "react";
 import { navigate } from "../app/route";
 import { useWalletSnapshot } from "../app/session";
@@ -143,8 +144,9 @@ export function Transaction({ txid }: { txid: string | undefined }) {
           <div className="grid gap-1.5 border-t border-rule pt-3">
             <span className="text-sm text-ink-2">Transaction ID</span>
             <span className="font-mono text-[0.86em] break-all select-all">{tx.txid}</span>
-            <span className="justify-self-start">
+            <span className="flex flex-wrap items-center gap-3 text-sm">
               <CopyButton text={tx.txid} what="Transaction ID" />
+              <ExplorerLink type="tx" value={tx.txid} />
             </span>
           </div>
         </section>
@@ -162,9 +164,9 @@ export function Transaction({ txid }: { txid: string | undefined }) {
                       From {shortId(input.txid)}:{input.vout}
                     </a>
                   ) : (
-                    <span className="font-mono text-xs text-ink-3">
-                      From {shortId(input.txid)}:{input.vout}
-                    </span>
+                    <ExplorerLink type="tx" value={input.txid}>
+                      <span className="font-mono text-xs text-ink-3">From {shortId(input.txid)}:{input.vout}</span>
+                    </ExplorerLink>
                   )}
                 </Endpoint>
               ),
