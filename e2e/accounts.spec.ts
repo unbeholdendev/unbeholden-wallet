@@ -3,6 +3,8 @@ import { DEMO_URL } from "../playwright.config";
 import { BIP86_XPUB } from "../src/wallet/vectors";
 
 test("named accounts keep receive addresses and coins separate on phone and desktop", async ({ page }) => {
+  // The fake chain's header time at the demo tip, 153,500, and ten minutes.
+  await page.clock.setFixedTime(1_792_100_600_000);
   await page.goto(DEMO_URL);
   await page.getByLabel("Passphrase").fill("demo passphrase");
   await page.getByRole("button", { name: "Unlock" }).click();

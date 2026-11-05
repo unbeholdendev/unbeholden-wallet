@@ -1,6 +1,6 @@
 import { FiatAmount } from "../app/fiat";
 import { FiatControl } from "../ui/fiat";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useConnection } from "../app/connection";
 import { navigate } from "../app/route";
 import { useSendDraft, useWalletSession, useWalletSnapshot } from "../app/session";
@@ -8,7 +8,7 @@ import { useUnit, useVault } from "../app/vault";
 import { feeRate, isOutgoing, txDirection, txWhen } from "../core/view";
 import type { WalletSnapshot, WalletTx } from "../core/wallet";
 import { Amount, btcParts, groupSats, UnitSwitch } from "../ui/amount";
-import { confText, dateText, hostText, timeText, txFallback } from "../ui/format";
+import { ageText, confText, dateText, hostText, timeText, txFallback } from "../ui/format";
 import { Icon } from "../ui/icons";
 import { Button, buttonClass, Chip, Empty, LinkButton, linkClass, Panel, Segmented } from "../ui/kit";
 import { RestoreBackup } from "./Backup";
@@ -20,6 +20,18 @@ import { BalanceChart, CoinAge, Network, Pending, Sources, Stats } from "./HomeP
 
 const stages = { history: "Checking addresses", transactions: "Fetching transactions", blocks: "Fetching block times" };
 
+// A healthy chain goes two hours without a block about once in three years.
+const STALE_TIP = 2 * 3600;
+
+function useNow() {
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    const clock = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(clock);
+  }, []);
+  return now;
+}
+
 function SyncLine({ snapshot }: { snapshot: WalletSnapshot }) {
   const session = useWalletSession();
   const { connection, connect } = useConnection();
@@ -29,6 +41,9 @@ function SyncLine({ snapshot }: { snapshot: WalletSnapshot }) {
   const failed = connection.phase === "failed";
   const synced = snapshot.syncedAt === null ? "" : `, ${dateText(snapshot.syncedAt / 1000)} at ${timeText(snapshot.syncedAt / 1000)}`;
   const stale = `Balances are as of the last sync${synced}.`;
+  const now = useNow();
+  // The demo's chain never moves.
+  const tipAge = tip && import.meta.env.MODE !== "demo" ? now / 1000 - tip.time : 0;
   const [dot, text] = failed
     ? ["bg-bad", `Not connected to ${server}. ${connection.failure ? reasons[connection.failure] : connection.message} ${stale}`]
     : connection.phase === "retrying"
@@ -39,7 +54,9 @@ function SyncLine({ snapshot }: { snapshot: WalletSnapshot }) {
           ? ["bg-warn animate-pulse", `${stages[progress.stage]}, ${groupSats(progress.done)} of ${groupSats(progress.total)}.`]
           : error
             ? ["bg-bad", `The last sync failed. ${error}`]
-            : ["bg-ok", tip ? `Up to date at block ${groupSats(tip.height)}.` : "Up to date."];
+            : tip && tipAge > STALE_TIP
+              ? ["bg-warn", `Your server's newest block, ${groupSats(tip.height)}, is ${tipAge < 172_800 ? `${Math.floor(tipAge / 3600)} hours` : ageText(tipAge)} old. Its node may be stuck or have lost its peers.`]
+              : ["bg-ok", tip ? `Up to date at block ${groupSats(tip.height)}.` : "Up to date."];
   return (
     <div role="status" className="flex items-center gap-2.5 border-t border-rule px-4 py-3 text-sm text-ink-2">
       <span aria-hidden="true" className={`size-2 flex-none rounded-full ${dot}`} />

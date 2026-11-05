@@ -2,6 +2,8 @@ import { expect, test, type Page } from "@playwright/test";
 import { DEMO_URL } from "../playwright.config";
 
 async function open(page: Page) {
+  // The fake chain's header time at the demo tip, 153,500, and ten minutes.
+  await page.clock.setFixedTime(1_792_100_600_000);
   await page.goto(DEMO_URL);
   await page.getByLabel("Passphrase").fill("demo passphrase");
   await page.getByRole("button", { name: "Unlock" }).click();

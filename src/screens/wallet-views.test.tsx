@@ -20,6 +20,8 @@ vi.setConfig({ testTimeout: 60_000, hookTimeout: 30_000 });
 const CHEAP = { m: 8, t: 1, p: 1 };
 const PASSPHRASE = "correct horse battery staple";
 let backends: FakeBackend[] = [];
+// The fake chain's header time at the demo tip, 153,500.
+const DEMO_TIP_TIME = 1_792_100_000_000;
 
 async function openApp(hash = "#/home") {
   location.hash = "#/home";
@@ -54,11 +56,14 @@ const spendable = () => {
 };
 
 beforeEach(async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(DEMO_TIP_TIME + 10 * 60_000);
   backends = [];
   await seedDemoVault(PASSPHRASE, CHEAP, "wss://node.example.ts.net:50004");
 });
 
 afterEach(async () => {
+  vi.useRealTimers();
   cleanup();
   await destroyVault();
 });
@@ -467,6 +472,13 @@ describe("the connection", () => {
     await user.click(screen.getByRole("button", { name: "Unlock" }));
     return user;
   }
+
+  it("warns when the server's newest block is hours old, as when its node has lost its peers", async () => {
+    vi.setSystemTime(DEMO_TIP_TIME + 3 * 3_600_000);
+    await unlockWith(demoBackend);
+    expect(await screen.findByText(/newest block, 153.500, is 3 hours old/, undefined, { timeout: 15_000 })).toBeTruthy();
+    expect(screen.queryByText(/Up to date/)).toBeNull();
+  });
 
   it("is one socket for the header and the wallet, and syncs again by itself when the server comes back", async () => {
     const demo = demoBackend();
