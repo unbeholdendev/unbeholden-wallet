@@ -1,3 +1,5 @@
+import { FiatAmount } from "../app/fiat";
+import { FiatControl } from "../ui/fiat";
 import { useState } from "react";
 import { useConnection } from "../app/connection";
 import { navigate } from "../app/route";
@@ -70,6 +72,8 @@ function Balance({ snapshot }: { snapshot: WalletSnapshot }) {
         <span className="text-2xl font-medium tracking-[-0.01em] @max-[380px]/app:text-[34px]">
           <Amount sats={spendable} unit />
         </span>
+        <FiatAmount sats={spendable} />
+        <FiatControl />
         {(waiting > 0 || frozen > 0) && (
           <span className="flex flex-wrap gap-x-3 text-sm text-ink-2">
             {waiting > 0 && (

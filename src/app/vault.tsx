@@ -1,3 +1,4 @@
+import type { FiatSettings } from "./fiat";
 import type { Network } from "../wallet/network";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { log } from "../log";
@@ -33,7 +34,7 @@ import {
   type WalletRecord,
 } from "../core/wallets";
 
-export type Settings = CoreSettings & { idleMinutes?: number; walletId?: string; notify?: boolean; skipForeignUnconfirmed?: boolean; unit?: Unit; hide?: boolean; explorers?: Partial<Record<Network, string>> };
+export type Settings = CoreSettings & { idleMinutes?: number; walletId?: string; notify?: boolean; skipForeignUnconfirmed?: boolean; fiat?: FiatSettings | null; unit?: Unit; hide?: boolean; explorers?: Partial<Record<Network, string>> };
 export type Unit = "btc" | "sats";
 
 export type Persistence = Awaited<ReturnType<typeof requestPersistence>>;

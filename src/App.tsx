@@ -1,3 +1,4 @@
+import { FiatProvider } from "./app/fiat";
 import { Fragment, useEffect, useState } from "react";
 import { BackendProvider, ConnectionProvider, useConnection, type BackendFactory } from "./app/connection";
 import { Page } from "./app/layout";
@@ -119,7 +120,7 @@ export function App({ factory, kdf }: { factory: BackendFactory; kdf?: KdfParams
       <BackendProvider factory={factory}>
         <VaultProvider kdf={kdf}>
           <ConnectionProvider>
-            <Root />
+            <FiatProvider><Root /></FiatProvider>
             <UpdatePrompt />
           </ConnectionProvider>
         </VaultProvider>

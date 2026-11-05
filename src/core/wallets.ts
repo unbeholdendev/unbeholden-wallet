@@ -164,7 +164,7 @@ export async function mergeBackup(vault: Store, records: Record<string, unknown>
   await vault.put("book", book);
   const settings: Record<string, unknown> = { ...(await getSettings(vault)) };
   for (const [key, value] of Object.entries((records.settings ?? {}) as Record<string, unknown>))
-    if (settings[key] == null && key !== "walletId") settings[key] = value;
+    if (settings[key] == null && key !== "walletId" && key !== "fiat") settings[key] = value;
   await vault.put("settings", settings);
   return merged;
 }

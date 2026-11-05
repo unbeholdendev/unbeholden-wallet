@@ -512,3 +512,63 @@ describe("the receive request", () => {
     expect(found?.[1]?.toLowerCase()).toBe(address);
   });
 });
+
+describe("optional fiat prices", () => {
+  beforeEach(() => {
+    HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+    HTMLDialogElement.prototype.close = function () { this.open = false; };
+  });
+  it("waits for consent, shows the chosen currency and stops when disabled", async () => {
+    const fetcher = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ USD: { last: 100000 }, EUR: { last: 90000 } })));
+    try {
+      const user = await openApp();
+      expect(fetcher).not.toHaveBeenCalled();
+      await user.click(screen.getByRole("button", { name: "Show fiat value" }));
+      expect(fetcher).not.toHaveBeenCalled();
+      await user.selectOptions(screen.getByLabelText("Price source"), "blockchain");
+      await user.click(screen.getByRole("button", { name: "Enable fiat prices" }));
+      await screen.findByText(/USD.*at current rate/);
+      expect(fetcher.mock.calls[0]?.[0]).toBe("https://blockchain.info/ticker");
+      go("#/settings");
+      await screen.findByRole("heading", { name: "Settings", level: 1 });
+      await user.click(await screen.findByRole("button", { name: "Fiat price settings" }));
+      await user.click(screen.getByRole("button", { name: "Turn off fiat prices" }));
+      await waitFor(() => expect(fetcher.mock.calls[0]?.[1]?.signal?.aborted).toBe(true));
+      go("#/home");
+      await screen.findByRole("button", { name: "Show fiat value" });
+    } finally {
+      fetcher.mockRestore();
+    }
+  });
+});
+
+describe("fiat price lifecycle", () => {
+  it("reads mempool prices, keeps currency local and aborts on lock", async () => {
+    const vault = await unlockVault(PASSPHRASE);
+    await vault.put("settings", { server: "wss://node.example", fiat: { source: "mempool", currency: "EUR" } });
+    vault.lock();
+    const fetcher = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ EUR: 90000, USD: 100000 })));
+    try {
+      const user = await openApp();
+      await screen.findByText(/EUR.*at current rate/);
+      expect(fetcher).toHaveBeenCalledTimes(1);
+      expect(fetcher.mock.calls[0]?.[0]).toBe("https://mempool.space/api/v1/prices");
+      expect(fetcher.mock.calls[0]?.[1]).toMatchObject({ credentials: "omit", referrerPolicy: "no-referrer", redirect: "error" });
+      await user.click(screen.getByRole("button", { name: "Lock" }));
+      expect(fetcher.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
+    } finally { fetcher.mockRestore(); }
+  });
+
+  it("keeps the wallet usable when prices are invalid without contacting another provider", async () => {
+    const vault = await unlockVault(PASSPHRASE);
+    await vault.put("settings", { server: "wss://node.example", fiat: { source: "blockchain", currency: "USD" } });
+    vault.lock();
+    const fetcher = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ USD: { last: -1 }, EUR: { last: 90000 } })));
+    try {
+      await openApp();
+      await screen.findByText("Price unavailable. Check the price source in Settings.");
+      expect(spendable()).toContain("0.30 926 773");
+      expect(fetcher).toHaveBeenCalledTimes(1);
+    } finally { fetcher.mockRestore(); }
+  });
+});

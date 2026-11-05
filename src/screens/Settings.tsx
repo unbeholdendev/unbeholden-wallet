@@ -1,3 +1,4 @@
+import { FiatControl } from "../ui/fiat";
 import { explorerBase } from "../ui/explorer";
 import { NETWORKS, type Network } from "../wallet/network";
 import { useState, type FormEvent } from "react";
@@ -410,6 +411,7 @@ export function Settings() {
             Change server or see the connection
           </a>
         </Panel>
+        {import.meta.env.MODE !== "demo" && <Panel title="Fiat prices"><FiatControl /></Panel>}
         <Explorer />
         <Wallets />
         <Labels />
