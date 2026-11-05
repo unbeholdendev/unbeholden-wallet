@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { FiatAmount } from "../app/fiat";
 import { useWallet } from "../app/session";
 import { useVault } from "../app/vault";
 import { isOutgoing, txWhen } from "../core/view";
@@ -7,12 +8,14 @@ import { Amount, groupSats } from "../ui/amount";
 import { dateText } from "../ui/format";
 import { linkClass, Panel } from "../ui/kit";
 import { SourceTag, sourcesOf } from "../ui/sources";
-import { BLOCK_VSIZE, feeTargets } from "../wallet/fees";
+import { BLOCK_VSIZE, BUSY_RATE, feeTargets } from "../wallet/fees";
+import { spend, spendCost } from "../wallet/select";
 import { received, type PaymentRequest } from "./Receive";
 import { eta, rateText, useFeeHistogram } from "./send/fees";
 
-/** The balance after each transaction, oldest first, as a step line under the balance. */
+/** The balance after each transaction, oldest first, as a step line under the balance. Hover or arrow keys read out each step. */
 export function BalanceChart({ snapshot }: { snapshot: WalletSnapshot }) {
+  const [shown, setShown] = useState<number | null>(null);
   const now = Date.now() / 1000;
   const txs = [...snapshot.transactions].map((t) => ({ at: txWhen(t) ?? now, net: t.net })).sort((a, b) => a.at - b.at);
   if (txs.length < 2) return null;
@@ -23,15 +26,53 @@ export function BalanceChart({ snapshot }: { snapshot: WalletSnapshot }) {
   const x = (at: number) => ((at - start) / Math.max(now - start, 1)) * 320;
   const y = (b: number) => 60 - (Math.max(b, 0) / top) * 56;
   const line = `M0 ${y(points[0]!.balance)} ${points.slice(1).map((p) => `H${x(p.at)} V${y(p.balance)}`).join(" ")} H320`;
+  const last = points.length - 1;
+  const point = shown === null ? null : points[Math.min(shown, last)]!;
+  const keys: Record<string, (i: number) => number> = {
+    ArrowLeft: (i) => Math.max(i - 1, 0),
+    ArrowRight: (i) => Math.min(i + 1, last),
+    Home: () => 0,
+    End: () => last,
+  };
   return (
     <figure className="m-0 grid gap-1">
-      <svg viewBox="0 0 320 60" preserveAspectRatio="none" className="h-14 w-full" role="img" aria-label={`Balance over time, from ${dateText(start)} to now`}>
+      <svg
+        viewBox="0 0 320 60"
+        preserveAspectRatio="none"
+        className="h-14 w-full touch-pan-y"
+        role="img"
+        tabIndex={0}
+        aria-label={`Balance over time, from ${dateText(start)} to now`}
+        onPointerMove={(e) => {
+          const box = e.currentTarget.getBoundingClientRect();
+          const at = start + ((e.clientX - box.left) / box.width) * (now - start);
+          setShown(Math.max(points.findLastIndex((p) => p.at <= at), 0));
+        }}
+        onPointerLeave={() => setShown(null)}
+        onFocus={() => setShown(last)}
+        onBlur={() => setShown(null)}
+        onKeyDown={(e) => {
+          const step = keys[e.key];
+          if (!step) return;
+          e.preventDefault();
+          setShown(step(shown ?? last));
+        }}
+      >
         <path d={`${line} V60 H0 Z`} className="fill-carbon-tint" />
         <path d={line} vectorEffect="non-scaling-stroke" className="fill-none stroke-carbon stroke-[1.5]" />
+        {point && <line x1={x(point.at)} x2={x(point.at)} y1="0" y2="60" vectorEffect="non-scaling-stroke" className="stroke-ink-3" />}
       </svg>
-      <figcaption className="flex justify-between text-xs text-ink-3">
-        <span>{dateText(start)}</span>
-        <span>Now</span>
+      <figcaption aria-live="polite" className="flex justify-between text-xs text-ink-3">
+        {point ? (
+          <span>
+            {dateText(point.at)}: <Amount sats={point.balance} />
+          </span>
+        ) : (
+          <>
+            <span>{dateText(start)}</span>
+            <span>Now</span>
+          </>
+        )}
       </figcaption>
     </figure>
   );
@@ -152,19 +193,39 @@ export function Network() {
 
 /** Worked out from the cached history alone: what sending has cost, and the coins held. */
 export function Stats({ snapshot }: { snapshot: WalletSnapshot }) {
+  const { kind } = useWallet();
   const sends = snapshot.transactions.filter(isOutgoing);
   const fees = sends.reduce((a, t) => a + (t.fee ?? 0), 0);
   const when = new Map(snapshot.transactions.map((t) => [t.txid, txWhen(t)]));
-  const oldest = Math.min(...snapshot.coins.flatMap((c) => when.get(c.txid) ?? []));
+  const { coins } = snapshot;
+  const oldest = Math.min(...coins.flatMap((c) => when.get(c.txid) ?? []));
+  const sweep = coins.length ? spend(coins, { recipients: [{ script: coins[0]!.script, value: "max" }], feeRate: BUSY_RATE, ...kind }).fee : 0;
+  const uneconomic = coins.filter((c) => spendCost(kind, BUSY_RATE) >= c.value).length;
   return (
     <Panel title="Statistics">
       <dl className="m-0 grid grid-cols-[minmax(0,1fr)_auto] gap-x-6 gap-y-1.5 text-sm">
         <dt className="text-ink-2">Fees paid, {sends.length === 1 ? "1 send" : `${sends.length} sends`}</dt>
         <dd className="m-0 text-right tabular-nums">
           <Amount sats={fees} />
+          <FiatAmount sats={fees} brief />
         </dd>
         <dt className="text-ink-2">Coins held</dt>
-        <dd className="m-0 text-right tabular-nums">{groupSats(snapshot.coins.length)}</dd>
+        <dd className="m-0 text-right tabular-nums">{groupSats(coins.length)}</dd>
+        {coins.length > 0 && (
+          <>
+            <dt className="text-ink-2">To spend every coin at {BUSY_RATE} sat/vB</dt>
+            <dd className="m-0 text-right tabular-nums">
+              <Amount sats={sweep} />
+              <FiatAmount sats={sweep} brief />
+            </dd>
+          </>
+        )}
+        {uneconomic > 0 && (
+          <>
+            <dt className="text-ink-2">Uneconomic at {BUSY_RATE} sat/vB</dt>
+            <dd className="m-0 text-right tabular-nums">{uneconomic === 1 ? "1 coin" : `${groupSats(uneconomic)} coins`}</dd>
+          </>
+        )}
         {oldest !== Infinity && (
           <>
             <dt className="text-ink-2">Oldest coin</dt>
@@ -172,6 +233,55 @@ export function Stats({ snapshot }: { snapshot: WalletSnapshot }) {
           </>
         )}
       </dl>
+    </Panel>
+  );
+}
+
+const DAY = 86_400;
+const ages = [
+  { name: "Under a month", days: 30, fill: "fill-carbon/20", swatch: "bg-carbon/20" },
+  { name: "1 to 6 months", days: 182, fill: "fill-carbon/40", swatch: "bg-carbon/40" },
+  { name: "6 to 12 months", days: 365, fill: "fill-carbon/60", swatch: "bg-carbon/60" },
+  { name: "1 to 2 years", days: 730, fill: "fill-carbon/80", swatch: "bg-carbon/80" },
+  { name: "Over 2 years", days: Infinity, fill: "fill-carbon", swatch: "bg-carbon" },
+];
+
+/** What the coins hold, by how long ago they came in; unconfirmed ones count as new. */
+export function CoinAge({ snapshot }: { snapshot: WalletSnapshot }) {
+  const when = new Map(snapshot.transactions.map((t) => [t.txid, t.time]));
+  const now = snapshot.tip?.time ?? Date.now() / 1000;
+  const held = ages.map((a) => ({ ...a, sats: 0 }));
+  for (const c of snapshot.coins) {
+    const days = (now - (when.get(c.txid) ?? now)) / DAY;
+    held.find((a) => days < a.days)!.sats += c.value;
+  }
+  const total = held.reduce((a, b) => a + b.sats, 0);
+  if (!total) return null;
+  const shown = held.filter((a) => a.sats);
+  let at = 0;
+  return (
+    <Panel title="Coin age">
+      <svg viewBox="0 0 1000 14" preserveAspectRatio="none" className="h-3.5 w-full" role="img" aria-label={shown.map((a) => `${a.name}, ${Math.round((a.sats / total) * 100)}%`).join("; ")}>
+        {shown.map((a) => {
+          const w = (a.sats / total) * 1000;
+          const rect = <rect key={a.name} x={at} width={w} height="14" className={a.fill} />;
+          at += w;
+          return rect;
+        })}
+      </svg>
+      <ul className="m-0 grid list-none gap-2 p-0">
+        {shown.map((a) => (
+          <li key={a.name} className="flex items-center justify-between gap-3 text-sm">
+            <span className="flex items-center gap-2 text-ink-2">
+              <span aria-hidden className={`size-2.5 rounded-sm ${a.swatch}`} />
+              {a.name}
+            </span>
+            <span className="flex-none text-ink-2">
+              <Amount sats={a.sats} /> · {Math.round((a.sats / total) * 100)}%
+            </span>
+          </li>
+        ))}
+      </ul>
     </Panel>
   );
 }

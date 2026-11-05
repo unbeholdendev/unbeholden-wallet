@@ -60,15 +60,18 @@ export function FiatProvider({ children }: { children: ReactNode }) {
   return <FiatContext.Provider value={{ quote: quote?.source === source ? quote : null, failed, now }}>{children}</FiatContext.Provider>;
 }
 
-export function FiatAmount({ sats }: { sats: number }) {
+/** `brief` drops the source and freshness, for a figure beside one that already shows them. */
+export function FiatAmount({ sats, brief = false }: { sats: number; brief?: boolean }) {
   const { state } = useVaultState();
   const { quote, failed, now } = useContext(FiatContext);
   const hidden = useHidden();
   const settings = state.phase === "open" ? state.settings.fiat : null;
   if (!settings || hidden || import.meta.env.MODE === "demo") return null;
   const rate = quote?.rates[settings.currency];
+  const money = (value: number) => new Intl.NumberFormat("en-GB", { style: "currency", currency: settings.currency, currencyDisplay: "code" }).format(sats / 1e8 * value);
+  if (brief) return rate ? <span className="block text-xs font-normal tabular-nums text-ink-3">≈ {money(rate.value)}</span> : null;
   const age = quote ? Math.max(0, Math.floor((now - (rate?.fetchedAt ?? quote.fetchedAt)) / 60000)) : 0;
   return <span className="block text-sm font-normal tabular-nums text-ink-3">
-    {rate ? <>≈ {new Intl.NumberFormat("en-GB", { style: "currency", currency: settings.currency, currencyDisplay: "code" }).format(sats / 1e8 * rate.value)} at current rate · {priceSources[settings.source].name}{(failed || rate.fetchedAt < quote!.fetchedAt || age >= 10) && ` · last fetched ${age} min ago`}</> : failed || quote ? "Price unavailable. Check the price source in Settings." : "Fetching price…"}
+    {rate ? <>≈ {money(rate.value)} at current rate · {priceSources[settings.source].name}{(failed || rate.fetchedAt < quote!.fetchedAt || age >= 10) && ` · last fetched ${age} min ago`}</> : failed || quote ? "Price unavailable. Check the price source in Settings." : "Fetching price…"}
   </span>;
 }

@@ -11,7 +11,7 @@ import { Icon } from "../ui/icons";
 import { Button, Chip, Empty, linkClass, Panel } from "../ui/kit";
 import { SourceTag, sourcesOf, type Source } from "../ui/sources";
 import { outpoint } from "../wallet/coin";
-import { feeTargets, MIN_FEE_RATE } from "../wallet/fees";
+import { BUSY_RATE, feeTargets, MIN_FEE_RATE } from "../wallet/fees";
 import { spend, spendCost, type WalletKind } from "../wallet/select";
 import { EditableLabel, Opening, SourceTitle } from "./parts";
 import { selectable } from "./send/CoinList";
@@ -133,9 +133,6 @@ function Group({ source, snapshot, picking, rate }: { source: Source; snapshot: 
     </li>
   );
 }
-
-// An example of a busy day, the fee chart's top contour; the copy says it is not a forecast.
-const BUSY_RATE = 50;
 
 /**
  * Per source, its coins that a busy day's fee would take 1% or more of, and

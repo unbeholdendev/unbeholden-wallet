@@ -16,7 +16,7 @@ import { reasons } from "./Connect";
 import { EditableLabel, Opening } from "./parts";
 import { parseAmount } from "./send/Recipients";
 import { stillPending } from "./send/Send";
-import { BalanceChart, Network, Pending, Sources, Stats } from "./HomePanels";
+import { BalanceChart, CoinAge, Network, Pending, Sources, Stats } from "./HomePanels";
 
 const stages = { history: "Checking addresses", transactions: "Fetching transactions", blocks: "Fetching block times" };
 
@@ -306,7 +306,12 @@ export function Home() {
           <Network />
         </div>
         <div className={left}>
-          {!fresh && <Stats snapshot={snapshot} />}
+          {!fresh && (
+            <div className="grid gap-6">
+              <Stats snapshot={snapshot} />
+              <CoinAge snapshot={snapshot} />
+            </div>
+          )}
         </div>
         <div className="min-w-0 @min-[900px]/app:col-start-2 @min-[900px]/app:row-span-6 @min-[900px]/app:row-start-1">
           {fresh && snapshot.tip && !snapshot.progress ? (

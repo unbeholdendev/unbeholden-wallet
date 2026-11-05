@@ -163,7 +163,7 @@ the user's own node.
 - Shipped as a PWA. The service worker pins code after first load. Updates are explicit and visible: the running version is displayed, and code is never swapped mid-session.
 - A container image serving the built app over `http://localhost` is a first-class delivery target. It provides the pinned-code path and, because a localhost origin is a secure context that may open `ws://`, it is also the escape hatch for connecting to a LAN node without a certificate.
 - Reproducible builds with published hashes per release.
-- No CDN, no analytics, no remote fonts, no runtime requests to any origin other than the user's configured server. Strict CSP without `unsafe-inline`. The dependency budget is part of the security model, not separate from it: every added dependency weakens the storage encryption it sits beside.
+- No CDN, no analytics, no remote fonts, no runtime requests to any origin other than the user's configured server and, once the user opts in, the one price service they chose. Strict CSP without `unsafe-inline`. The dependency budget is part of the security model, not separate from it: every added dependency weakens the storage encryption it sits beside.
 
 ### Bitcoin layer
 
@@ -288,11 +288,10 @@ last two are standing decisions and have none.
 - BIP47 payment codes and silent payments. A watch-only sender needs the signer
   to supply BIP375 ECDH shares, and no released SeedSigner, Coldcard, Jade,
   Passport or Keystone firmware does, as of October 2026 (#95).
-- Fiat prices, currency conversion and any form of cost-basis or tax accounting.
-  This would require a price oracle and would break the property that the app
-  makes no requests to anyone but the user's node. An opt-in price source is
-  proposed in #91; cost-basis and tax accounting stay out.
-- Wallet statistics and analytics of any kind. Deferred without a chosen form (#96).
+- Cost-basis and tax accounting, and fiat values at past dates. They need the
+  price on each transaction's date, and asking a price service for those dates
+  can identify the wallet's transactions. Fiat estimates use the current rate
+  only, from a price service the user opts into (#91).
 - Message signing and verification (#97).
 - Anything Lightning (#98).
 - Deriving sibling hardened accounts from an imported extended public key.

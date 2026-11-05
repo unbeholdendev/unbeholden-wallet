@@ -9,6 +9,9 @@ export const BLOCK_VSIZE = 1_000_000;
 // https://github.com/bitcoin/bitcoin/blob/master/src/policy/policy.h
 export const MIN_FEE_RATE = 1;
 
+// An example of a busy day, the fee chart's top contour; the copy says it is not a forecast.
+export const BUSY_RATE = 50;
+
 // The highest rate the wallet offers or accepts, so a lying server cannot steer a preset into burning the coins.
 export const MAX_FEE_RATE = 10_000;
 

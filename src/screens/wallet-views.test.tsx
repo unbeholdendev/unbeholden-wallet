@@ -138,8 +138,33 @@ describe("wallet views on the demo history", () => {
     expect(stats).toContain("Fees paid, 2 sends0.00 003 560");
     expect(stats).toContain("Coins held8");
     expect(stats).toMatch(/Oldest coin[5-7] Aug 2026/);
+    expect(stats).toContain("To spend every coin at 50 sat/vB0.00 029 300");
     const chart = screen.getByRole("img", { name: /^Balance over time, from / }).querySelector("path")!.getAttribute("d")!;
     for (const x of chart.matchAll(/H([\d.]+)/g)) expect(Number(x[1])).toBeLessThanOrEqual(320);
+  });
+
+  it("splits the coins by age, adding up to what they hold", async () => {
+    await openApp();
+    const age = screen.getByRole("heading", { name: "Coin age" }).closest("section")!;
+    const rows = within(age).getAllByRole("listitem").map((li) => li.textContent!);
+    const sats = rows.map((r) => Number(r.match(/([\d.\u202f ]+) ·/)![1]!.replace(/[^\d]/g, "")));
+    expect(sats.reduce((a, b) => a + b, 0)).toBe(30_948_173);
+    expect(rows.map((r) => Number(r.match(/(\d+)%/)![1])).reduce((a, b) => a + b, 0)).toBeGreaterThanOrEqual(98);
+  });
+
+  it("reads out the balance at each payment as the chart is stepped through", async () => {
+    const user = await openApp();
+    const chart = screen.getByRole("img", { name: /^Balance over time, from / });
+    const caption = chart.closest("figure")!.querySelector("figcaption")!;
+    chart.focus();
+    await user.keyboard("{End}");
+    expect(caption.textContent).toMatch(/^\d+ \w{3} 2026: 0\.30 948 173/);
+    await user.keyboard("{ArrowLeft}");
+    expect(caption.textContent).not.toMatch(/: 0\.30 948 173/);
+    await user.keyboard("{Home}");
+    expect(caption.textContent).toMatch(/^\d+ \w{3} 2026: 0\.15 418 220$/);
+    act(() => chart.blur());
+    expect(caption.textContent).toMatch(/Now$/);
   });
 
   it("closes the wallet menu on a click elsewhere or Escape", async () => {
@@ -551,6 +576,7 @@ describe("fiat price lifecycle", () => {
     try {
       const user = await openApp();
       await screen.findByText(/EUR.*at current rate/);
+      expect(screen.getByRole("heading", { name: "Statistics" }).closest("section")!.textContent).toMatch(/0\.00 003 560≈ EUR\s?3\.20/);
       expect(fetcher).toHaveBeenCalledTimes(1);
       expect(fetcher.mock.calls[0]?.[0]).toBe("https://mempool.space/api/v1/prices");
       expect(fetcher.mock.calls[0]?.[1]).toMatchObject({ credentials: "omit", referrerPolicy: "no-referrer", redirect: "error" });
