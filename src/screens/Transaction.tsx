@@ -1,4 +1,4 @@
-import { FiatAmount } from "../app/fiat";
+import { TxFiat } from "../app/fiat";
 import { ExplorerLink } from "../ui/explorer";
 import type { ReactNode } from "react";
 import { navigate } from "../app/route";
@@ -110,7 +110,7 @@ export function Transaction({ txid }: { txid: string | undefined }) {
             )}
             <span className="text-2xl font-medium tracking-[-0.01em]">
               <Amount sats={tx.net} signed unit />
-              <FiatAmount sats={tx.net} />
+              <TxFiat tx={tx} />
             </span>
             <div className="flex flex-wrap gap-1.5 pt-1">
               {pending && !outgoing && <Chip tone="warn">From someone else, can still be replaced</Chip>}

@@ -4,7 +4,7 @@ import { App } from "./App";
 import { demoBackend, seedDemoVault } from "./backend/fixture";
 import { DEFAULT_KDF, vaultExists } from "./vault/vault";
 
-if (!(await vaultExists())) await seedDemoVault(null, DEFAULT_KDF, "wss://demo");
+if (!(await vaultExists())) await seedDemoVault(null, DEFAULT_KDF, "wss://demo", { fiat: { source: "demo", currency: "USD" } });
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

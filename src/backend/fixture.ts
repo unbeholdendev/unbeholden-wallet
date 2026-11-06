@@ -87,9 +87,9 @@ export function demoBackend() {
 }
 
 /** A locked vault holding the demo wallet, synced once, with its labels. */
-export async function seedDemoVault(passphrase: string | null, kdf: KdfParams, server: string) {
+export async function seedDemoVault(passphrase: string | null, kdf: KdfParams, server: string, settings: object = {}) {
   const vault = await createVault(passphrase, kdf);
-  await saveSettings(vault, { server });
+  await saveSettings(vault, { ...settings, server });
   const wallet = await createWallet(vault, { name: "Spending", descriptor: DEMO_DESCRIPTOR, network: "mainnet" });
   const backend = demoBackend();
   await backend.connect();

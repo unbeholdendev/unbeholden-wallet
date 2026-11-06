@@ -1,4 +1,4 @@
-import { FiatAmount } from "../app/fiat";
+import { FiatAmount, TxRowFiat } from "../app/fiat";
 import { FiatControl } from "../ui/fiat";
 import { useEffect, useState } from "react";
 import { useConnection } from "../app/connection";
@@ -159,6 +159,7 @@ function HistoryRow({ tx }: { tx: WalletTx }) {
       </span>
       <span className="col-start-2 row-start-1 text-right text-md @min-[640px]:col-start-4">
         <Amount sats={tx.net} signed />
+        <TxRowFiat tx={tx} />
       </span>
       <span className="col-start-1 row-start-2 text-sm text-ink-3 @min-[640px]:hidden">
         {date} &middot; {pending ? "unconfirmed" : confText(tx.confirmations).toLowerCase()}

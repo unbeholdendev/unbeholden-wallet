@@ -411,7 +411,7 @@ export function Settings() {
             Change server or see the connection
           </a>
         </Panel>
-        {import.meta.env.MODE !== "demo" && <Panel title="Fiat prices"><FiatControl /></Panel>}
+        <Panel title="Fiat prices"><FiatControl /></Panel>
         <Explorer />
         <Wallets />
         <Labels />

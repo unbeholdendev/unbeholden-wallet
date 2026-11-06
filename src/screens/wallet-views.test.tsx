@@ -589,11 +589,13 @@ describe("fiat price lifecycle", () => {
       const user = await openApp();
       await screen.findByText(/EUR.*at current rate/);
       expect(screen.getByRole("heading", { name: "Statistics" }).closest("section")!.textContent).toMatch(/0\.00 003 560≈ EUR\s?3\.20/);
-      expect(fetcher).toHaveBeenCalledTimes(1);
-      expect(fetcher.mock.calls[0]?.[0]).toBe("https://mempool.space/api/v1/prices");
-      expect(fetcher.mock.calls[0]?.[1]).toMatchObject({ credentials: "omit", referrerPolicy: "no-referrer", redirect: "error" });
+      expect(fetcher.mock.calls.map(([url]) => url).sort()).toEqual([
+        "https://mempool.space/api/v1/historical-price?currency=EUR",
+        "https://mempool.space/api/v1/prices",
+      ]);
+      for (const [, init] of fetcher.mock.calls) expect(init).toMatchObject({ credentials: "omit", referrerPolicy: "no-referrer", redirect: "error" });
       await user.click(screen.getByRole("button", { name: "Lock" }));
-      expect(fetcher.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
+      for (const [, init] of fetcher.mock.calls) expect(init?.signal?.aborted).toBe(true);
     } finally { fetcher.mockRestore(); }
   });
 
