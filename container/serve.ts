@@ -2,6 +2,8 @@ import type { ServerWebSocket, Socket } from "bun";
 import { normalize } from "node:path";
 
 const root = process.env.ROOT ?? "dist";
+const hostname = process.env.HOST ?? "0.0.0.0";
+const port = Number(process.env.PORT ?? 8080);
 const electrum = process.env.ELECTRUM?.match(/^(?:(tcp|ssl):\/\/)?(.+):(\d+)$/);
 if (process.env.ELECTRUM && !electrum) throw new Error("ELECTRUM must be host:port, tcp://host:port or ssl://host:port");
 
@@ -44,10 +46,11 @@ async function bridge(req: Request, server: Bun.Server<Link>) {
   return new Response("Bad WebSocket handshake", { status: 400, headers });
 }
 
-log("listening", { port: 8080, electrum: !!electrum });
+log("listening", { hostname, port, electrum: !!electrum });
 
 Bun.serve<Link>({
-  port: 8080,
+  hostname,
+  port,
   maxRequestBodySize: 2000,
   async fetch(req, server) {
     const { pathname, host, protocol } = new URL(req.url);
