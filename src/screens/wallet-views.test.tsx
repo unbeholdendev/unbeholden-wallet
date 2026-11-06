@@ -564,7 +564,7 @@ describe("optional fiat prices", () => {
       expect(fetcher).not.toHaveBeenCalled();
       await user.selectOptions(screen.getByLabelText("Price source"), "blockchain");
       await user.click(screen.getByRole("button", { name: "Enable fiat prices" }));
-      await screen.findByText(/USD.*at current rate/);
+      await within(screen.getByRole("region", { name: "Balance" })).findByText(/USD.*at current rate/);
       expect(fetcher.mock.calls[0]?.[0]).toBe("https://blockchain.info/ticker");
       go("#/settings");
       await screen.findByRole("heading", { name: "Settings", level: 1 });
@@ -580,6 +580,24 @@ describe("optional fiat prices", () => {
 });
 
 describe("fiat price lifecycle", () => {
+  it.each(["blockchain", "mempool"] as const)("shows a current-rate fallback in confirmed history rows with %s", async (source) => {
+    const vault = await unlockVault(PASSPHRASE);
+    await vault.put("settings", { server: "wss://node.example", fiat: { source, currency: "EUR" } });
+    vault.lock();
+    const fetcher = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      if (String(input).includes("historical-price")) throw new TypeError("offline");
+      return new Response(JSON.stringify(source === "blockchain" ? { EUR: { last: 90000 } } : { EUR: 90000 }));
+    });
+    try {
+      await openApp();
+      await within(screen.getByRole("region", { name: "Balance" })).findByText(/EUR.*at current rate/);
+      const confirmed = screen.getAllByRole("link").filter(a => a.getAttribute("href")?.startsWith("#/tx/"))
+        .map(a => a.closest("li")!).find(li => !li.textContent!.toLowerCase().includes("unconfirmed"))!;
+      expect(confirmed).toBeTruthy();
+      await waitFor(() => expect(confirmed.textContent).toMatch(/≈ EUR.*at current rate/));
+    } finally { fetcher.mockRestore(); }
+  });
+
   it("reads mempool prices, keeps currency local and aborts on lock", async () => {
     const vault = await unlockVault(PASSPHRASE);
     await vault.put("settings", { server: "wss://node.example", fiat: { source: "mempool", currency: "EUR" } });
@@ -587,7 +605,7 @@ describe("fiat price lifecycle", () => {
     const fetcher = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ EUR: 90000, USD: 100000 })));
     try {
       const user = await openApp();
-      await screen.findByText(/EUR.*at current rate/);
+      await within(screen.getByRole("region", { name: "Balance" })).findByText(/EUR.*at current rate/);
       expect(screen.getByRole("heading", { name: "Statistics" }).closest("section")!.textContent).toMatch(/0\.00 003 560≈ EUR\s?3\.20/);
       expect(fetcher.mock.calls.map(([url]) => url).sort()).toEqual([
         "https://mempool.space/api/v1/historical-price?currency=EUR",

@@ -205,7 +205,7 @@ export function TxFiat({ tx }: { tx: WalletTx }) {
   </>;
 }
 
-/** A transaction's fiat value in the history list: then if confirmed, now if pending. */
+/** A transaction's fiat value in the history list, preferring its historical price. */
 export function TxRowFiat({ tx }: { tx: WalletTx }) {
   const fiat = useFiat();
   const { quote } = useContext(FiatContext);
@@ -213,12 +213,13 @@ export function TxRowFiat({ tx }: { tx: WalletTx }) {
   if (!fiat) return null;
   const { settings, source, money } = fiat;
   const rate = quote?.rates[settings.currency];
-  const [value, label] = tx.confirmations === 0
+  const current = tx.confirmations === 0 || !point;
+  const [value, label] = current
     ? [rate?.value, `Current rate, ${source.name}`]
     : [point?.[1], point && `Price at ${utcText(point[0])}, ${source.name}`];
   if (value === undefined) return null;
   return <span className="block text-xs font-normal tabular-nums text-ink-3">
-    <span title={label!}>≈ {money(Math.abs(tx.net), value)}</span>
+    <span title={label!}>≈ {money(Math.abs(tx.net), value)}{current && " at current rate"}</span>
     <span className="sr-only">, {label}</span>
   </span>;
 }

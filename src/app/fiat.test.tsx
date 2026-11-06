@@ -92,6 +92,7 @@ it("downloads mempool.space's history once and reuses it across a reload", async
   show(confirmed(1700003700));
   expect(await screen.findByText("≈ EUR 32,500.00 · price at 14 Nov 2023, 23:13 UTC · mempool.space")).toBeTruthy();
   expect(screen.getByText("≈ EUR 50,000.00 at current rate · mempool.space")).toBeTruthy();
+  expect(screen.getByTitle("Price at 14 Nov 2023, 23:13 UTC, mempool.space").textContent).toMatch(/^≈ EUR\s32,500\.00$/);
   expect(String(historyCalls(fetcher)[0]![0])).toBe("https://mempool.space/api/v1/historical-price?currency=EUR");
   await waitFor(async () => expect(await storedHistory("EUR")).toBeTruthy());
   cleanup();
@@ -133,7 +134,7 @@ it("prices a fresh transaction at the latest current price kept, and a pending o
   expect(await within(await screen.findByTestId("tx0")).findByText(/EUR 50,000.00 · price at/)).toBeTruthy();
   const pending = within(screen.getByTestId("tx1"));
   expect(pending.queryByText(/price at/)).toBeNull();
-  expect(pending.getByTitle("Current rate, mempool.space").textContent).toMatch(/^≈ EUR\s50,000\.00$/);
+  expect(pending.getByTitle("Current rate, mempool.space").textContent).toMatch(/^≈ EUR\s50,000\.00 at current rate$/);
   await waitFor(async () => expect((await storedHistory("EUR"))?.points).toHaveLength(2));
 });
 
