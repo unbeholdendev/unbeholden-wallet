@@ -13,6 +13,7 @@ jobs:
   deploy:
     runs-on: docker
     strategy:
+      fail-fast: false
       matrix:
         app: [wallet, demo, site]
     env:
@@ -31,28 +32,42 @@ jobs:
           driver: docker
 
       - uses: docker/login-action@v4
+        if: matrix.app != 'wallet'
         with:
           registry: ${{ vars.REGISTRY }}
           username: ${{ github.repository_owner }}
           password: ${{ secrets.REGISTRY_TOKEN }}
 
       - uses: docker/metadata-action@v6
+        if: matrix.app != 'wallet'
         id: meta
         with:
           images: ${{ env.IMAGE }}
           tags: type=sha,prefix=
 
       - uses: docker/build-push-action@v7
+        if: matrix.app != 'wallet'
         with:
           context: .
-          target: ${{ matrix.app != 'wallet' && matrix.app || '' }}
+          target: ${{ matrix.app }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             APP_VERSION=${{ steps.v.outputs.version }}
 
-      - name: Pin image to commit and deploy
+      - name: Wait for GitHub wallet image
+        if: matrix.app == 'wallet'
+        id: wallet
+        timeout-minutes: 25
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          image=$(bash scripts/wait-wallet-image.sh ghcr.io/unbeholdendev/unbeholden-wallet "$RELEASE_TAG" "$(git rev-parse HEAD)")
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+
+      - name: Pin image and deploy
         env:
           DOKPLOY_URL: ${{ vars.DOKPLOY_URL }}
           DOKPLOY_TOKEN: ${{ secrets.DOKPLOY_TOKEN }}
@@ -60,7 +75,7 @@ jobs:
           WALLET_APP_ID: ${{ vars.DOKPLOY_APP_ID }}
           DEMO_APP_ID: ${{ vars.DOKPLOY_DEMO_APP_ID }}
           SITE_APP_ID: ${{ vars.DOKPLOY_SITE_APP_ID }}
-          TAG: ${{ steps.meta.outputs.version }}
+          DEPLOY_IMAGE: ${{ steps.wallet.outputs.image || format('{0}:{1}', env.IMAGE, steps.meta.outputs.version) }}
         run: |
           set -euo pipefail
           # Picked here, not with `&& ||` in the expression: an empty demo or site ID would fall through to the wallet's.
@@ -69,7 +84,7 @@ jobs:
           curl -fsS -X POST "$DOKPLOY_URL/api/application.update" \
             -H "x-api-key: $DOKPLOY_TOKEN" \
             -H "Content-Type: application/json" \
-            -d "{\"applicationId\":\"$APP_ID\",\"dockerImage\":\"$IMAGE:$TAG\"}"
+            -d "{\"applicationId\":\"$APP_ID\",\"dockerImage\":\"$DEPLOY_IMAGE\"}"
           curl -fsS -X POST "$DOKPLOY_URL/api/application.deploy" \
             -H "x-api-key: $DOKPLOY_TOKEN" \
             -H "Content-Type: application/json" \
