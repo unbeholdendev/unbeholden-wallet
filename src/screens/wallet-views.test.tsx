@@ -23,13 +23,13 @@ let backends: FakeBackend[] = [];
 // The fake chain's header time at the demo tip, 153,500.
 const DEMO_TIP_TIME = 1_792_100_000_000;
 
-async function openApp(hash = "#/home") {
+async function openApp(hash = "#/home", backend = demoBackend) {
   location.hash = "#/home";
   render(
     <App
       kdf={CHEAP}
       factory={() => {
-        backends.push(demoBackend());
+        backends.push(backend());
         return backends.at(-1)!;
       }}
     />,
@@ -210,6 +210,47 @@ describe("wallet views on the demo history", () => {
     await user.clear(screen.getByRole("searchbox"));
     await user.type(screen.getByRole("searchbox"), "withdrawals");
     expect(shownLabels()).toEqual(["Hardware shop, SeedSigner parts"]);
+  });
+
+  it("reveals history in batches of 25 after searching and filtering", async () => {
+    const backend = demoBackend();
+    const address = deriveAddress(parseDescriptor(DEMO_DESCRIPTOR, "mainnet"), "mainnet", 0, 7);
+    const script = OutScript.encode(Address(NETWORKS.mainnet).decode(address));
+    const changeAddress = deriveAddress(parseDescriptor(DEMO_DESCRIPTOR.replace("<0;1>", "<2;3>"), "mainnet"), "mainnet", 0, 0);
+    const changeScript = OutScript.encode(Address(NETWORKS.mainnet).decode(changeAddress));
+    let previous = DEMO_TXIDS.kraken;
+    for (let i = 0; i < 51; i++) {
+      const tx = new Tx({ allowUnknownInputs: true, allowUnknownOutputs: true, disableScriptCheck: true });
+      tx.addInput({ txid: previous, index: 1 });
+      tx.addOutput({ script, amount: 10_000n });
+      tx.addOutput({ script: changeScript, amount: BigInt(1_000_000 - i * 10_000) });
+      previous = tx.id;
+      backend.addToMempool(tx.unsignedTx);
+    }
+    const user = await openApp("#/home", () => backend);
+    expect(shownLabels()).toHaveLength(25);
+    expect(screen.queryByRole("link", { name: "Kraken withdrawal, July" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Show more" }));
+    expect(shownLabels()).toHaveLength(50);
+    await user.click(screen.getByRole("button", { name: "Show more" }));
+    expect(shownLabels()).toHaveLength(61);
+    expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
+
+    await user.type(screen.getByRole("searchbox"), "Kraken withdrawal, July");
+    expect(shownLabels()).toEqual(["Kraken withdrawal, July"]);
+    expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
+    await user.clear(screen.getByRole("searchbox"));
+    expect(shownLabels()).toHaveLength(25);
+    await user.click(screen.getByRole("button", { name: "Show more" }));
+    await user.click(screen.getByRole("button", { name: "Filters" }));
+    await user.click(screen.getByRole("button", { name: "Sent" }));
+    expect(shownLabels()).toEqual(["Rent, October", "Hardware shop, SeedSigner parts"]);
+    expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(shownLabels()).toHaveLength(25);
+    await user.type(screen.getByRole("searchbox"), "no matching transaction");
+    expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
+    expect(screen.getByText(/Nothing matches/)).toBeTruthy();
   });
 
   it("filters the history by direction, confirmation, date and amount", async () => {

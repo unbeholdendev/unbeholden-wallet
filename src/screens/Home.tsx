@@ -196,9 +196,13 @@ function History({ snapshot }: { snapshot: WalletSnapshot }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [filters, setFilters] = useState(noFilters);
+  const [limit, setLimit] = useState(25);
   const inSats = useUnit() === "sats";
   const amount = (text: string) => parseAmount(inSats ? `${text}sats` : text);
-  const set = (change: Partial<typeof noFilters>) => setFilters((f) => ({ ...f, ...change }));
+  const set = (change: Partial<typeof noFilters>) => {
+    setFilters((f) => ({ ...f, ...change }));
+    setLimit(25);
+  };
   const active = Object.entries(filters).filter(([k, v]) => v !== noFilters[k as keyof typeof noFilters]).length;
   const min = amount(filters.min);
   const max = amount(filters.max);
@@ -227,7 +231,7 @@ function History({ snapshot }: { snapshot: WalletSnapshot }) {
             <input
               type="search"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => { setQuery(e.target.value); setLimit(25); }}
               placeholder="Label, amount or date"
               className="min-w-0 flex-1 bg-transparent py-1.5 text-ink outline-none placeholder:text-ink-3"
             />
@@ -265,7 +269,7 @@ function History({ snapshot }: { snapshot: WalletSnapshot }) {
             </label>
           </div>
           {active > 0 && (
-            <LinkButton className="justify-self-start text-sm" onClick={() => setFilters(noFilters)}>
+            <LinkButton className="justify-self-start text-sm" onClick={() => set(noFilters)}>
               Clear filters
             </LinkButton>
           )}
@@ -273,7 +277,7 @@ function History({ snapshot }: { snapshot: WalletSnapshot }) {
       )}
       {shown.length ? (
         <ul className="m-0 list-none p-0">
-          {shown.map((tx) => (
+          {shown.slice(0, limit).map((tx) => (
             <HistoryRow key={tx.txid} tx={tx} />
           ))}
         </ul>
@@ -281,6 +285,11 @@ function History({ snapshot }: { snapshot: WalletSnapshot }) {
         <p className="m-0 border-t border-rule px-4 py-6 text-ink-3">
           {terms.length ? <>Nothing matches &ldquo;{query.trim()}&rdquo;{active ? " with these filters" : ""}.</> : "Nothing matches these filters."}
         </p>
+      )}
+      {shown.length > limit && (
+        <div className="flex justify-center border-t border-rule px-4 py-3">
+          <Button size="sm" onClick={() => setLimit((n) => n + 25)}>Show more</Button>
+        </div>
       )}
     </section>
   );
