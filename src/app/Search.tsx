@@ -28,7 +28,7 @@ export function parseSearch(text: string, network: Network): SearchResult {
   if (/^\d[\d\s]*$/.test(query)) return { route: `/block/${Number(query.replace(/\s/g, ""))}` };
   if (/^([0-9a-f]{2})+$/i.test(query) && isRawTx(query)) return { route: `/broadcast/${query.toLowerCase()}` };
   const address = checkAddress(parseUri(query).address, network);
-  if ("address" in address) return { error: "Looking up an address isn't here yet." };
+  if ("address" in address) return { route: `/address/${address.address}` };
   return { error: address.error === NOT_AN_ADDRESS ? "Search takes a transaction ID, an address, a block height or a raw transaction in hex." : address.error };
 }
 

@@ -1,9 +1,9 @@
 import { hex } from "@scure/base";
 import { Address, OutScript, RawTx } from "@scure/btc-signer";
 import { sha256x2 } from "@scure/btc-signer/utils.js";
-import { NotFoundError, txidOf, type WalletBackend } from "../backend/backend";
+import { NotFoundError, scriptHash, txidOf, type ScriptBalance, type Unspent, type WalletBackend } from "../backend/backend";
 import { NETWORKS, type Network } from "../wallet/network";
-import { blockTime, COINBASE, parseTx } from "./view";
+import { blockTime, COINBASE, parseTx, type Parsed } from "./view";
 
 export type LookedUpTx = {
   txid: string;
@@ -24,6 +24,27 @@ export type LookedUpTx = {
 const FINAL = 0xfffffffe;
 
 const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
+
+/** How many of an address's transactions get their amounts at a time. */
+export const AMOUNTS_PAGE = 25;
+
+export type LookedUpAddress = {
+  address: string;
+  /** Hex. */
+  script: string;
+  balance: ScriptBalance;
+  /** Newest first, the mempool's at the top. `time` is the block's, in unix seconds. */
+  history: { txid: string; height: number | null; time: number | null }[];
+  unspent: Unspent[];
+};
+
+async function fetchParsed(backend: WalletBackend, txids: string[]): Promise<Parsed[]> {
+  const raws = await backend.transactions(txids);
+  return raws.map((raw, i) => {
+    if (txidOf(raw) !== txids[i]) throw new Error("The server sent a different transaction than the one asked for");
+    return parseTx(txids[i]!, raw);
+  });
+}
 
 /** A raw transaction, before it is broadcast: what it spends, pays and leaves as fee. */
 export type DecodedTx = Omit<LookedUpTx, "height">;
@@ -72,6 +93,53 @@ export async function decodeTransaction(backend: WalletBackend, raw: Uint8Array,
     inputs,
     outputs,
   };
+}
+
+/**
+ * Any address's balance, history and unspent outputs, read from the server as
+ * it is now, with one block header per height for the times. Nothing is kept
+ * and nothing subscribed to.
+ * @throws {RefusedError} with the server's reason when it will not serve the address.
+ */
+export async function lookupAddress(backend: WalletBackend, address: string, network: Network): Promise<LookedUpAddress> {
+  const script = OutScript.encode(Address(NETWORKS[network]).decode(address));
+  const hash = scriptHash(script);
+  const [[balance], [history], [unspent]] = await Promise.all([backend.balances([hash]), backend.history([hash]), backend.unspent([hash])]);
+  const heights = [...new Set(history!.flatMap((entry) => (entry.height === null ? [] : [entry.height])))];
+  const headers = await backend.blockHeaders(heights);
+  const times = new Map(heights.map((height, i) => [height, blockTime(headers[i]!)]));
+  const order = (height: number | null) => height ?? Number.MAX_SAFE_INTEGER;
+  const newest = [...history!].reverse().sort((a, b) => order(b.height) - order(a.height));
+  return {
+    address,
+    script: hex.encode(script),
+    balance: balance!,
+    history: newest.map(({ txid, height }) => ({ txid, height, time: height === null ? null : times.get(height)! })),
+    unspent: unspent!,
+  };
+}
+
+/**
+ * What each of these transactions moved into the address, negative when it
+ * spent from it. Only a transaction in the address's history can have paid an
+ * input it spends, so those are the only parents fetched.
+ */
+export async function addressAmounts(backend: WalletBackend, found: LookedUpAddress, txids: string[]): Promise<Map<string, number>> {
+  const txs = await fetchParsed(backend, txids);
+  const inHistory = new Set(found.history.map((entry) => entry.txid));
+  const fetched = new Set(txids);
+  const parentIds = [...new Set(txs.flatMap((tx) => tx.inputs.map((input) => input.txid)))].filter((id) => inHistory.has(id) && !fetched.has(id));
+  const parents = new Map([...txs, ...(await fetchParsed(backend, parentIds))].map((tx) => [tx.txid, tx]));
+  const paid = (outputs: { script: string; value: number }[]) => sum(outputs.filter((o) => o.script === found.script).map((o) => o.value));
+  return new Map(
+    txs.map((tx) => {
+      const spent = tx.inputs.flatMap((input) => {
+        const prevout = parents.get(input.txid)?.outputs[input.vout];
+        return prevout ? [prevout] : [];
+      });
+      return [tx.txid, paid(tx.outputs) - paid(spent)];
+    }),
+  );
 }
 
 /**

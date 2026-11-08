@@ -162,6 +162,7 @@ the user's own node.
 87. As a wallet owner, I want the inputs and outputs of a looked-up transaction that belong to one of my wallets marked with its name, so that I can see at a glance where my coins are involved.
 88. As a node runner, I want to open a block by its height and see its hash, time and difficulty, with links to the blocks either side, so that I can step along the chain on my own server.
 89. As a node runner, I want to paste or scan a raw transaction and see its inputs, outputs, fee and fee rate before broadcasting it through my server, so that I can send a transaction built anywhere, mine or not.
+90. As a node runner, I want to open any address and see its balance, every transaction in its history and its unspent outputs, so that I can check an address that is not mine.
 
 ## Implementation Decisions
 
@@ -183,7 +184,7 @@ the user's own node.
 ### Backend interface
 
 - All external I/O goes through a single `WalletBackend` interface. This is both the architectural seam that keeps an Esplora implementation possible and the test seam.
-- The interface covers: fetching the chain tip, subscribing to headers, fetching history for a batch of scripthashes, fetching a batch of transactions and the heights of their blocks, subscribing to scripthashes, fetching the mempool fee histogram, and broadcasting a raw transaction.
+- The interface covers: fetching the chain tip, subscribing to headers, fetching history, balances and unspent outputs for a batch of scripthashes, fetching a batch of transactions and the heights of their blocks, subscribing to scripthashes, fetching the mempool fee histogram, and broadcasting a raw transaction.
 - The v1 implementation is Electrum over WSS only. There is no default server, no bundled server list, and no instance operated by the project. The one exception is the demo build (`bun run build:demo`): the same app against a fake chain held in memory, served from its own origin, whose CSP allows connections only to its own origin.
 - Electrum JSON-RPC batching is used wherever more than one call of the same kind is needed. This is the primary sync performance lever and is a requirement, not an optimisation.
 - The connection screen classifies failures into distinct, actionable states: certificate rejected, connection refused, timed out, and connected-but-not-Electrum. Each has its own guidance. The guide covers the ways to give a home node a certificate the browser trusts, with no one way favoured.
@@ -194,7 +195,8 @@ the user's own node.
 - `#/tx/<txid>` is one route: a transaction of the selected wallet keeps its screen, and any other gets the lookup view. Lookups work with an unlocked vault and a server but no wallet imported.
 - A lookup is `blockchain.transaction.get`, then one batch for the transactions its inputs spend. A raw transaction carries no height, so on Electrum the height comes from `get_history` of one of its output scripts, or of an input's previous output script when every output is unspendable. Esplora uses `/tx/:txid/hex` and `/tx/:txid/status`.
 - `#/broadcast` tells a PSBT from a raw transaction by the PSBT magic bytes; search sends raw hex to `#/broadcast/<hex>`. A raw transaction is decoded with one batch for the transactions its inputs spend; an input the server has no transaction for shows no amount, and the fee is then unknown. It broadcasts with `blockchain.transaction.broadcast` (Esplora `POST /tx`), and a rejection shows the node's reason verbatim. It works with no wallet imported, and is written to a wallet session only when it touches one of its addresses.
-- Inputs and outputs that belong to any wallet in the vault are marked with the wallet's name.
+- `#/address/<address>` shows confirmed and unconfirmed balance (`blockchain.scripthash.get_balance`, Esplora `/scripthash/:hash`), unspent outputs (`blockchain.scripthash.listunspent`, `/scripthash/:hash/utxo`) and every transaction in the history with its height and block time, one header per height. Amounts are filled in for the newest 25, then 25 more at a time, fetching the page's transactions and, in one batch, those of the address's own coins they spend. A server that refuses the address, as for a history too large, has its message shown verbatim.
+- Inputs, outputs and a looked-up address that belong to any wallet in the vault are marked with the wallet's name.
 - `#/block/<height>` shows the block's hash, time, difficulty and confirmations, read from its header alone (`blockchain.block.header`; Esplora's `/block-height/:height` then `/block/:hash/header`). It links the previous block, and the next one once it exists. A height above the tip says it is not mined yet and gives the tip.
 - No lookup cache: a view fetches when it opens and again on a new block. Nothing looked up is written to the vault, and no looked-up script is subscribed to.
 

@@ -4,10 +4,13 @@ import {
   BroadcastError,
   ConnectionError,
   NotFoundError,
+  RefusedError,
   scriptHash,
   txidOf,
   type BlockHeader,
   type HistoryEntry,
+  type ScriptBalance,
+  type Unspent,
   type Unsubscribe,
   type WalletBackend,
 } from "./backend";
@@ -53,6 +56,8 @@ class RpcError extends Error {
     this.data = error.data;
   }
 }
+
+const refused = (error: unknown) => (error instanceof RpcError ? new RefusedError(error.message) : error);
 
 function implementation(software: string): ServerInfo["implementation"] {
   if (/^fulcrum/i.test(software)) return "Fulcrum";
@@ -301,7 +306,9 @@ export function electrumBackend(
       const results = await batch(
         "blockchain.scripthash.get_history",
         scriptHashes.map((scriptHash) => [scriptHash]),
-      );
+      ).catch((error) => {
+        throw refused(error);
+      });
       return (results as { tx_hash: string; height: number }[][]).map(
         (entries) =>
           entries.map(
@@ -311,6 +318,29 @@ export function electrumBackend(
               unconfirmedParents: height === -1,
             }),
           ),
+      );
+    },
+
+    // https://electrumx.readthedocs.io/en/latest/protocol-methods.html#blockchain-scripthash-get-balance
+    async balances(scriptHashes) {
+      const results = await batch(
+        "blockchain.scripthash.get_balance",
+        scriptHashes.map((scriptHash) => [scriptHash]),
+      ).catch((error) => {
+        throw refused(error);
+      });
+      return results as ScriptBalance[];
+    },
+
+    async unspent(scriptHashes) {
+      const results = await batch(
+        "blockchain.scripthash.listunspent",
+        scriptHashes.map((scriptHash) => [scriptHash]),
+      ).catch((error) => {
+        throw refused(error);
+      });
+      return (results as { tx_hash: string; tx_pos: number; value: number; height: number }[][]).map((outputs) =>
+        outputs.map(({ tx_hash, tx_pos, value, height }): Unspent => ({ txid: tx_hash, vout: tx_pos, value, height: height > 0 ? height : null })),
       );
     },
 
@@ -345,7 +375,7 @@ export function electrumBackend(
               const [entries] = await backend.history([scriptHash(script)]);
               return entries!.find((entry) => entry.txid === txid)?.height ?? null;
             } catch (error) {
-              if (!(error instanceof RpcError)) throw error;
+              if (!(error instanceof RefusedError)) throw error;
             }
           }
           return null;

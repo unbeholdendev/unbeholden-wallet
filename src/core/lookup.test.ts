@@ -1,11 +1,13 @@
 import { hex } from "@scure/base";
 import { Transaction } from "@scure/btc-signer";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { BroadcastError, NotFoundError, txidOf, type WalletBackend } from "../backend/backend";
+import { Address, OutScript } from "@scure/btc-signer";
+import { BroadcastError, NotFoundError, RefusedError, txidOf, type WalletBackend } from "../backend/backend";
 import { electrumBackend } from "../backend/electrum";
 import { fakeBackend, fakeEsplora, type FakeBackend } from "../backend/fake";
 import { demoBackend, DEMO_FOREIGN, DEMO_TXIDS, DEMO_UNSENT } from "../backend/fixture";
-import { decodeTransaction, difficulty, lookupBlock, lookupTransaction } from "./lookup";
+import { NETWORKS } from "../wallet/network";
+import { addressAmounts, decodeTransaction, difficulty, lookupAddress, lookupBlock, lookupTransaction } from "./lookup";
 
 /** The fake chain behind a stand-in WebSocket that answers the Electrum calls a lookup makes. */
 function fakeElectrum(fake: FakeBackend): WalletBackend {
@@ -17,6 +19,11 @@ function fakeElectrum(fake: FakeBackend): WalletBackend {
     }
     if (method === "blockchain.transaction.broadcast") return fake.broadcast(hex.decode(params[0]));
     if (method === "blockchain.block.header") return hex.encode((await fake.blockHeaders([params[0]]))[0]!);
+    if (method === "blockchain.scripthash.get_balance") return (await fake.balances([params[0]]))[0];
+    if (method === "blockchain.scripthash.listunspent") {
+      const [outputs] = await fake.unspent([params[0]]);
+      return outputs!.map((o) => ({ tx_hash: o.txid, tx_pos: o.vout, value: o.value, height: o.height ?? 0 }));
+    }
     if (method === "blockchain.transaction.get") return hex.encode((await fake.transactions([params[0]]))[0]!);
     if (method === "blockchain.scripthash.get_history") {
       const [entries] = await fake.history([params[0]]);
@@ -111,6 +118,79 @@ describe.each(servers)("looking a transaction up on %s", (_, server) => {
     burn.addOutput({ script: hex.decode("6a0100"), amount: 0n });
     const fake = fakeBackend({ startHeight: 7, blocks: [[parent.unsignedTx], [burn.unsignedTx]] });
     expect(await lookup(burn.id, fake)).toMatchObject({ height: 8, rbf: false, fee: 10_000, outputs: [{ address: null }] });
+  });
+});
+
+// The fake server's header time field, read here rather than through the code under test.
+// https://developer.bitcoin.org/reference/block_chain.html
+const headerTime = async (fake: FakeBackend, height: number) => {
+  const [header] = await fake.blockHeaders([height]);
+  return new DataView(header!.buffer, header!.byteOffset).getUint32(68, true);
+};
+
+describe.each(servers)("looking an address up on %s", (_, server) => {
+  async function withBackend<T>(fake: FakeBackend, run: (backend: WalletBackend) => Promise<T>) {
+    const backend = server(fake);
+    await backend.connect();
+    try {
+      return await run(backend);
+    } finally {
+      backend.close();
+    }
+  }
+
+  it("gives its balances, its history newest first with block times, and its unspent outputs", async () => {
+    const fake = demoBackend();
+    await fake.connect();
+    const time = await headerTime(fake, 149_180);
+    const found = await withBackend(fake, (backend) => lookupAddress(backend, DEMO_FOREIGN.address, "mainnet"));
+    expect(found.balance).toEqual({ confirmed: 12_000_000, unconfirmed: 40_000_000 });
+    expect(found.history).toEqual([
+      { txid: DEMO_FOREIGN.pending, height: null, time: null },
+      { txid: DEMO_FOREIGN.confirmed, height: 149_180, time },
+    ]);
+    expect(found.unspent).toEqual([
+      { txid: DEMO_FOREIGN.confirmed, vout: 0, value: 12_000_000, height: 149_180 },
+      { txid: DEMO_FOREIGN.pending, vout: 0, value: 40_000_000, height: null },
+    ]);
+  });
+
+  it("fills in amounts a page at a time, fetching a spent coin's transaction from outside the page", async () => {
+    const script = hex.decode("0014" + "33".repeat(20));
+    const address = Address(NETWORKS.mainnet).encode(OutScript.decode(script));
+    const payments = Array.from({ length: 30 }, (_, i) => {
+      const t = new Transaction(PARSE);
+      t.addInput({ txid: "11".repeat(32), index: i });
+      t.addOutput({ script, amount: BigInt(1_000 + i) });
+      return t;
+    });
+    const spend = new Transaction(PARSE);
+    spend.addInput({ txid: payments[0]!.id, index: 0 });
+    spend.addOutput({ script: hex.decode("0014" + "44".repeat(20)), amount: 900n });
+    const fake = fakeBackend({ startHeight: 1, blocks: [...payments.map((p) => [p.unsignedTx]), [spend.unsignedTx]] });
+
+    const [found, first, second] = await withBackend(fake, async (backend) => {
+      const found = await lookupAddress(backend, address, "mainnet");
+      const txids = found.history.map((entry) => entry.txid);
+      return [found, await addressAmounts(backend, found, txids.slice(0, 25)), await addressAmounts(backend, found, txids.slice(25, 50))] as const;
+    });
+    expect(found.history).toHaveLength(31);
+    expect(found.history[0]).toMatchObject({ txid: spend.id, height: 31 });
+    expect(found.balance).toEqual({ confirmed: payments.slice(1).reduce((total, p) => total + Number(p.getOutput(0).amount), 0), unconfirmed: 0 });
+    expect(found.unspent).toHaveLength(29);
+    expect(first.size).toBe(25);
+    expect(first.get(spend.id)).toBe(-1_000);
+    expect(first.get(payments[29]!.id)).toBe(1_029);
+    expect([...second.keys()]).toEqual(payments.slice(0, 6).map((p) => p.id).reverse());
+    expect(second.get(payments[0]!.id)).toBe(1_000);
+  });
+
+  it("passes on the server's refusal of a history it holds too large, word for word", async () => {
+    const fake = demoBackend();
+    const refusing = { ...fake, history: () => Promise.reject(new RefusedError("history too large")) };
+    const lookup = withBackend(refusing, (backend) => lookupAddress(backend, DEMO_FOREIGN.address, "mainnet"));
+    await expect(lookup).rejects.toThrow(RefusedError);
+    await expect(lookup).rejects.toThrow(/^history too large$/);
   });
 });
 

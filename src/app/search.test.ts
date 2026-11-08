@@ -19,6 +19,11 @@ describe("a search", () => {
     expect(parseSearch(` ${"AB".repeat(32)} `, "mainnet")).toEqual({ route: `/tx/${"ab".repeat(32)}` });
   });
 
+  it("opens an address, from a payment URI too, in its canonical lower case", () => {
+    expect(parseSearch(MAINNET_P2WPKH.toUpperCase(), "mainnet")).toEqual({ route: `/address/${MAINNET_P2WPKH}` });
+    expect(parseSearch(`bitcoin:${MAINNET_P2WPKH}?amount=0.1`, "mainnet")).toEqual({ route: `/address/${MAINNET_P2WPKH}` });
+  });
+
   it("opens a block by its height, however it is spaced", () => {
     expect(parseSearch(" 153 500 ", "mainnet")).toEqual({ route: "/block/153500" });
     expect(parseSearch("0", "mainnet")).toEqual({ route: "/block/0" });
@@ -26,11 +31,6 @@ describe("a search", () => {
 
   it("sends a raw transaction to be broadcast, however it is cased", () => {
     expect(parseSearch(` ${raw().toUpperCase()} `, "mainnet")).toEqual({ route: `/broadcast/${raw()}` });
-  });
-
-  it("knows an address, whose view is not here yet", () => {
-    expect(parseSearch(MAINNET_P2WPKH, "mainnet")).toEqual({ error: expect.stringMatching(/address.*isn't here yet/i) });
-    expect(parseSearch(`bitcoin:${MAINNET_P2WPKH}?amount=0.1`, "mainnet")).toEqual({ error: expect.stringMatching(/address.*isn't here yet/i) });
   });
 
   it("refuses an address on another network, naming it", () => {

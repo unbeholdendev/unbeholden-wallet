@@ -22,6 +22,7 @@ import { BroadcastRaw } from "./screens/send/BroadcastRaw";
 import { BroadcastSigned } from "./screens/send/Sign";
 import { Block } from "./screens/Block";
 import { Lookup } from "./screens/Lookup";
+import { AddressLookup } from "./screens/AddressLookup";
 import { Transaction } from "./screens/Transaction";
 import { CoinHistory } from "./screens/CoinHistory";
 import { Settings } from "./screens/Settings";
@@ -56,6 +57,7 @@ function Unlocked({ route }: { route: string[] }) {
     screen === "connect" ? <Connect onboarding={!wallets.length} /> :
     screen === "import" ? <ImportWallet /> :
     screen === "tx" ? (wallets.length ? <Transaction txid={detail} /> : <Lookup txid={detail} />) :
+    screen === "address" ? <AddressLookup address={detail} /> :
     screen === "broadcast" && detail ? <BroadcastRaw text={detail} /> :
     screen === "block" ? <Block height={detail} /> :
     !wallets.length ? <Start /> :

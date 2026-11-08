@@ -86,6 +86,23 @@ for (const width of [390, 1280])
   });
 
 for (const width of [390, 1280])
+  test(`searching an address at ${width}px opens its view`, async ({ page }) => {
+    await page.setViewportSize({ width, height: width < 720 ? 844 : 800 });
+    await open(page);
+    // The dev server serves the fixture module, which Node cannot load for import.meta.env.
+    const address: string = await page.evaluate(async (path) => (await import(path)).DEMO_FOREIGN.address, "/src/backend/fixture.ts");
+    if (width < 1024) await page.getByRole("button", { name: "Search the chain" }).click();
+    const box = page.getByRole("searchbox", { name: "Search the chain" });
+    await box.fill(address);
+    await box.press("Enter");
+    await expect(page.getByRole("heading", { name: "Address", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "History" }).locator("xpath=ancestor::section").getByRole("listitem")).toHaveCount(2);
+    await expect(page.getByRole("dialog")).toBeHidden();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await page.screenshot({ path: `test-results/wallet-views/address-${width}.png`, fullPage: true });
+  });
+
+for (const width of [390, 1280])
   test(`searching a height at ${width}px opens the block view`, async ({ page }) => {
     await page.setViewportSize({ width, height: width < 720 ? 844 : 800 });
     await open(page);

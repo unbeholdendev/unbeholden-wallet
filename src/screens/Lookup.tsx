@@ -39,11 +39,11 @@ function Endpoints({ title, count, children }: { title: string; count: number; c
   );
 }
 
-function Missing({ title, txid, children }: { title: string; txid: string | undefined; children: ReactNode }) {
+export function Missing({ title, id, children }: { title: string; id: string | undefined; children: ReactNode }) {
   return (
     <Empty title={title}>
       {children}
-      {txid && <p className="m-0 mt-2 font-mono text-[0.86em] break-all text-ink-3">{txid}</p>}
+      {id && <p className="m-0 mt-2 font-mono text-[0.86em] break-all text-ink-3">{id}</p>}
     </Empty>
   );
 }
@@ -69,7 +69,7 @@ export function Lookup({ txid }: { txid: string | undefined }) {
 
   if (!valid)
     return (
-      <Missing title="That isn't a transaction ID" txid={txid}>
+      <Missing title="That isn't a transaction ID" id={txid}>
         <p className="m-0">A transaction ID is 64 characters of 0 to 9 and a to f.</p>
       </Missing>
     );
@@ -78,7 +78,7 @@ export function Lookup({ txid }: { txid: string | undefined }) {
     return live ? (
       <p className="m-0 text-ink-3">Looking the transaction up.</p>
     ) : (
-      <Missing title="Not connected" txid={txid}>
+      <Missing title="Not connected" id={txid}>
         <p className="m-0">
           Looking a transaction up needs the server. <a href="#/connect" className={linkClass}>Connect to it</a>.
         </p>
@@ -86,14 +86,14 @@ export function Lookup({ txid }: { txid: string | undefined }) {
     );
   if ("error" in current)
     return (
-      <Missing title="The lookup failed" txid={txid}>
+      <Missing title="The lookup failed" id={txid}>
         <p className="m-0">{current.error}</p>
       </Missing>
     );
   const { tx } = current;
   if (!tx)
     return (
-      <Missing title="No transaction with this ID" txid={txid}>
+      <Missing title="No transaction with this ID" id={txid}>
         <p className="m-0">The server has none in a block or its mempool. Blocks can't be looked up by their hash: search by height instead.</p>
       </Missing>
     );

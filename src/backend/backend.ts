@@ -14,6 +14,12 @@ export type HistoryEntry = {
   unconfirmedParents: boolean;
 };
 
+/** Sats on a scripthash. `unconfirmed` is what the mempool adds to `confirmed`, and may be negative. */
+export type ScriptBalance = { confirmed: number; unconfirmed: number };
+
+/** An output paying a scripthash that nothing has spent, counting the mempool. */
+export type Unspent = { txid: string; vout: number; value: number; height: number | null };
+
 /** One bar of the mempool's fee histogram: total vsize paying that rate. */
 export type FeeBucket = { feeRate: number; vsize: number };
 
@@ -58,6 +64,14 @@ export class NotFoundError extends Error {
   }
 }
 
+/** The server would not answer, as for a history it holds too large; `message` is its reason, verbatim. */
+export class RefusedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RefusedError";
+  }
+}
+
 export type Unsubscribe = () => void;
 
 /**
@@ -79,8 +93,15 @@ export interface WalletBackend {
   /** One 80-byte header per height, in the order asked for. */
   blockHeaders(heights: number[]): Promise<Uint8Array[]>;
 
-  /** One history per scripthash, in the order asked for. */
+  /**
+   * One history per scripthash, in the order asked for.
+   * @throws {RefusedError} when the server will not give one.
+   */
   history(scriptHashes: string[]): Promise<HistoryEntry[][]>;
+  /** One balance per scripthash, in the order asked for. @throws {RefusedError} */
+  balances(scriptHashes: string[]): Promise<ScriptBalance[]>;
+  /** One list of unspent outputs per scripthash, in the order asked for. @throws {RefusedError} */
+  unspent(scriptHashes: string[]): Promise<Unspent[][]>;
   /**
    * One raw transaction per txid, in the order asked for.
    * @throws {NotFoundError} when the server has one of them nowhere.

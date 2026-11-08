@@ -5,12 +5,15 @@ import {
   BroadcastError,
   ConnectionError,
   NotFoundError,
+  RefusedError,
   scriptHash,
   txidOf,
   type BlockHeader,
   type ConnectionFailure,
   type FeeBucket,
   type HistoryEntry,
+  type ScriptBalance,
+  type Unspent,
   type Unsubscribe,
   type WalletBackend,
 } from "./backend";
@@ -179,6 +182,27 @@ export function fakeBackend(fixture: Partial<Fixture> = {}): FakeBackend {
     }
   }
 
+  /** Outputs paying the scripthash that no known transaction spends, and the confirmed ones no block spends. */
+  function unspentOf(hash: string): { all: Unspent[]; byBlocks: Unspent[] } {
+    const spentBy = new Map<string, number | null>();
+    for (const { tx, height } of known.values()) {
+      for (let i = 0; i < tx.inputsLength; i++) {
+        const input = tx.getInput(i);
+        spentBy.set(`${hex.encode(input.txid!)}:${input.index}`, height);
+      }
+    }
+    const paying = (histories.get(hash) ?? []).flatMap(({ txid }) => {
+      const { tx, height } = known.get(txid)!;
+      return Array.from({ length: tx.outputsLength }, (_, vout) => vout)
+        .filter((vout) => scriptHash(tx.getOutput(vout).script!) === hash)
+        .map((vout): Unspent => ({ txid, vout, value: Number(tx.getOutput(vout).amount), height }));
+    });
+    return {
+      all: paying.filter((o) => !spentBy.has(`${o.txid}:${o.vout}`)),
+      byBlocks: paying.filter((o) => o.height !== null && (spentBy.get(`${o.txid}:${o.vout}`) ?? null) === null),
+    };
+  }
+
   function requireConnection(): void {
     if (!connected) throw new Error("The backend isn't connected");
   }
@@ -220,6 +244,20 @@ export function fakeBackend(fixture: Partial<Fixture> = {}): FakeBackend {
     async history(scriptHashes) {
       requireConnection();
       return scriptHashes.map((hash) => histories.get(hash) ?? []);
+    },
+
+    async balances(scriptHashes) {
+      requireConnection();
+      return scriptHashes.map((hash) => {
+        const { all, byBlocks } = unspentOf(hash);
+        const confirmed = byBlocks.reduce((total, o) => total + o.value, 0);
+        return { confirmed, unconfirmed: all.reduce((total, o) => total + o.value, 0) - confirmed };
+      });
+    },
+
+    async unspent(scriptHashes) {
+      requireConnection();
+      return scriptHashes.map((hash) => unspentOf(hash).all);
     },
 
     async transactions(txids) {
@@ -295,8 +333,10 @@ export function fakeEsplora(fake: FakeBackend, poll?: number): FakeBackend {
   const reply = (body: unknown, status = 200) =>
     new Response(typeof body === "string" ? body : JSON.stringify(body), { status });
 
+  const electrumHash = (esploraHash: string) => hex.encode(hex.decode(esploraHash).reverse());
+
   async function history(esploraHash: string) {
-    const [entries] = await fake.history([hex.encode(hex.decode(esploraHash).reverse())]);
+    const [entries] = await fake.history([electrumHash(esploraHash)]);
     const json = await Promise.all(
       [...entries!].reverse().map(async ({ txid, height }) => {
         const tx = Transaction.fromRaw((await fake.transactions([txid]))[0]!, PARSE);
@@ -327,7 +367,15 @@ export function fakeEsplora(fake: FakeBackend, poll?: number): FakeBackend {
     }
     if ((match = path.match(/^\/scripthash\/(\w+)$/))) {
       const { mempool, chain } = await history(match[1]!);
-      return reply({ chain_stats: { tx_count: chain.length }, mempool_stats: { tx_count: mempool.length } });
+      const [{ confirmed, unconfirmed }] = (await fake.balances([electrumHash(match[1]!)])) as [ScriptBalance];
+      const sums = (sum: number) => ({ funded_txo_sum: Math.max(sum, 0), spent_txo_sum: Math.max(-sum, 0) });
+      return reply({ chain_stats: { tx_count: chain.length, ...sums(confirmed) }, mempool_stats: { tx_count: mempool.length, ...sums(unconfirmed) } });
+    }
+    if ((match = path.match(/^\/scripthash\/(\w+)\/utxo$/))) {
+      const [outputs] = await fake.unspent([electrumHash(match[1]!)]);
+      return reply(
+        outputs!.map(({ txid, vout, value, height }) => ({ txid, vout, value, status: height === null ? { confirmed: false } : { confirmed: true, block_height: height } })),
+      );
     }
     if ((match = path.match(/^\/scripthash\/(\w+)\/txs$/))) {
       const { mempool, chain } = await history(match[1]!);
@@ -365,7 +413,10 @@ export function fakeEsplora(fake: FakeBackend, poll?: number): FakeBackend {
 
   const base = "https://esplora.example/api";
   return {
-    ...esploraBackend(base, { poll, fetch: (url, init) => serve(url.slice(base.length), init) }),
+    ...esploraBackend(base, {
+      poll,
+      fetch: (url, init) => serve(url.slice(base.length), init).catch((error) => (error instanceof RefusedError ? reply(error.message, 400) : Promise.reject(error))),
+    }),
     addBlock: fake.addBlock,
     reorg: fake.reorg,
     addToMempool: fake.addToMempool,

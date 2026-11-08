@@ -1,5 +1,5 @@
 import { hex } from "@scure/base";
-import { BroadcastError, ConnectionError, NotFoundError, txidOf, type BlockHeader, type HistoryEntry } from "./backend";
+import { BroadcastError, ConnectionError, NotFoundError, RefusedError, txidOf, type BlockHeader, type HistoryEntry, type Unspent } from "./backend";
 import type { ConnectionStatus, ElectrumBackend } from "./electrum";
 import { handshake } from "./handshake";
 
@@ -11,7 +11,9 @@ const CONCURRENCY = 4;
 const PAGE = 25;
 
 type Tx = { txid: string; status: { confirmed: boolean; block_height?: number }; vin: { txid: string }[] };
-type Stats = { chain_stats: { tx_count: number }; mempool_stats: { tx_count: number } };
+type Sums = { tx_count: number; funded_txo_sum: number; spent_txo_sum: number };
+type Stats = { chain_stats: Sums; mempool_stats: Sums };
+type Utxo = { txid: string; vout: number; value: number; status: Tx["status"] };
 
 class HttpError extends Error {
   constructor(
@@ -126,15 +128,23 @@ export function esploraBackend(
     if (status === "disconnected" || !tip) throw new Error("The backend isn't connected");
   }
 
+  // electrs answers a scripthash it will not serve, such as one with too many outputs, with a 400 and its reason.
+  async function scripthashGet<T>(scriptHash: string, rest = ""): Promise<T> {
+    try {
+      return JSON.parse(await get(`/scripthash/${esploraHash(scriptHash)}${rest}`)) as T;
+    } catch (error) {
+      throw error instanceof HttpError && error.status === 400 ? new RefusedError(error.body) : error;
+    }
+  }
+
   async function history(scriptHash: string): Promise<Tx[]> {
-    const path = `/scripthash/${esploraHash(scriptHash)}`;
-    const { chain_stats, mempool_stats } = JSON.parse(await get(path)) as Stats;
+    const { chain_stats, mempool_stats } = await scripthashGet<Stats>(scriptHash);
     const total = chain_stats.tx_count + mempool_stats.tx_count;
     if (!total) return [];
-    const txs = JSON.parse(await get(`${path}/txs`)) as Tx[];
+    const txs = await scripthashGet<Tx[]>(scriptHash, "/txs");
     let page = txs.filter((tx) => tx.status.confirmed);
     while (page.length === PAGE) {
-      page = JSON.parse(await get(`${path}/txs/chain/${page.at(-1)!.txid}`)) as Tx[];
+      page = await scripthashGet<Tx[]>(scriptHash, `/txs/chain/${page.at(-1)!.txid}`);
       txs.push(...page);
     }
     if (txs.length < total) {
@@ -204,6 +214,23 @@ export function esploraBackend(
         ),
       );
     },
+
+    balances: (scriptHashes) =>
+      Promise.all(
+        scriptHashes.map(async (hash) => {
+          const { chain_stats: chain, mempool_stats: mempool } = await scripthashGet<Stats>(hash);
+          return { confirmed: chain.funded_txo_sum - chain.spent_txo_sum, unconfirmed: mempool.funded_txo_sum - mempool.spent_txo_sum };
+        }),
+      ),
+
+    unspent: (scriptHashes) =>
+      Promise.all(
+        scriptHashes.map(async (hash) =>
+          (await scripthashGet<Utxo[]>(hash, "/utxo")).map(
+            ({ txid, vout, value, status }): Unspent => ({ txid, vout, value, height: status.confirmed ? status.block_height! : null }),
+          ),
+        ),
+      ),
 
     transactions: (txids) =>
       Promise.all(
