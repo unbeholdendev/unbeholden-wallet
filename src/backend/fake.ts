@@ -75,6 +75,8 @@ function buildHeader(
   header.set(sha256x2(hex.decode(txids.join(""))), 36);
   const view = new DataView(header.buffer);
   view.setUint32(68, 1_700_000_000 + height * 600, true);
+  // The bits of mainnet block 153 500: https://blockstream.info/api/block/0000000000000acb845049f313d9bc7d020491c49e0663cba1ffa234f596de2c
+  view.setUint32(72, 0x1a0e119a, true);
   view.setUint32(76, nonce, true);
   return header;
 }

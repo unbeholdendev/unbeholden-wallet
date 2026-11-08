@@ -88,8 +88,6 @@ describe("searching", () => {
 
     await search(user, "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx");
     expect(screen.getByRole("alert").textContent).toBe("This is a testnet or signet address, but this wallet is on mainnet.");
-    await search(user, "153500");
-    expect(screen.getByRole("alert").textContent).toBe("Looking up a block isn't here yet.");
     await search(user, "not a thing");
     expect(screen.getByRole("alert").textContent).toMatch(/^Search takes a transaction ID/);
 
@@ -109,5 +107,28 @@ describe("searching", () => {
     expect(await screen.findByRole("heading", { name: "Transaction" })).toBeTruthy();
     expect(screen.getByText("1 500 sats")).toBeTruthy();
     expect(list("Outputs").getAllByRole("listitem")).toHaveLength(2);
+  });
+
+  it("opens a block by height with no wallet imported, links its neighbours, and says when one is not mined yet", async () => {
+    const vault = await createVault(PASSPHRASE, CHEAP);
+    await saveSettings(vault, { server: SERVER });
+    vault.lock();
+    const user = await unlock(demoBackend);
+    await screen.findByText(/block 153.500/, undefined, { timeout: 15_000 });
+
+    await search(user, "153 499");
+    expect(await screen.findByRole("heading", { name: "Block 153\u202f499" })).toBeTruthy();
+    expect(location.hash).toBe("#/block/153499");
+    expect(screen.getByText(/^1.192.498$/)).toBeTruthy();
+    expect(screen.getByText("2")).toBeTruthy();
+    await user.click(screen.getByRole("link", { name: "Block 153\u202f500 →" }));
+    expect(await screen.findByRole("heading", { name: "Block 153\u202f500" })).toBeTruthy();
+    const neighbours = within(screen.getByRole("navigation", { name: "Neighbouring blocks" }));
+    expect(neighbours.getByRole("link", { name: "← Block 153\u202f499" })).toBeTruthy();
+    expect(neighbours.getAllByRole("link")).toHaveLength(1);
+
+    await search(user, "153501");
+    expect(await screen.findByRole("heading", { name: "Block 153\u202f501 isn't mined yet" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "block 153\u202f500" })).toBeTruthy();
   });
 });

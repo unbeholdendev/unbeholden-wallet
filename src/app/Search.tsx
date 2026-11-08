@@ -25,7 +25,7 @@ function isRawTx(text: string) {
 export function parseSearch(text: string, network: Network): SearchResult {
   const query = text.trim();
   if (/^[0-9a-f]{64}$/i.test(query)) return { route: `/tx/${query.toLowerCase()}` };
-  if (/^\d[\d\s]*$/.test(query)) return { error: "Looking up a block isn't here yet." };
+  if (/^\d[\d\s]*$/.test(query)) return { route: `/block/${Number(query.replace(/\s/g, ""))}` };
   if (/^([0-9a-f]{2})+$/i.test(query) && isRawTx(query)) return { error: "Broadcasting a raw transaction isn't here yet." };
   const address = checkAddress(parseUri(query).address, network);
   if ("address" in address) return { error: "Looking up an address isn't here yet." };

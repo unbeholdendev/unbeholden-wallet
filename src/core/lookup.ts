@@ -1,8 +1,9 @@
 import { hex } from "@scure/base";
 import { Address, OutScript, RawTx } from "@scure/btc-signer";
+import { sha256x2 } from "@scure/btc-signer/utils.js";
 import { NotFoundError, txidOf, type WalletBackend } from "../backend/backend";
 import { NETWORKS, type Network } from "../wallet/network";
-import { COINBASE, parseTx } from "./view";
+import { blockTime, COINBASE, parseTx } from "./view";
 
 export type LookedUpTx = {
   txid: string;
@@ -69,4 +70,27 @@ export async function lookupTransaction(backend: WalletBackend, txid: string, ne
     inputs,
     outputs,
   };
+}
+
+export type LookedUpBlock = {
+  height: number;
+  hash: string;
+  /** Unix seconds, as the miner stamped it. */
+  time: number;
+  difficulty: number;
+};
+
+/**
+ * Difficulty from a header's compact target, relative to the highest target
+ * 0x1d00ffff, as Bitcoin Core reports it:
+ * https://en.bitcoin.it/wiki/Difficulty#How_is_difficulty_calculated.3F_What_is_the_difference_between_bdiff_and_pdiff.3F
+ */
+export const difficulty = (bits: number) => (0xffff / (bits & 0xffffff)) * 256 ** (0x1d - (bits >>> 24));
+
+/** The block at a height on the server's chain, from its header alone. */
+export async function lookupBlock(backend: WalletBackend, height: number): Promise<LookedUpBlock> {
+  const [header] = (await backend.blockHeaders([height])) as [Uint8Array];
+  // Bits field of the block header: https://developer.bitcoin.org/reference/block_chain.html
+  const bits = new DataView(header.buffer, header.byteOffset).getUint32(72, true);
+  return { height, hash: hex.encode(sha256x2(header).reverse()), time: blockTime(header), difficulty: difficulty(bits) };
 }

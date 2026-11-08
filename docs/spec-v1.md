@@ -160,6 +160,7 @@ the user's own node.
 85. As a node runner, I want to search a transaction ID, an address, a block height or a raw transaction from the top bar, or scan one from a QR code on a phone, so that I do not need a separate block explorer.
 86. As a node runner, I want to open any transaction on my server and see its inputs with amounts and addresses, its outputs, fee, fee rate, size, replaceability, confirmations and block, so that I can read a transaction that is not mine.
 87. As a wallet owner, I want the inputs and outputs of a looked-up transaction that belong to one of my wallets marked with its name, so that I can see at a glance where my coins are involved.
+88. As a node runner, I want to open a block by its height and see its hash, time and difficulty, with links to the blocks either side, so that I can step along the chain on my own server.
 
 ## Implementation Decisions
 
@@ -192,6 +193,7 @@ the user's own node.
 - `#/tx/<txid>` is one route: a transaction of the selected wallet keeps its screen, and any other gets the lookup view. Lookups work with an unlocked vault and a server but no wallet imported.
 - A lookup is `blockchain.transaction.get`, then one batch for the transactions its inputs spend. A raw transaction carries no height, so on Electrum the height comes from `get_history` of one of its output scripts, or of an input's previous output script when every output is unspendable. Esplora uses `/tx/:txid/hex` and `/tx/:txid/status`.
 - Inputs and outputs that belong to an open wallet session are marked with the wallet's name.
+- `#/block/<height>` shows the block's hash, time, difficulty and confirmations, read from its header alone (`blockchain.block.header`; Esplora's `/block-height/:height` then `/block/:hash/header`). It links the previous block, and the next one once it exists. A height above the tip says it is not mined yet and gives the tip.
 - No lookup cache: a view fetches when it opens and again on a new block. Nothing looked up is written to the vault, and no looked-up script is subscribed to.
 
 ### Storage

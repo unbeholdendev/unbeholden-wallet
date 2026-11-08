@@ -5,7 +5,7 @@ import { NotFoundError, type WalletBackend } from "../backend/backend";
 import { electrumBackend } from "../backend/electrum";
 import { fakeBackend, fakeEsplora, type FakeBackend } from "../backend/fake";
 import { demoBackend, DEMO_FOREIGN, DEMO_TXIDS } from "../backend/fixture";
-import { lookupTransaction } from "./lookup";
+import { difficulty, lookupBlock, lookupTransaction } from "./lookup";
 
 /** The fake chain behind a stand-in WebSocket that answers the Electrum calls a lookup makes. */
 function fakeElectrum(fake: FakeBackend): WalletBackend {
@@ -15,6 +15,7 @@ function fakeElectrum(fake: FakeBackend): WalletBackend {
       const tip = await fake.chainTip();
       return { height: tip.height, hex: hex.encode(tip.header) };
     }
+    if (method === "blockchain.block.header") return hex.encode((await fake.blockHeaders([params[0]]))[0]!);
     if (method === "blockchain.transaction.get") return hex.encode((await fake.transactions([params[0]]))[0]!);
     if (method === "blockchain.scripthash.get_history") {
       const [entries] = await fake.history([params[0]]);
@@ -109,5 +110,33 @@ describe.each(servers)("looking a transaction up on %s", (_, server) => {
     burn.addOutput({ script: hex.decode("6a0100"), amount: 0n });
     const fake = fakeBackend({ startHeight: 7, blocks: [[parent.unsignedTx], [burn.unsignedTx]] });
     expect(await lookup(burn.id, fake)).toMatchObject({ height: 8, rbf: false, fee: 10_000, outputs: [{ address: null }] });
+  });
+});
+
+describe("a block's difficulty", () => {
+  it("is the highest target over its own, from the compact bits", () => {
+    // https://en.bitcoin.it/wiki/Difficulty#How_is_difficulty_calculated.3F_What_is_the_difference_between_bdiff_and_pdiff.3F
+    expect(difficulty(0x1d00ffff)).toBe(1);
+    expect(difficulty(0x1b0404cb)).toBeCloseTo(16307.420938523983, 9);
+    // https://blockstream.info/api/block/0000000000000acb845049f313d9bc7d020491c49e0663cba1ffa234f596de2c
+    expect(difficulty(437129626)).toBeCloseTo(1192497.7500894784, 6);
+  });
+});
+
+describe.each(servers)("looking a block up on %s", (_, server) => {
+  it("gives its hash, time and difficulty from the header", async () => {
+    const fake = demoBackend();
+    const backend = server(fake);
+    await backend.connect();
+    try {
+      const block = await lookupBlock(backend, 153_499);
+      const tip = await fake.chainTip();
+      // The previous block's hash, least-significant byte first, at bytes 4 to 36: https://developer.bitcoin.org/reference/block_chain.html
+      expect(block.hash).toBe(hex.encode(tip.header.slice(4, 36).reverse()));
+      expect(block).toMatchObject({ height: 153_499, time: 1_700_000_000 + 153_499 * 600 });
+      expect(block.difficulty).toBeCloseTo(1192497.75, 2);
+    } finally {
+      backend.close();
+    }
   });
 });

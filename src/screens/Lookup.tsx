@@ -104,7 +104,7 @@ export function Lookup({ txid }: { txid: string | undefined }) {
   const coinbase = tx.inputs[0]?.txid === COINBASE;
   const rows: [string, ReactNode][] = [
     ["Status", tx.height === null ? "Waiting for a block" : confirmations ? confText(confirmations) : "In a block"],
-    ["Block", tx.height === null ? "None yet" : groupSats(tx.height)],
+    ["Block", tx.height === null ? "None yet" : <a href={`#/block/${tx.height}`} className={linkClass}>{groupSats(tx.height)}</a>],
     ["Fee", tx.fee === null ? (coinbase ? "None, it mints new coins" : "Unknown") : satsText(tx.fee)],
     ["Size", `${groupSats(tx.vsize)} vB`],
     ["Fee rate", rate === null ? "Unknown" : `${rate} sat/vB`],

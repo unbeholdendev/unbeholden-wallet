@@ -19,6 +19,7 @@ import { Receive } from "./screens/Receive";
 import { Bump, type BumpMode } from "./screens/send/Bump";
 import { Send } from "./screens/send/Send";
 import { BroadcastSigned } from "./screens/send/Sign";
+import { Block } from "./screens/Block";
 import { Lookup } from "./screens/Lookup";
 import { Transaction } from "./screens/Transaction";
 import { CoinHistory } from "./screens/CoinHistory";
@@ -54,6 +55,7 @@ function Unlocked({ route }: { route: string[] }) {
     screen === "connect" ? <Connect onboarding={!wallets.length} /> :
     screen === "import" ? <ImportWallet /> :
     screen === "tx" ? (wallets.length ? <Transaction txid={detail} /> : <Lookup txid={detail} />) :
+    screen === "block" ? <Block height={detail} /> :
     !wallets.length ? <Start /> :
     screen === "coin" ? <CoinHistory point={detail} /> :
     screen === "send" ? <Send /> :

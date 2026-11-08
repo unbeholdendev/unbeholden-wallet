@@ -85,6 +85,21 @@ for (const width of [390, 1280])
     await page.screenshot({ path: `test-results/wallet-views/lookup-${width}.png`, fullPage: true });
   });
 
+for (const width of [390, 1280])
+  test(`searching a height at ${width}px opens the block view`, async ({ page }) => {
+    await page.setViewportSize({ width, height: width < 720 ? 844 : 800 });
+    await open(page);
+    if (width < 1024) await page.getByRole("button", { name: "Search the chain" }).click();
+    const box = page.getByRole("searchbox", { name: "Search the chain" });
+    await box.fill("153499");
+    await box.press("Enter");
+    await expect(page.getByRole("heading", { name: "Block 153 499" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Block 153 500 →" })).toBeVisible();
+    await expect(page.getByRole("dialog")).toBeHidden();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await page.screenshot({ path: `test-results/wallet-views/block-${width}.png`, fullPage: true });
+  });
+
 test("long wallet names leave the header controls in view", async ({ page }) => {
   await open(page);
   await page.evaluate(() => (location.hash = "#/settings"));
