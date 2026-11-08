@@ -1,6 +1,6 @@
 import { hex } from "@scure/base";
 import { RawTx } from "@scure/btc-signer";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useConnection } from "../../app/connection";
 import { navigate } from "../../app/route";
 import { useNetwork, useWalletSessions } from "../../app/session";
@@ -29,6 +29,11 @@ export function BroadcastRaw({ text }: { text: string }) {
   const [decoded, setDecoded] = useState<{ raw: Uint8Array; tx: DecodedTx } | { raw: Uint8Array; error: string } | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const shown = useRef(true);
+  useEffect(() => {
+    shown.current = true;
+    return () => void (shown.current = false);
+  }, []);
 
   useEffect(() => {
     if (!live || !raw) return;
@@ -77,8 +82,9 @@ export function BroadcastRaw({ text }: { text: string }) {
         return [...receive, ...change].some((a) => touched.has(a.address));
       });
       await Promise.all(touching.map((session) => session.addTransaction(raw)));
-      navigate(`/tx/${txid}`);
+      if (shown.current) navigate(`/tx/${txid}`);
     } catch (e) {
+      if (!shown.current) return;
       setFailure((e as Error).message);
       setSending(false);
     }

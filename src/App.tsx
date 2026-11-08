@@ -58,7 +58,7 @@ function Unlocked({ route }: { route: string[] }) {
     screen === "import" ? <ImportWallet /> :
     screen === "tx" ? (wallets.length ? <Transaction txid={detail} /> : <Lookup txid={detail} />) :
     screen === "address" ? <AddressLookup address={detail} /> :
-    screen === "broadcast" && detail ? <BroadcastRaw text={detail} /> :
+    screen === "broadcast" && detail ? <BroadcastRaw key={detail} text={detail} /> :
     screen === "block" ? <Block height={detail} /> :
     !wallets.length ? <Start /> :
     screen === "coin" ? <CoinHistory point={detail} /> :

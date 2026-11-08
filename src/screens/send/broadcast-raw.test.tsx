@@ -1,4 +1,5 @@
 import { hex } from "@scure/base";
+import { Transaction } from "@scure/btc-signer";
 import { cleanup, configure, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -18,6 +19,13 @@ const SERVER = "wss://node.example.ts.net:50004";
 // The fake chain's header time at the demo tip, 153,500.
 const DEMO_TIP_TIME = 1_792_100_000_000;
 const TXID = txidOf(hex.decode(DEMO_UNSENT));
+
+function otherRaw() {
+  const tx = new Transaction({ allowUnknownInputs: true, allowUnknownOutputs: true, disableScriptCheck: true });
+  tx.addInput({ txid: "ab".repeat(32), index: 0 });
+  tx.addOutput({ script: hex.decode("0014" + "22".repeat(20)), amount: 10_000n });
+  return hex.encode(tx.unsignedTx);
+}
 
 async function unlock(factory: () => FakeBackend) {
   location.hash = "#/home";
@@ -76,6 +84,40 @@ describe("broadcasting a raw transaction", () => {
     await user.click(await screen.findByRole("button", { name: "Broadcast through your server" }));
     expect((await screen.findByRole("alert")).textContent).toBe(`Your node refused this transaction. Its reason:${reason}`);
     expect(location.hash).toBe(`#/broadcast/${DEMO_UNSENT}`);
+  });
+
+  it("forgets a refusal when another transaction is opened", async () => {
+    await seedDemoVault(PASSPHRASE, CHEAP, SERVER);
+    const user = await unlock(() => ({ ...demoBackend(), broadcast: async () => Promise.reject(new BroadcastError("bad-txns-inputs-missingorspent")) }));
+    await search(user, DEMO_UNSENT);
+    await user.click(await screen.findByRole("button", { name: "Broadcast through your server" }));
+    await screen.findByRole("alert");
+    await search(user, otherRaw());
+    expect(await screen.findByRole("button", { name: "Broadcast through your server" })).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("stays on another transaction opened while the last one was broadcasting", async () => {
+    await seedDemoVault(PASSPHRASE, CHEAP, SERVER);
+    const demo = demoBackend();
+    let release = () => {};
+    const user = await unlock(() => ({
+      ...demo,
+      broadcast: async (raw: Uint8Array) => {
+        await new Promise<void>((resolve) => (release = resolve));
+        return demo.broadcast(raw);
+      },
+    }));
+    await search(user, DEMO_UNSENT);
+    await user.click(await screen.findByRole("button", { name: "Broadcast through your server" }));
+    await screen.findByRole("button", { name: "Broadcasting" });
+    const other = otherRaw();
+    await search(user, other);
+    const button = await screen.findByRole("button", { name: "Broadcast through your server" });
+    expect((button as HTMLButtonElement).disabled).toBe(false);
+    release();
+    await new Promise((settle) => setTimeout(settle, 100));
+    expect(location.hash).toBe(`#/broadcast/${other}`);
   });
 
   it("takes raw hex pasted where a signed PSBT goes", async () => {
