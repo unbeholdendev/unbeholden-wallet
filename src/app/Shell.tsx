@@ -5,6 +5,7 @@ import { Icon, type IconName } from "../ui/icons";
 import { useConnection, type Connection } from "./connection";
 import { Footer, InstallPrompt } from "./layout";
 import { usePaymentNotifications } from "./notify";
+import { Search } from "./Search";
 import { walletDescriptor, type WalletRecord } from "../core/wallets";
 import { useVault } from "./vault";
 
@@ -53,7 +54,7 @@ function WalletSwitcher() {
   }, []);
   if (!current) return null;
   return (
-    <details ref={menu} className="group relative min-w-0">
+    <details ref={menu} className="group relative min-w-0 max-w-[30%]">
       <summary className="flex min-w-0 cursor-pointer list-none items-center gap-2.5 rounded-control px-2 py-1.5 hover:bg-sunk [&::-webkit-details-marker]:hidden">
         <span className="grid min-w-0">
           {current.group && <span className="truncate text-xs text-ink-3">{current.group.name}</span>}
@@ -145,6 +146,7 @@ export function Shell({ tab, children }: { tab: Tab | null; children: ReactNode 
           ))}
         </nav>
         <ConnectionStatus />
+        <Search />
         <button type="button" aria-label="Hide amounts" aria-pressed={!!settings.hide} onClick={() => void saveSettings({ hide: !settings.hide })} className={barButton}>
           <Icon name={settings.hide ? "eyeOff" : "eye"} />
         </button>

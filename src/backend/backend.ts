@@ -1,5 +1,6 @@
 import { hex } from "@scure/base";
-import { sha256 } from "@scure/btc-signer/utils.js";
+import { RawTx } from "@scure/btc-signer";
+import { sha256, sha256x2 } from "@scure/btc-signer/utils.js";
 
 /** An 80-byte block header and the height it sits at. */
 export type BlockHeader = { height: number; header: Uint8Array };
@@ -49,6 +50,14 @@ export class BroadcastError extends Error {
   }
 }
 
+/** The server has no transaction with that txid, in a block or its mempool. */
+export class NotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NotFoundError";
+  }
+}
+
 export type Unsubscribe = () => void;
 
 /**
@@ -72,8 +81,13 @@ export interface WalletBackend {
 
   /** One history per scripthash, in the order asked for. */
   history(scriptHashes: string[]): Promise<HistoryEntry[][]>;
-  /** One raw transaction per txid, in the order asked for. */
+  /**
+   * One raw transaction per txid, in the order asked for.
+   * @throws {NotFoundError} when the server has one of them nowhere.
+   */
   transactions(txids: string[]): Promise<Uint8Array[]>;
+  /** The height of the block holding each raw transaction, null for one in the mempool or unknown, in the order asked for. */
+  transactionHeights(raws: Uint8Array[]): Promise<(number | null)[]>;
   /** Calls back with the scripthash whose history changed. */
   subscribeScriptHashes(
     scriptHashes: string[],
@@ -95,4 +109,14 @@ export interface WalletBackend {
  */
 export function scriptHash(script: Uint8Array): string {
   return hex.encode(sha256(script).reverse());
+}
+
+/**
+ * The double sha256 of the transaction without its witnesses, written
+ * least-significant byte first.
+ * https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki#transaction-id
+ */
+export function txidOf(raw: Uint8Array): string {
+  const tx = RawTx.decode(raw);
+  return hex.encode(sha256x2(RawTx.encode({ ...tx, segwitFlag: false, witnesses: undefined })).reverse());
 }

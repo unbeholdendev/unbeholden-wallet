@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ConnectionError } from "./backend";
+import { ConnectionError, NotFoundError } from "./backend";
 import { electrumBackend } from "./electrum";
 
 describe("connecting from an https page", () => {
@@ -74,5 +74,45 @@ describe("a server that stops answering", () => {
     const failed = expect(history).rejects.toThrow("The server didn't answer in time");
     await vi.advanceTimersByTimeAsync(6000);
     await failed;
+  });
+});
+
+describe("transaction RPC failures", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  // https://github.com/bitcoin/bitcoin/blob/master/src/rpc/rawtransaction.cpp
+  // https://github.com/cculianu/Fulcrum/blob/master/src/Servers.cpp
+  it.each([
+    { code: -32603, message: "internal error", data: { retry: true } },
+    { code: 2, message: "No such mempool or blockchain transaction. Use gettransaction for wallet transactions." },
+    { code: 2, message: "daemon error: {'code': -5, 'message': 'No such mempool or blockchain transaction. Use gettransaction for wallet transactions.'}" },
+    { code: 2, message: "daemon error: connection refused" },
+    { code: 2, message: "No such mempool transaction. Blockchain transactions are still in the process of being indexed" },
+  ])("classifies $message", async (error) => {
+    vi.stubGlobal("WebSocket", class {
+      onopen?: () => void;
+      onmessage?: (event: { data: string }) => void;
+      constructor() { setTimeout(() => this.onopen?.(), 0); }
+      send(text: string) {
+        const { id, method } = JSON.parse(text);
+        const result = method === "server.version" ? ["Fulcrum 2.1.3", "1.4"] : { height: 1, hex: "00".repeat(80) };
+        queueMicrotask(() => this.onmessage?.({ data: JSON.stringify(
+          method === "blockchain.transaction.get" ? { id, error } : { id, result },
+        ) }));
+      }
+      close() {}
+    });
+    const backend = electrumBackend("ws://127.0.0.1:50003");
+    await backend.connect();
+    try {
+      if (error.message.includes("No such mempool or blockchain transaction")) {
+        await expect(backend.transactions(["ab".repeat(32)])).rejects.toBeInstanceOf(NotFoundError);
+      } else {
+        await expect(backend.transactions(["ab".repeat(32)])).rejects.toMatchObject(error);
+        await expect(backend.transactions(["ab".repeat(32)])).rejects.not.toBeInstanceOf(NotFoundError);
+      }
+    } finally {
+      backend.close();
+    }
   });
 });

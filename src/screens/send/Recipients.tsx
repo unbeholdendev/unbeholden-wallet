@@ -14,6 +14,8 @@ export type Draft = { key: number; address: string; amount: string; max: boolean
 
 const NAMES: Record<Network, string> = { mainnet: "mainnet", signet: "testnet or signet", regtest: "regtest", testnet3: "testnet or signet", testnet4: "testnet or signet" };
 
+export const NOT_AN_ADDRESS = "This isn't a Bitcoin address.";
+
 /** The output script and canonical spelling of an address on the wallet's network, or why there are none. */
 export function checkAddress(text: string, network: Network): { script: string; address: string } | { error: string } {
   const address = text.trim();
@@ -29,7 +31,7 @@ export function checkAddress(text: string, network: Network): { script: string; 
   }
   if (/^(bc|tb|bcrt)1/i.test(address))
     return { error: "This address has a mistake in it: its checksum doesn't match. Check every character." };
-  return { error: "This isn't a Bitcoin address." };
+  return { error: NOT_AN_ADDRESS };
 }
 
 // 21 million BTC, well inside exact integer range.

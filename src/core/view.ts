@@ -327,7 +327,7 @@ export const isOutgoing = (tx: WalletTx) => tx.inputs.some((i) => i.mine);
 /** Unix seconds: block time, else when first seen. */
 export const txWhen = (tx: WalletTx) => tx.time ?? (tx.seenAt === null ? null : Math.floor(tx.seenAt / 1000));
 
-export const feeRate = (tx: WalletTx) => (tx.fee === null ? null : Math.round((tx.fee / tx.vsize) * 10) / 10);
+export const feeRate = (tx: Pick<WalletTx, "fee" | "vsize">) => (tx.fee === null ? null : Math.round((tx.fee / tx.vsize) * 10) / 10);
 
 export const txDirection = (tx: WalletTx) =>
   !isOutgoing(tx) ? "received" : tx.outputs.every((o) => o.mine) ? "to self" : "sent";

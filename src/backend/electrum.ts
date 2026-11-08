@@ -1,7 +1,11 @@
 import { hex } from "@scure/base";
+import { RawTx } from "@scure/btc-signer";
 import {
   BroadcastError,
   ConnectionError,
+  NotFoundError,
+  scriptHash,
+  txidOf,
   type BlockHeader,
   type HistoryEntry,
   type Unsubscribe,
@@ -34,8 +38,21 @@ const PROTOCOL = "1.4";
 // https://github.com/cculianu/Fulcrum/blob/v2.1.3/doc/fulcrum-example-config.conf
 const BATCH = 100;
 const MAX_BACKOFF = 30_000;
+// OP_RETURN, which no server indexes a history for.
+// https://en.bitcoin.it/wiki/Script#Constants
+const OP_RETURN = 0x6a;
+const COINBASE = "00".repeat(32);
 
-class RpcError extends Error {}
+class RpcError extends Error {
+  readonly code: number;
+  readonly data: unknown;
+
+  constructor(error: { code: number; message: string; data?: unknown }) {
+    super(error.message);
+    this.code = error.code;
+    this.data = error.data;
+  }
+}
 
 function implementation(software: string): ServerInfo["implementation"] {
   if (/^fulcrum/i.test(software)) return "Fulcrum";
@@ -157,7 +174,7 @@ export function electrumBackend(
         const request = pending.get(message.id);
         if (!request) continue;
         pending.delete(message.id);
-        if (message.error) request.reject(new RpcError(message.error.message));
+        if (message.error) request.reject(new RpcError(message.error));
         else request.resolve(message.result);
       }
     }
@@ -232,7 +249,7 @@ export function electrumBackend(
     if (!socket) throw new Error("The backend isn't connected");
   }
 
-  return {
+  const backend: ElectrumBackend = {
     async connect() {
       setStatus("connecting");
       try {
@@ -301,9 +318,39 @@ export function electrumBackend(
       const results = await batch(
         "blockchain.transaction.get",
         txids.map((txid) => [txid]),
-      );
+      ).catch((error) => {
+        throw error instanceof RpcError && error.code === 2 &&
+          /(?:^|['"])No such mempool or blockchain transaction(?:\.|$)/.test(error.message)
+          ? new NotFoundError(error.message)
+          : error;
+      });
       return results.map((result) => hex.decode(result as string));
     },
+
+    // A raw transaction carries no height, so it is read from the history of a script it touches.
+    transactionHeights: (raws) =>
+      Promise.all(
+        raws.map(async (raw) => {
+          const tx = RawTx.decode(raw);
+          const txid = txidOf(raw);
+          let scripts = tx.outputs.map((o) => o.script).filter((script) => script[0] !== OP_RETURN);
+          const first = tx.inputs[0]!;
+          if (!scripts.length && hex.encode(first.txid) !== COINBASE) {
+            const [parent] = await backend.transactions([hex.encode(first.txid)]);
+            scripts = [RawTx.decode(parent!).outputs[first.index]!.script];
+          }
+          // The server refuses a history it thinks too large, so another script may still answer.
+          for (const script of scripts) {
+            try {
+              const [entries] = await backend.history([scriptHash(script)]);
+              return entries!.find((entry) => entry.txid === txid)?.height ?? null;
+            } catch (error) {
+              if (!(error instanceof RpcError)) throw error;
+            }
+          }
+          return null;
+        }),
+      ),
 
     async subscribeScriptHashes(scriptHashes, listener) {
       connected();
@@ -341,4 +388,5 @@ export function electrumBackend(
       }
     },
   };
+  return backend;
 }

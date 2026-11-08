@@ -200,15 +200,15 @@ describe("wallet views on the demo history", () => {
     const links = screen.getAllByRole("link").map((a) => a.getAttribute("href"));
     expect(links.indexOf(`#/tx/${DEMO_TXIDS.tom}`)).toBeLessThan(links.indexOf(`#/tx/${DEMO_TXIDS.kraken}`));
 
-    await user.type(screen.getByRole("searchbox"), "payroll");
+    await user.type(screen.getByRole("searchbox", { name: "Search transactions" }), "payroll");
     expect(screen.getAllByRole("link", { name: /Northwind payroll/ })).toHaveLength(2);
     expect(screen.queryByRole("link", { name: "Rent, October" })).toBeNull();
-    await user.clear(screen.getByRole("searchbox"));
-    await user.type(screen.getByRole("searchbox"), "0.0083");
+    await user.clear(screen.getByRole("searchbox", { name: "Search transactions" }));
+    await user.type(screen.getByRole("searchbox", { name: "Search transactions" }), "0.0083");
     expect(screen.getByRole("link", { name: "Hardware shop, SeedSigner parts" })).toBeTruthy();
 
-    await user.clear(screen.getByRole("searchbox"));
-    await user.type(screen.getByRole("searchbox"), "withdrawals");
+    await user.clear(screen.getByRole("searchbox", { name: "Search transactions" }));
+    await user.type(screen.getByRole("searchbox", { name: "Search transactions" }), "withdrawals");
     expect(shownLabels()).toEqual(["Hardware shop, SeedSigner parts"]);
   });
 
@@ -236,10 +236,10 @@ describe("wallet views on the demo history", () => {
     expect(shownLabels()).toHaveLength(61);
     expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
 
-    await user.type(screen.getByRole("searchbox"), "Kraken withdrawal, July");
+    await user.type(screen.getByRole("searchbox", { name: "Search transactions" }), "Kraken withdrawal, July");
     expect(shownLabels()).toEqual(["Kraken withdrawal, July"]);
     expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
-    await user.clear(screen.getByRole("searchbox"));
+    await user.clear(screen.getByRole("searchbox", { name: "Search transactions" }));
     expect(shownLabels()).toHaveLength(25);
     await user.click(screen.getByRole("button", { name: "Show more" }));
     await user.click(screen.getByRole("button", { name: "Filters" }));
@@ -248,7 +248,7 @@ describe("wallet views on the demo history", () => {
     expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
     await user.click(screen.getByRole("button", { name: "Clear filters" }));
     expect(shownLabels()).toHaveLength(25);
-    await user.type(screen.getByRole("searchbox"), "no matching transaction");
+    await user.type(screen.getByRole("searchbox", { name: "Search transactions" }), "no matching transaction");
     expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
     expect(screen.getByText(/Nothing matches/)).toBeTruthy();
   });
@@ -321,7 +321,7 @@ describe("wallet views on the demo history", () => {
     await screen.findByText("Ahead in the mempool");
     expect(within(facts()).queryByText("Rate with its parents")).toBeNull();
     go(`#/tx/${child.id}`);
-    await screen.findByText("50 000 sats");
+    await screen.findByText("Rate with its parents");
     expect(within(facts()).getByText("Rate with its parents").nextElementSibling!.textContent).toMatch(/^\d+(\.\d)? sat\/vB$/);
     expect(within(facts()).getByText("Expected in").nextElementSibling!.textContent).toBe("about 10 min");
   });

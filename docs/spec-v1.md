@@ -155,6 +155,12 @@ the user's own node.
 83. As a developer or tester, I want to use the wallet on signet and regtest, so that I can exercise the full signing flow without risking funds.
 84. As a wallet owner, I want to lock the app manually, so that I can leave it open without exposing my history.
 
+### Looking things up
+
+85. As a node runner, I want to search a transaction ID, an address, a block height or a raw transaction from the top bar, or scan one from a QR code on a phone, so that I do not need a separate block explorer.
+86. As a node runner, I want to open any transaction on my server and see its inputs with amounts and addresses, its outputs, fee, fee rate, size, replaceability, confirmations and block, so that I can read a transaction that is not mine.
+87. As a wallet owner, I want the inputs and outputs of a looked-up transaction that belong to one of my wallets marked with its name, so that I can see at a glance where my coins are involved.
+
 ## Implementation Decisions
 
 ### Delivery and stack
@@ -175,10 +181,18 @@ the user's own node.
 ### Backend interface
 
 - All external I/O goes through a single `WalletBackend` interface. This is both the architectural seam that keeps an Esplora implementation possible and the test seam.
-- The interface covers: fetching the chain tip, subscribing to headers, fetching history for a batch of scripthashes, fetching a batch of transactions, subscribing to scripthashes, fetching the mempool fee histogram, and broadcasting a raw transaction.
+- The interface covers: fetching the chain tip, subscribing to headers, fetching history for a batch of scripthashes, fetching a batch of transactions and the heights of their blocks, subscribing to scripthashes, fetching the mempool fee histogram, and broadcasting a raw transaction.
 - The v1 implementation is Electrum over WSS only. There is no default server, no bundled server list, and no instance operated by the project. The one exception is the demo build (`bun run build:demo`): the same app against a fake chain held in memory, served from its own origin, whose CSP allows connections only to its own origin.
 - Electrum JSON-RPC batching is used wherever more than one call of the same kind is needed. This is the primary sync performance lever and is a requirement, not an optimisation.
 - The connection screen classifies failures into distinct, actionable states: certificate rejected, connection refused, timed out, and connected-but-not-Electrum. Each has its own guidance. The guide covers the ways to give a home node a certificate the browser trusts, with no one way favoured.
+
+### Search and lookup
+
+- A search field sits in the top bar; on a phone it is an icon that opens a sheet with the field and a QR scan button. It takes a txid, an address on the wallet's network (or the server's, with no wallet imported), a block height or raw transaction hex. An address on another network is refused with that network named. A 64-hex string that matches no transaction says block hashes are not supported and to search by height.
+- `#/tx/<txid>` is one route: a transaction of the selected wallet keeps its screen, and any other gets the lookup view. Lookups work with an unlocked vault and a server but no wallet imported.
+- A lookup is `blockchain.transaction.get`, then one batch for the transactions its inputs spend. A raw transaction carries no height, so on Electrum the height comes from `get_history` of one of its output scripts, or of an input's previous output script when every output is unspendable. Esplora uses `/tx/:txid/hex` and `/tx/:txid/status`.
+- Inputs and outputs that belong to an open wallet session are marked with the wallet's name.
+- No lookup cache: a view fetches when it opens and again on a new block. Nothing looked up is written to the vault, and no looked-up script is subscribed to.
 
 ### Storage
 
@@ -279,7 +293,7 @@ SeedSigner on a real phone before the surrounding UI is built.
 ## Out of Scope
 
 Explicitly excluded from v1. Each deferred item has a `needs-triage` issue; the
-last two are standing decisions and have none.
+last four are standing decisions and have none.
 
 - Taproot multisig, wrapped `sh(wsh(...))` multisig and miniscript (#92).
 - Hardware wallets over WebUSB or WebHID (Ledger, Trezor). The QR and file paths
@@ -303,6 +317,11 @@ last two are standing decisions and have none.
 - Any server operated by the project: no default Electrum endpoint, no bundled
   server list, no proxy. The demo build talks to no Bitcoin server at all.
 - Mandatory on-device address verification.
+- A block's transaction list, or a block looked up by hash. Electrum has no call
+  for either; `blockchain.transaction.id_from_pos` would take one call per
+  transaction.
+- Pool attribution, projected next blocks, node status (peers, sync, uptime),
+  chain-wide stats and charts. These need bitcoind RPC or an indexer.
 
 ## Further Notes
 

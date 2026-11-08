@@ -4,7 +4,9 @@ import { sha256x2 } from "@scure/btc-signer/utils.js";
 import {
   BroadcastError,
   ConnectionError,
+  NotFoundError,
   scriptHash,
+  txidOf,
   type BlockHeader,
   type ConnectionFailure,
   type FeeBucket,
@@ -222,9 +224,14 @@ export function fakeBackend(fixture: Partial<Fixture> = {}): FakeBackend {
       requireConnection();
       return txids.map((txid) => {
         const found = known.get(txid);
-        if (!found) throw new Error(`No transaction ${txid}`);
+        if (!found) throw new NotFoundError(`No transaction ${txid}`);
         return found.raw;
       });
+    },
+
+    async transactionHeights(raws) {
+      requireConnection();
+      return raws.map((raw) => known.get(txidOf(raw))?.height ?? null);
     },
 
     async subscribeScriptHashes(scriptHashes, listener): Promise<Unsubscribe> {

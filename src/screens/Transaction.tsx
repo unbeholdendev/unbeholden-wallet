@@ -8,8 +8,9 @@ import type { FeeBucket } from "../backend/backend";
 import { Amount, groupSats } from "../ui/amount";
 import { confText, dateText, satsText, shortId, timeText, txFallback } from "../ui/format";
 import { Icon } from "../ui/icons";
-import { Button, Chip, Empty, linkClass } from "../ui/kit";
+import { Button, Chip, linkClass } from "../ui/kit";
 import { effectiveFeeRate, mempoolPosition, type MempoolTx } from "../wallet/fees";
+import { Lookup } from "./Lookup";
 import { CopyButton, EditableLabel, GroupedAddress, Opening } from "./parts";
 import { eta, mvb, rateText, useFeeHistogram } from "./send/fees";
 
@@ -111,16 +112,7 @@ export function Transaction({ txid }: { txid: string | undefined }) {
   const snapshot = useWalletSnapshot();
   if (!snapshot) return <Opening title="Transaction" />;
   const tx = snapshot.transactions.find((t) => t.txid === txid);
-  if (!tx)
-    return (
-      <div className="grid content-start gap-4">
-        <Back />
-        <Empty title="This wallet has no such transaction">
-          <p className="m-0">It may belong to another wallet, or a reorganisation removed it.</p>
-          {txid && <p className="m-0 mt-2 font-mono text-[0.86em] break-all text-ink-3">{txid}</p>}
-        </Empty>
-      </div>
-    );
+  if (!tx) return <Lookup txid={txid} />;
 
   const outgoing = isOutgoing(tx);
   const pending = tx.confirmations === 0;

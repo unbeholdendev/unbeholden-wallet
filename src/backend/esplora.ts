@@ -1,5 +1,5 @@
 import { hex } from "@scure/base";
-import { BroadcastError, ConnectionError, type BlockHeader, type HistoryEntry } from "./backend";
+import { BroadcastError, ConnectionError, NotFoundError, txidOf, type BlockHeader, type HistoryEntry } from "./backend";
 import type { ConnectionStatus, ElectrumBackend } from "./electrum";
 import { handshake } from "./handshake";
 
@@ -205,7 +205,24 @@ export function esploraBackend(
       );
     },
 
-    transactions: (txids) => Promise.all(txids.map(async (txid) => hex.decode(await get(`/tx/${txid}/hex`)))),
+    transactions: (txids) =>
+      Promise.all(
+        txids.map(async (txid) => {
+          try {
+            return hex.decode(await get(`/tx/${txid}/hex`));
+          } catch (error) {
+            throw error instanceof HttpError && error.status === 404 ? new NotFoundError(error.body) : error;
+          }
+        }),
+      ),
+
+    transactionHeights: (raws) =>
+      Promise.all(
+        raws.map(async (raw) => {
+          const status = JSON.parse(await get(`/tx/${txidOf(raw)}/status`)) as Tx["status"];
+          return status.confirmed ? status.block_height! : null;
+        }),
+      ),
 
     async subscribeScriptHashes(scriptHashes, listener) {
       connected();

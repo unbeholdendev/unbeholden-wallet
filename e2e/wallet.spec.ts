@@ -67,3 +67,37 @@ test("custom explorer links stay idle until opened and fit phone and desktop scr
   }
   expect(requests).toEqual([]);
 });
+
+for (const width of [390, 1280])
+  test(`searching a txid at ${width}px opens the lookup view`, async ({ page }) => {
+    await page.setViewportSize({ width, height: width < 720 ? 844 : 800 });
+    await open(page);
+    // The dev server serves the fixture module, which Node cannot load for import.meta.env.
+    const txid: string = await page.evaluate(async (path) => (await import(path)).DEMO_FOREIGN.pending, "/src/backend/fixture.ts");
+    if (width < 1024) await page.getByRole("button", { name: "Search the chain" }).click();
+    const box = page.getByRole("searchbox", { name: "Search the chain" });
+    await box.fill(txid);
+    await box.press("Enter");
+    await expect(page.getByRole("heading", { name: "Transaction", exact: true })).toBeVisible();
+    await expect(page.getByText("Waiting for a block")).toBeVisible();
+    await expect(page.getByRole("dialog")).toBeHidden();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await page.screenshot({ path: `test-results/wallet-views/lookup-${width}.png`, fullPage: true });
+  });
+
+test("long wallet names leave the header controls in view", async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => (location.hash = "#/settings"));
+  await page.getByRole("button", { name: /^Rename / }).first().click();
+  await page.getByLabel(/^New name for /).fill("Long wallet name ".repeat(30));
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await page.evaluate(() => (location.hash = "#/home"));
+  for (const width of [390, 720, 1024, 1280]) {
+    await page.setViewportSize({ width, height: 844 });
+    const header = page.locator("header").first();
+    await expect(header.getByRole("button", { name: "Lock", exact: true })).toBeInViewport({ ratio: 1 });
+    await expect(header.getByRole("link", { name: "Settings", exact: true })).toBeInViewport({ ratio: 1 });
+    await expect(header.getByRole(width < 1024 ? "button" : "searchbox", { name: "Search the chain" })).toBeInViewport({ ratio: 1 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  }
+});

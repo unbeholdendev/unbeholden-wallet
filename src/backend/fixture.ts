@@ -54,6 +54,16 @@ const tom = pay(6, mine(0, 5), 650_000, 990);
 const rent = tx([[id(payrollAug), 0]], [[theirs(31), 1_450_000], [mine(1, 1), 1_048_560]]);
 const meridian = pay(7, mine(0, 6), 300_000, 1_400);
 
+const strangerPaid = tx([[id(faucet), 8]], [[theirs(40), 12_000_000], [theirs(41), 37_998_600]]);
+const strangerPending = tx([[id(meridian), 1]], [[theirs(40), 40_000_000], [theirs(42), 9_697_100]]);
+
+/** Transactions and an address the demo wallet does not own, to look up. */
+export const DEMO_FOREIGN = {
+  confirmed: id(strangerPaid),
+  pending: id(strangerPending),
+  address: derivePayment(others, "mainnet", 0, 40).address!,
+};
+
 export const DEMO_TXIDS = {
   kraken: id(kraken),
   bisq: id(bisq),
@@ -76,14 +86,15 @@ const placed: [number, Uint8Array][] = [
   [47, payrollAug],
   [42, hardware],
   [16, payrollSep],
+  [30, strangerPaid],
 ];
 
-/** A fresh fake server holding the demo history, with two payments still in the mempool. */
+/** A fresh fake server holding the demo history, with two of its payments and a stranger's still in the mempool. */
 export function demoBackend() {
   const blocks: Uint8Array[][] = Array.from({ length: DEMO_TIP - START + 1 }, () => []);
   for (const [d, raw] of placed) blocks[daysAgo(d) - START]!.push(raw);
   blocks[DEMO_TIP - 2 - START]!.push(tom);
-  return fakeBackend({ startHeight: START, blocks, mempool: [rent, meridian] });
+  return fakeBackend({ startHeight: START, blocks, mempool: [rent, meridian, strangerPending] });
 }
 
 /** A locked vault holding the demo wallet, synced once, with its labels. */

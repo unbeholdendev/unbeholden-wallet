@@ -5,6 +5,7 @@ import { walletDescriptor } from "../core/wallets";
 import type { SendDraft } from "../screens/send/Send";
 import { log } from "../log";
 import type { Store } from "../vault/vault";
+import type { Network } from "../wallet/network";
 import { walletKind } from "../wallet/select";
 import { useConnection } from "./connection";
 import { useVault } from "./vault";
@@ -140,4 +141,22 @@ export function useWallet() {
     const descriptor = walletDescriptor(record);
     return { record, descriptor, network: record.network, kind: walletKind(descriptor) };
   }, [record]);
+}
+
+/** Each address the open wallets watch, by the name of the wallet that owns it. */
+export function useOwners(): Map<string, string> {
+  const snapshot = useWalletSnapshot();
+  const { wallets } = useVault();
+  return useMemo(() => {
+    const name = wallets.find((w) => w.id === snapshot?.id)?.name;
+    const owned = snapshot ? [...snapshot.addresses.receive, ...snapshot.addresses.change] : [];
+    return new Map(name === undefined ? [] : owned.map((a) => [a.address, name]));
+  }, [snapshot, wallets]);
+}
+
+/** The selected wallet's network, else the server's, for reading addresses with no wallet imported. */
+export function useNetwork(): Network {
+  const { wallets, walletId } = useVault();
+  const { connection } = useConnection();
+  return wallets.find((w) => w.id === walletId)?.network ?? (connection.phase !== "idle" && connection.phase !== "failed" ? connection.network : null) ?? "mainnet";
 }
