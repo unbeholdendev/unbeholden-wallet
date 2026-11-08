@@ -194,7 +194,7 @@ the user's own node.
 - `#/tx/<txid>` is one route: a transaction of the selected wallet keeps its screen, and any other gets the lookup view. Lookups work with an unlocked vault and a server but no wallet imported.
 - A lookup is `blockchain.transaction.get`, then one batch for the transactions its inputs spend. A raw transaction carries no height, so on Electrum the height comes from `get_history` of one of its output scripts, or of an input's previous output script when every output is unspendable. Esplora uses `/tx/:txid/hex` and `/tx/:txid/status`.
 - `#/broadcast` tells a PSBT from a raw transaction by the PSBT magic bytes; search sends raw hex to `#/broadcast/<hex>`. A raw transaction is decoded with one batch for the transactions its inputs spend; an input the server has no transaction for shows no amount, and the fee is then unknown. It broadcasts with `blockchain.transaction.broadcast` (Esplora `POST /tx`), and a rejection shows the node's reason verbatim. It works with no wallet imported, and is written to a wallet session only when it touches one of its addresses.
-- Inputs and outputs that belong to an open wallet session are marked with the wallet's name.
+- Inputs and outputs that belong to any wallet in the vault are marked with the wallet's name.
 - `#/block/<height>` shows the block's hash, time, difficulty and confirmations, read from its header alone (`blockchain.block.header`; Esplora's `/block-height/:height` then `/block/:hash/header`). It links the previous block, and the next one once it exists. A height above the tip says it is not mined yet and gives the tip.
 - No lookup cache: a view fetches when it opens and again on a new block. Nothing looked up is written to the vault, and no looked-up script is subscribed to.
 
@@ -210,6 +210,8 @@ the user's own node.
 
 - Default gap limit of 20 per chain, with an explicit user-triggered deeper scan.
 - Delta sync against the stored chain tip on return visits. Full history is only fetched once.
+- Every wallet in the vault opens on unlock and stays synced over the one connection. The selected wallet opens first, and the return-visit target applies to it; the others follow. Switching wallets shows the wallet already open and does not sync it again.
+- A transaction with no label that pays, or is paid by, another wallet in the vault is shown as "To" or "From" that wallet's name. A payment notification for a wallet other than the selected one names it.
 - Subscriptions are taken on the chain tip and on addresses within the active gap window. Addresses outside it are polled on new blocks.
 - Performance targets are treated as acceptance criteria: a return visit is interactive in under one second, and a first sync of a wallet with roughly 500 transactions completes in under ten seconds against a local Fulcrum.
 - Reorg handling is deliberately blunt. When an incoming header does not extend the stored tip, the wallet's cached chain data is discarded, the wallet re-syncs, and the user is told it happened. Surgical invalidation is not worth the edge cases.

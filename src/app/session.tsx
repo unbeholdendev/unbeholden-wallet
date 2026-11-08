@@ -1,5 +1,5 @@
 import { hex } from "@scure/base";
-import { createContext, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { openWallet, type WalletSession, type WalletSnapshot } from "../core/wallet";
 import { walletDescriptor } from "../core/wallets";
 import type { SendDraft } from "../screens/send/Send";
@@ -10,6 +10,7 @@ import { walletKind } from "../wallet/select";
 import { useConnection } from "./connection";
 import { useVault } from "./vault";
 
+const SessionsContext = createContext<ReadonlyMap<string, WalletSession>>(new Map());
 const SessionContext = createContext<WalletSession | null>(null);
 const DraftContext = createContext<[SendDraft | null, Dispatch<SetStateAction<SendDraft | null>>]>([null, () => {}]);
 const SkipContext = createContext(new Map<string, string>());
@@ -36,48 +37,88 @@ async function loadSend(vault: Store, walletId: string): Promise<SendDraft | nul
   return { ...saved, built: { ...built, psbt: hex.decode(psbt), signed: bytes(signed), partial: bytes(partial) } };
 }
 
+function without<T>(all: ReadonlyMap<string, T>, id: string): ReadonlyMap<string, T> {
+  if (!all.has(id)) return all;
+  const rest = new Map(all);
+  rest.delete(id);
+  return rest;
+}
+
+type Pool = { opening: Map<string, Promise<WalletSession | null>>; closed: boolean };
+
 /**
- * Opens the selected wallet, syncs it while the connection is up, and closes
- * it on a switch, a server change, a restored backup or a lock. Holds the
- * selected wallet's unfinished send, kept in the vault once its PSBT is built,
- * and each wallet's skipped receive address until the lock.
+ * Opens every wallet in the vault, the selected one first, syncs them while
+ * the connection is up, and closes them on a server change, a restored backup
+ * or a lock, or one on its removal. Holds the selected wallet's unfinished
+ * send, kept in the vault once its PSBT is built, and each wallet's skipped
+ * receive address until the lock.
  */
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const { vault, walletId, settings, restored } = useVault();
+  const { vault, wallets, walletId, settings, restored } = useVault();
   const { backend, connection } = useConnection();
   const live = connection.phase === "connected" ? backend : null;
   const liveNow = useRef(live);
   liveNow.current = live;
-  const [session, setSession] = useState<WalletSession | null>(null);
-  const [failed, setFailed] = useState<string | null>(null);
-  const [attempt, setAttempt] = useState(0);
+  const [pool, setPool] = useState<Pool | null>(null);
+  const [sessions, setSessions] = useState<ReadonlyMap<string, WalletSession>>(new Map());
+  const [failures, setFailures] = useState<ReadonlyMap<string, string>>(new Map());
   const skips = useRef(new Map<string, string>()).current;
   const draft = useState<SendDraft | null>(null);
   const setDraft = draft[1];
 
   useEffect(() => {
-    if (!walletId || !settings.server) return;
-    let open: WalletSession | null = null;
-    let cancelled = false;
-    openWallet(vault, walletId, null).then(
-      (opened) => (cancelled ? opened.close() : (opened.use(liveNow.current), setSession((open = opened)))),
-      (error) => {
-        const message = String((error as Error)?.message ?? error);
-        log("wallet open failed", { message });
-        if (!cancelled) setFailed(message);
-      },
-    );
+    if (!settings.server) return;
+    const next: Pool = { opening: new Map(), closed: false };
+    setPool(next);
     return () => {
-      cancelled = true;
-      open?.close();
-      setSession(null);
-      setFailed(null);
+      next.closed = true;
+      for (const opening of next.opening.values()) opening.then((session) => session?.close());
+      setPool(null);
+      setSessions(new Map());
+      setFailures(new Map());
     };
-  }, [vault, walletId, settings.server, attempt, restored]);
+  }, [vault, settings.server, restored]);
 
   useEffect(() => {
-    session?.use(live);
-  }, [session, live]);
+    if (!pool) return;
+    const present = new Set(wallets.map((w) => w.id));
+    for (const [id, opening] of pool.opening) {
+      if (present.has(id)) continue;
+      pool.opening.delete(id);
+      opening.then((session) => session?.close());
+      setSessions((all) => without(all, id));
+      setFailures((all) => without(all, id));
+    }
+    const open = (id: string, after: Promise<unknown>) => {
+      const current = () => !pool.closed && pool.opening.get(id) === opening;
+      const opening: Promise<WalletSession | null> = after
+        .then(() => (current() ? openWallet(vault, id, null) : null))
+        .then(
+          (session) => {
+            if (session && !current()) return session.close(), null;
+            if (session) {
+              session.use(liveNow.current);
+              setSessions((all) => new Map(all).set(id, session));
+            }
+            return session;
+          },
+          (error) => {
+            const message = String((error as Error)?.message ?? error);
+            log("wallet open failed", { message });
+            if (current()) setFailures((all) => new Map(all).set(id, message));
+            return null;
+          },
+        );
+      pool.opening.set(id, opening);
+    };
+    if (walletId && !pool.opening.has(walletId)) open(walletId, Promise.resolve());
+    const first = (walletId && pool.opening.get(walletId)) || Promise.resolve();
+    for (const id of present) if (!pool.opening.has(id)) open(id, first);
+  }, [pool, wallets, walletId, failures]);
+
+  useEffect(() => {
+    for (const session of sessions.values()) session.use(live);
+  }, [sessions, live]);
 
   const loaded = useRef<string | null>(null);
   useEffect(() => {
@@ -100,16 +141,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (walletId && loaded.current === walletId) saveSend(vault, walletId, draft[0]).catch(() => {});
   }, [built]);
 
+  const session = (walletId && sessions.get(walletId)) || null;
+  const failed = walletId ? failures.get(walletId) : undefined;
+  const retry = () => {
+    pool?.opening.delete(walletId!);
+    setFailures((all) => without(all, walletId!));
+  };
   return (
-    <SessionContext.Provider value={session}>
-      <DraftContext.Provider value={draft}>
-        <SkipContext.Provider value={skips}>
-          <FailedContext.Provider value={failed === null ? null : { message: failed, retry: () => setAttempt((n) => n + 1) }}>
-            {children}
-          </FailedContext.Provider>
-        </SkipContext.Provider>
-      </DraftContext.Provider>
-    </SessionContext.Provider>
+    <SessionsContext.Provider value={sessions}>
+      <SessionContext.Provider value={session}>
+        <DraftContext.Provider value={draft}>
+          <SkipContext.Provider value={skips}>
+            <FailedContext.Provider value={failed === undefined ? null : { message: failed, retry }}>
+              {children}
+            </FailedContext.Provider>
+          </SkipContext.Provider>
+        </DraftContext.Provider>
+      </SessionContext.Provider>
+    </SessionsContext.Provider>
   );
 }
 
@@ -143,15 +192,40 @@ export function useWallet() {
   }, [record]);
 }
 
+/** Every open wallet's session, by wallet id. */
+export const useWalletSessions = () => useContext(SessionsContext);
+
+/** Every open wallet's live snapshot. */
+function useSnapshots(): WalletSnapshot[] {
+  const sessions = useWalletSessions();
+  const last = useRef<WalletSnapshot[]>([]);
+  const subscribe = useCallback(
+    (listener: () => void) => {
+      const stops = [...sessions.values()].map((session) => session.subscribe(listener));
+      return () => stops.forEach((stop) => stop());
+    },
+    [sessions],
+  );
+  return useSyncExternalStore(subscribe, () => {
+    const now = [...sessions.values()].map((session) => session.getSnapshot());
+    if (now.length !== last.current.length || now.some((snapshot, i) => snapshot !== last.current[i])) last.current = now;
+    return last.current;
+  });
+}
+
 /** Each address the open wallets watch, by the name of the wallet that owns it. */
 export function useOwners(): Map<string, string> {
-  const snapshot = useWalletSnapshot();
+  const snapshots = useSnapshots();
   const { wallets } = useVault();
   return useMemo(() => {
-    const name = wallets.find((w) => w.id === snapshot?.id)?.name;
-    const owned = snapshot ? [...snapshot.addresses.receive, ...snapshot.addresses.change] : [];
-    return new Map(name === undefined ? [] : owned.map((a) => [a.address, name]));
-  }, [snapshot, wallets]);
+    const names = new Map(wallets.map((w) => [w.id, w.name]));
+    return new Map(
+      snapshots.flatMap((snapshot) => {
+        const name = names.get(snapshot.id);
+        return name === undefined ? [] : [...snapshot.addresses.receive, ...snapshot.addresses.change].map((a) => [a.address, name] as const);
+      }),
+    );
+  }, [snapshots, wallets]);
 }
 
 /** The selected wallet's network, else the server's, for reading addresses with no wallet imported. */

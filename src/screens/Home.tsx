@@ -3,7 +3,7 @@ import { FiatControl } from "../ui/fiat";
 import { useEffect, useState } from "react";
 import { useConnection } from "../app/connection";
 import { navigate } from "../app/route";
-import { useSendDraft, useWalletSession, useWalletSnapshot } from "../app/session";
+import { useOwners, useSendDraft, useWalletSession, useWalletSnapshot } from "../app/session";
 import { useUnit, useVault } from "../app/vault";
 import { feeRate, isOutgoing, txDirection, txWhen } from "../core/view";
 import type { WalletSnapshot, WalletTx } from "../core/wallet";
@@ -112,12 +112,12 @@ function Balance({ snapshot }: { snapshot: WalletSnapshot }) {
   );
 }
 
-function haystack(tx: WalletTx) {
+function haystack(tx: WalletTx, owners: ReadonlyMap<string, string>) {
   const when = txWhen(tx);
   const abs = Math.abs(tx.net);
   const { lead, rest } = btcParts(abs);
   return [
-    tx.label ?? txFallback(tx),
+    tx.label ?? txFallback(tx, owners),
     tx.txid,
     lead + rest,
     (abs / 1e8).toFixed(8),
@@ -129,7 +129,7 @@ function haystack(tx: WalletTx) {
     .toLowerCase();
 }
 
-function HistoryRow({ tx }: { tx: WalletTx }) {
+function HistoryRow({ tx, owners }: { tx: WalletTx; owners: ReadonlyMap<string, string> }) {
   const when = txWhen(tx);
   const outgoing = isOutgoing(tx);
   const pending = tx.confirmations === 0;
@@ -148,7 +148,7 @@ function HistoryRow({ tx }: { tx: WalletTx }) {
       </span>
       <span className="col-start-1 row-start-1 flex min-w-0 items-baseline gap-1.5 @min-[640px]:col-start-2 [&:has(input)>a]:hidden [&>input]:flex-1">
         <a href={`#/tx/${tx.txid}`} className={`min-w-0 truncate font-medium no-underline after:absolute after:inset-0 ${tx.label ? "text-ink" : "text-ink-2"}`}>
-          {tx.label ?? txFallback(tx)}
+          {tx.label ?? txFallback(tx, owners)}
         </a>
         <EditableLabel type="tx" target={tx.txid} value={tx.label} placeholder="Label this transaction" className="relative z-[1] text-sm">
           <span className="sr-only">{tx.label ?? "Label this transaction"}</span>
@@ -193,6 +193,7 @@ const smallInput = "min-h-9 w-full rounded-control border border-rule-2 bg-sheet
 const localDay = (seconds: number) => new Date(seconds * 1000).toLocaleDateString("en-CA");
 
 function History({ snapshot }: { snapshot: WalletSnapshot }) {
+  const owners = useOwners();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [filters, setFilters] = useState(noFilters);
@@ -217,7 +218,7 @@ function History({ snapshot }: { snapshot: WalletSnapshot }) {
     if (filters.to && (day === null || day > filters.to)) return false;
     if ((min !== null && abs < min) || (max !== null && abs > max)) return false;
     if (!terms.length) return true;
-    const text = haystack(tx);
+    const text = haystack(tx, owners);
     return terms.every((t) => text.includes(t));
   });
   return (
@@ -278,7 +279,7 @@ function History({ snapshot }: { snapshot: WalletSnapshot }) {
       {shown.length ? (
         <ul className="m-0 list-none p-0">
           {shown.slice(0, limit).map((tx) => (
-            <HistoryRow key={tx.txid} tx={tx} />
+            <HistoryRow key={tx.txid} tx={tx} owners={owners} />
           ))}
         </ul>
       ) : (

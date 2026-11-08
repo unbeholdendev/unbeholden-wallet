@@ -3,7 +3,7 @@ import { RawTx } from "@scure/btc-signer";
 import { useEffect, useMemo, useState } from "react";
 import { useConnection } from "../../app/connection";
 import { navigate } from "../../app/route";
-import { useNetwork, useOwners, useWalletSession } from "../../app/session";
+import { useNetwork, useWalletSessions } from "../../app/session";
 import { decodeTransaction, type DecodedTx } from "../../core/lookup";
 import { hostText } from "../../ui/format";
 import { Button, Chip, Empty, linkClass } from "../../ui/kit";
@@ -24,8 +24,7 @@ export function BroadcastRaw({ text }: { text: string }) {
   const { backend, connection } = useConnection();
   const live = connection.phase === "connected" ? backend : null;
   const network = useNetwork();
-  const owners = useOwners();
-  const session = useWalletSession();
+  const sessions = useWalletSessions();
   const raw = useMemo(() => parseRaw(text), [text]);
   const [decoded, setDecoded] = useState<{ raw: Uint8Array; tx: DecodedTx } | { raw: Uint8Array; error: string } | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
@@ -72,7 +71,12 @@ export function BroadcastRaw({ text }: { text: string }) {
     setFailure(null);
     try {
       const txid = await live.broadcast(raw);
-      if (session && [...tx.inputs, ...tx.outputs].some((e) => e.address && owners.has(e.address))) await session.addTransaction(raw);
+      const touched = new Set([...tx.inputs, ...tx.outputs].map((e) => e.address));
+      const touching = [...sessions.values()].filter((session) => {
+        const { receive, change } = session.getSnapshot().addresses;
+        return [...receive, ...change].some((a) => touched.has(a.address));
+      });
+      await Promise.all(touching.map((session) => session.addTransaction(raw)));
       navigate(`/tx/${txid}`);
     } catch (e) {
       setFailure((e as Error).message);

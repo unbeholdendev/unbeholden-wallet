@@ -1,16 +1,19 @@
+import { hex } from "@scure/base";
 import { Address, OutScript, Transaction as Tx } from "@scure/btc-signer";
 import { act, cleanup, configure, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../App";
+import { scriptHash, txidOf } from "../backend/backend";
 import type { ConnectionStatus } from "../backend/electrum";
 import { fakeBackend, type FakeBackend } from "../backend/fake";
-import { demoBackend, DEMO_DESCRIPTOR, DEMO_TXIDS, seedDemoVault } from "../backend/fixture";
+import { demoBackend, DEMO_DESCRIPTOR, DEMO_FOREIGN, DEMO_TXIDS, seedDemoVault } from "../backend/fixture";
 import { createWallet, saveSettings } from "../core/wallets";
 import { createVault, destroyVault, unlockVault } from "../vault/vault";
 import { deriveAddress } from "../wallet/derive";
 import { parseDescriptor } from "../wallet/descriptor";
 import { NETWORKS } from "../wallet/network";
+import { BIP86_XPUB } from "../wallet/vectors";
 import { bip21 } from "./Receive";
 import { parseUri } from "./send/Recipients";
 
@@ -527,6 +530,131 @@ describe("a wallet with no history", () => {
     await openApp();
     expect(await screen.findByRole("heading", { name: "No transactions yet" })).toBeTruthy();
     expect(within(screen.getByRole("heading", { name: "No transactions yet" }).parentElement!).getByRole("link", { name: "Receive" })).toBeTruthy();
+  });
+});
+
+describe("every wallet in the vault", () => {
+  // The demo's stranger, who paid and was paid by the demo wallet.
+  const SAVINGS = `wpkh(${BIP86_XPUB}/0/*)`;
+  const savings = parseDescriptor(SAVINGS, "mainnet");
+  const spending = parseDescriptor(DEMO_DESCRIPTOR, "mainnet");
+  const script = (address: string) => OutScript.encode(Address(NETWORKS.mainnet).decode(address));
+  const hashOf = (descriptor: typeof savings, index: number) => scriptHash(script(deriveAddress(descriptor, "mainnet", 0, index)));
+  let asked: string[][];
+  let watched: string[];
+
+  const recording = () => {
+    const backend = demoBackend();
+    const history = backend.history;
+    const subscribe = backend.subscribeScriptHashes;
+    backend.history = (hashes) => (asked.push(hashes), history(hashes));
+    backend.subscribeScriptHashes = (hashes, listener) => (watched.push(...hashes), subscribe(hashes, listener));
+    return backend;
+  };
+
+  /** Spends the demo wallet's Bisq coin to a Savings address it has not used. */
+  const transfer = () => {
+    const tx = new Tx({ allowUnknownInputs: true, allowUnknownOutputs: true, disableScriptCheck: true });
+    tx.addInput({ txid: DEMO_TXIDS.bisq, index: 0 });
+    tx.addOutput({ script: script(deriveAddress(savings, "mainnet", 0, 45)), amount: 5_840_000n });
+    for (const b of backends) b.addToMempool(tx.unsignedTx);
+    return tx.id;
+  };
+
+  const switchTo = async (user: ReturnType<typeof userEvent.setup>, name: string) => {
+    await user.click(document.querySelector("header summary")!);
+    await user.click(screen.getByRole("button", { name: new RegExp(`^${name}`) }));
+  };
+
+  const rowText = (txid: string) => document.querySelector(`a[href="#/tx/${txid}"]`)?.textContent;
+
+  beforeEach(async () => {
+    asked = [];
+    watched = [];
+    const vault = await unlockVault(PASSPHRASE);
+    await createWallet(vault, { name: "Savings", descriptor: SAVINGS, network: "mainnet" });
+    vault.lock();
+  });
+
+  it("syncs the selected wallet first", async () => {
+    await openApp("#/home", recording);
+    await waitFor(() => expect(asked.flat()).toContain(hashOf(savings, 0)));
+    expect(asked[0]).toContain(hashOf(spending, 0));
+    expect(asked[0]).not.toContain(hashOf(savings, 0));
+  });
+
+  it("keeps a wallet that isn't selected up to date with the mempool", async () => {
+    const user = await openApp("#/home", recording);
+    await waitFor(() => expect(watched).toContain(hashOf(savings, 45)));
+    const before = asked.length;
+    const txid = transfer();
+    await waitFor(() => expect(asked.slice(before).flat()).toContain(hashOf(savings, 45)));
+    await switchTo(user, "Savings");
+    await waitFor(() => expect(rowText(txid)).toBe("From Spending"));
+  });
+
+  it("doesn't sync again on a switch", async () => {
+    const user = await openApp("#/home", recording);
+    await waitFor(() => expect(asked.flat()).toContain(hashOf(savings, 0)));
+    const before = asked.length;
+    await switchTo(user, "Savings");
+    await screen.findByText(/Up to date at block 153.500/);
+    await switchTo(user, "Spending");
+    await screen.findByText(/Up to date at block 153.500/);
+    const since = asked.slice(before).flat();
+    expect(since).not.toContain(hashOf(savings, 0));
+    expect(since).not.toContain(hashOf(spending, 0));
+  });
+
+  it("labels a transfer between two wallets on both sides", async () => {
+    const user = await openApp("#/home", recording);
+    await waitFor(() => expect(watched).toContain(hashOf(savings, 45)));
+    const txid = transfer();
+    await waitFor(() => expect(rowText(txid)).toBe("To Savings"));
+    go(`#/tx/${txid}`);
+    expect(await screen.findByRole("heading", { level: 1, name: "To Savings" })).toBeTruthy();
+    go("#/home");
+    await switchTo(user, "Savings");
+    await waitFor(() => expect(rowText(txid)).toBe("From Spending"));
+  });
+
+  it("adds a broadcast raw transaction to the wallet it pays, not the selected one", async () => {
+    const tx = new Tx({ allowUnknownInputs: true, allowUnknownOutputs: true, disableScriptCheck: true });
+    tx.addInput({ txid: DEMO_FOREIGN.confirmed, index: 1 });
+    tx.addOutput({ script: script(deriveAddress(savings, "mainnet", 0, 45)), amount: 37_990_000n });
+    const user = await openApp("#/home", () => {
+      const backend = recording();
+      backend.broadcast = async (raw) => txidOf(raw);
+      return backend;
+    });
+    await waitFor(() => expect(watched).toContain(hashOf(savings, 45)));
+    go(`#/broadcast/${hex.encode(tx.unsignedTx)}`);
+    await user.click(await screen.findByRole("button", { name: "Broadcast through your server" }));
+    await waitFor(() => expect(location.hash).toBe(`#/tx/${tx.id}`));
+    go("#/home");
+    expect(rowText(tx.id)).toBeUndefined();
+    await switchTo(user, "Savings");
+    await waitFor(() => expect(rowText(tx.id)).toBeTruthy());
+  });
+
+  it("notifies of a payment to a wallet that isn't selected, naming it", async () => {
+    const shown: unknown[][] = [];
+    vi.stubGlobal(
+      "Notification",
+      class {
+        static permission = "granted";
+        static requestPermission = async () => "granted";
+        constructor(...args: unknown[]) {
+          shown.push(args);
+        }
+      },
+    );
+    const user = await openApp("#/settings", recording);
+    await user.click(screen.getByRole("checkbox", { name: "Tell me when a payment arrives and when it confirms" }));
+    await waitFor(() => expect(watched).toContain(hashOf(savings, 45)));
+    const txid = transfer();
+    await waitFor(() => expect(shown).toEqual([["A payment arrived in Savings", { tag: txid }]]));
+    vi.unstubAllGlobals();
   });
 });
 

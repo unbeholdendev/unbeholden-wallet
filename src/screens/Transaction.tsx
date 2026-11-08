@@ -2,7 +2,7 @@ import { TxFiat } from "../app/fiat";
 import { ExplorerLink } from "../ui/explorer";
 import type { ReactNode } from "react";
 import { navigate } from "../app/route";
-import { useWalletSnapshot } from "../app/session";
+import { useOwners, useWalletSnapshot } from "../app/session";
 import { feeRate, isOutgoing, txWhen, type AddressInfo, type TxInput, type TxOutput, type WalletTx } from "../core/view";
 import type { FeeBucket } from "../backend/backend";
 import { Amount, groupSats } from "../ui/amount";
@@ -110,6 +110,7 @@ function Facts({ tx, transactions }: { tx: WalletTx; transactions: WalletTx[] })
 
 export function Transaction({ txid }: { txid: string | undefined }) {
   const snapshot = useWalletSnapshot();
+  const owners = useOwners();
   if (!snapshot) return <Opening title="Transaction" />;
   const tx = snapshot.transactions.find((t) => t.txid === txid);
   if (!tx) return <Lookup txid={txid} />;
@@ -123,7 +124,7 @@ export function Transaction({ txid }: { txid: string | undefined }) {
       <div className="grid items-start gap-6 @min-[900px]/app:grid-cols-[minmax(0,1fr)_360px]">
         <section className="grid gap-4 rounded-panel border border-rule bg-sheet p-4 @min-[900px]/app:col-start-2 @min-[900px]/app:row-start-1">
           <div className="grid gap-1">
-            <h1 className="m-0 text-lg font-bold">{tx.label ? <EditableLabel type="tx" target={tx.txid} value={tx.label} /> : txFallback(tx)}</h1>
+            <h1 className="m-0 text-lg font-bold">{tx.label ? <EditableLabel type="tx" target={tx.txid} value={tx.label} /> : txFallback(tx, owners)}</h1>
             {!tx.label && (
               <EditableLabel type="tx" target={tx.txid} value={null} placeholder="Label this transaction" className="justify-self-start text-sm">
                 <span className="text-carbon underline decoration-1 underline-offset-3">Label this transaction</span>

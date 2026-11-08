@@ -10,11 +10,17 @@ export const hostText = (url: string) => {
   }
 };
 
-/** For a transaction with no label: the label on a coin it paid in or a payment it made, else what it did. */
-export const txFallback = (tx: WalletTx) => {
+/**
+ * For a transaction with no label: the label on a coin it paid in or a payment it made, else the other
+ * wallet in `owners` it paid or was paid by, else what it did.
+ */
+export const txFallback = (tx: WalletTx, owners?: ReadonlyMap<string, string>) => {
   const direction = txDirection(tx);
+  const ends = direction === "sent" ? tx.outputs : direction === "received" ? tx.inputs : [];
+  const other = ends.map((e) => (!e.mine && e.address && owners?.get(e.address)) || null).find(Boolean);
   return (
     tx.outputs.find((o) => o.label && !o.mine === (direction === "sent"))?.label ??
+    (other ? `${direction === "sent" ? "To" : "From"} ${other}` : null) ??
     { received: "Received", sent: "Sent", "to self": "Moved between your addresses" }[direction]
   );
 };
