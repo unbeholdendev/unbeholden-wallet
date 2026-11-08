@@ -25,27 +25,30 @@ const FINAL = 0xfffffffe;
 
 const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
 
+/** A raw transaction, before it is broadcast: what it spends, pays and leaves as fee. */
+export type DecodedTx = Omit<LookedUpTx, "height">;
+
 /**
- * A transaction anyone's, read from the server as it is now: one fetch, then
- * one batch for the transactions its inputs spend. Nothing is kept.
- * @returns null when the server has no such transaction.
+ * A raw transaction anyone's, with one batch for the transactions its inputs
+ * spend. An input whose transaction the server lacks has no value or address.
  */
-export async function lookupTransaction(backend: WalletBackend, txid: string, network: Network): Promise<LookedUpTx | null> {
-  let raw: Uint8Array;
-  try {
-    [raw] = (await backend.transactions([txid])) as [Uint8Array];
-  } catch (error) {
-    if (error instanceof NotFoundError) return null;
-    throw error;
-  }
-  if (txidOf(raw) !== txid) throw new Error("The server sent a different transaction than the one asked for");
+export async function decodeTransaction(backend: WalletBackend, raw: Uint8Array, network: Network): Promise<DecodedTx> {
+  const txid = txidOf(raw);
   const tx = parseTx(txid, raw);
   const parentIds = [...new Set(tx.inputs.map((i) => i.txid).filter((id) => id !== COINBASE))];
-  const [parentRaws, [height]] = await Promise.all([backend.transactions(parentIds), backend.transactionHeights([raw])]);
+  const missing = (error: unknown) => {
+    if (error instanceof NotFoundError) return null;
+    throw error;
+  };
+  // One missing transaction fails the whole batch, so only then is each asked for alone.
+  const parentRaws: (Uint8Array | null)[] = await backend
+    .transactions(parentIds)
+    .catch((error) => (missing(error), Promise.all(parentIds.map((id) => backend.transactions([id]).then(([bytes]) => bytes!, missing)))));
   const parents = new Map(
-    parentRaws.map((bytes, i) => {
+    parentRaws.flatMap((bytes, i) => {
+      if (!bytes) return [];
       if (txidOf(bytes) !== parentIds[i]) throw new Error("The server sent a different transaction than the one asked for");
-      return [parentIds[i]!, parseTx(parentIds[i]!, bytes)];
+      return [[parentIds[i]!, parseTx(parentIds[i]!, bytes)] as const];
     }),
   );
 
@@ -63,13 +66,30 @@ export async function lookupTransaction(backend: WalletBackend, txid: string, ne
   const outputs = tx.outputs.map((o, vout) => ({ vout, value: o.value, address: addressOf(o.script) }));
   return {
     txid,
-    height: height ?? null,
     fee: inputs.every((i) => i.value !== null) ? sum(inputs.map((i) => i.value!)) - sum(outputs.map((o) => o.value)) : null,
     vsize: tx.vsize,
     rbf: RawTx.decode(raw).inputs.some((i) => i.sequence < FINAL),
     inputs,
     outputs,
   };
+}
+
+/**
+ * A transaction anyone's, read from the server as it is now: one fetch, then
+ * one batch for the transactions its inputs spend. Nothing is kept.
+ * @returns null when the server has no such transaction.
+ */
+export async function lookupTransaction(backend: WalletBackend, txid: string, network: Network): Promise<LookedUpTx | null> {
+  let raw: Uint8Array;
+  try {
+    [raw] = (await backend.transactions([txid])) as [Uint8Array];
+  } catch (error) {
+    if (error instanceof NotFoundError) return null;
+    throw error;
+  }
+  if (txidOf(raw) !== txid) throw new Error("The server sent a different transaction than the one asked for");
+  const [tx, [height]] = await Promise.all([decodeTransaction(backend, raw, network), backend.transactionHeights([raw])]);
+  return { ...tx, height: height ?? null };
 }
 
 export type LookedUpBlock = {

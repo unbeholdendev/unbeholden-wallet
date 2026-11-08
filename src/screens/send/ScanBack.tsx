@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { hex } from "@scure/base";
+import { RawTx } from "@scure/btc-signer";
 import { BbqrDecoder } from "../../transport/bbqr";
 import { readPsbt } from "../../transport/files";
 import { psbtFromUr, psbtUrDecoder } from "../../transport/ur";
@@ -7,14 +8,24 @@ import { Icon } from "../../ui/icons";
 import { Button, buttonClass, inputClass, Notice } from "../../ui/kit";
 import { QrScanner } from "../../ui/QrScanner";
 
-/** A PSBT, or a finished transaction in hex as a Coldcard Q shows one. */
-function readSigned(text: string): Uint8Array {
+/** A PSBT, or a finished transaction in hex as a Coldcard Q shows one, or in binary as a file. */
+function readSigned(input: Uint8Array | string): Uint8Array {
   try {
-    return readPsbt(text);
+    return readPsbt(input);
   } catch (e) {
-    const compact = text.replace(/\s+/g, "");
+    if (typeof input !== "string" && isRawTx(input)) return input;
+    const compact = (typeof input === "string" ? input : new TextDecoder().decode(input)).replace(/\s+/g, "");
     if (/^([0-9a-f]{2})+$/i.test(compact)) return hex.decode(compact.toLowerCase());
     throw e;
+  }
+}
+
+function isRawTx(bytes: Uint8Array) {
+  try {
+    RawTx.decode(bytes);
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -69,7 +80,7 @@ export function ScanBack({ onSigned, error }: { onSigned: (signed: Uint8Array) =
   const read = (input: Uint8Array | string) => {
     try {
       setReadError(null);
-      onSigned(typeof input === "string" ? readSigned(input) : readPsbt(input));
+      onSigned(readSigned(input));
     } catch (e) {
       setReadError((e as Error).message);
     }
@@ -112,7 +123,7 @@ export function ScanBack({ onSigned, error }: { onSigned: (signed: Uint8Array) =
             Load signed file
             <input
               type="file"
-              accept=".psbt,application/octet-stream,text/plain"
+              accept=".psbt,.txn,application/octet-stream,text/plain"
               className="sr-only"
               onChange={async (e) => {
                 const file = e.target.files?.[0];

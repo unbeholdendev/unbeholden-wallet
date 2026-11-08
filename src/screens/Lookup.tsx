@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useConnection } from "../app/connection";
 import { useNetwork, useOwners } from "../app/session";
-import { lookupTransaction, type LookedUpTx } from "../core/lookup";
+import { lookupTransaction, type DecodedTx, type LookedUpTx } from "../core/lookup";
 import { COINBASE, feeRate } from "../core/view";
 import { Amount, groupSats } from "../ui/amount";
 import { confText, satsText, shortId } from "../ui/format";
@@ -54,7 +54,6 @@ export function Lookup({ txid }: { txid: string | undefined }) {
   const live = connection.phase === "connected" ? backend : null;
   const tip = connection.phase === "connected" ? connection.tip : null;
   const network = useNetwork();
-  const owners = useOwners();
   const valid = !!txid && /^[0-9a-f]{64}$/.test(txid);
   const [found, setFound] = useState<Found | null>(null);
 
@@ -100,11 +99,26 @@ export function Lookup({ txid }: { txid: string | undefined }) {
     );
 
   const confirmations = tx.height !== null && tip !== null ? tip - tx.height + 1 : 0;
+  return (
+    <TxDetails
+      tx={tx}
+      title="Transaction"
+      chip={tx.height === null ? <Chip tone="warn">Unconfirmed</Chip> : <Chip tone="ok">{confirmations ? confText(confirmations) : "Confirmed"}</Chip>}
+      rows={[
+        ["Status", tx.height === null ? "Waiting for a block" : confirmations ? confText(confirmations) : "In a block"],
+        ["Block", tx.height === null ? "None yet" : <a href={`#/block/${tx.height}`} className={linkClass}>{groupSats(tx.height)}</a>],
+      ]}
+    />
+  );
+}
+
+/** A transaction's inputs, outputs and fee, with `rows` and `children` for what is known of it beyond its bytes. */
+export function TxDetails({ tx, title, chip, rows, children }: { tx: DecodedTx; title: string; chip: ReactNode; rows: [string, ReactNode][]; children?: ReactNode }) {
+  const owners = useOwners();
   const rate = feeRate(tx);
   const coinbase = tx.inputs[0]?.txid === COINBASE;
-  const rows: [string, ReactNode][] = [
-    ["Status", tx.height === null ? "Waiting for a block" : confirmations ? confText(confirmations) : "In a block"],
-    ["Block", tx.height === null ? "None yet" : <a href={`#/block/${tx.height}`} className={linkClass}>{groupSats(tx.height)}</a>],
+  const facts: [string, ReactNode][] = [
+    ...rows,
     ["Fee", tx.fee === null ? (coinbase ? "None, it mints new coins" : "Unknown") : satsText(tx.fee)],
     ["Size", `${groupSats(tx.vsize)} vB`],
     ["Fee rate", rate === null ? "Unknown" : `${rate} sat/vB`],
@@ -114,16 +128,16 @@ export function Lookup({ txid }: { txid: string | undefined }) {
     <div className="grid items-start gap-6 @min-[900px]/app:grid-cols-[minmax(0,1fr)_360px]">
       <section className="grid gap-4 rounded-panel border border-rule bg-sheet p-4 @min-[900px]/app:col-start-2 @min-[900px]/app:row-start-1">
         <div className="grid gap-1">
-          <h1 className="m-0 text-lg font-bold">Transaction</h1>
+          <h1 className="m-0 text-lg font-bold">{title}</h1>
           <span className="text-2xl font-medium tracking-[-0.01em]">
             <Amount sats={tx.outputs.reduce((total, o) => total + o.value, 0)} unit />
           </span>
           <div className="flex flex-wrap gap-1.5 pt-1">
-            {tx.height === null ? <Chip tone="warn">Unconfirmed</Chip> : <Chip tone="ok">{confirmations ? confText(confirmations) : "Confirmed"}</Chip>}
+            {chip}
           </div>
         </div>
         <dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-2 text-sm">
-          {rows.map(([name, value]) => (
+          {facts.map(([name, value]) => (
             <div key={name} className="contents">
               <dt className="text-ink-2">{name}</dt>
               <dd className="m-0 text-right tabular-nums">{value}</dd>
@@ -137,6 +151,7 @@ export function Lookup({ txid }: { txid: string | undefined }) {
             <CopyButton text={tx.txid} what="Transaction ID" />
           </span>
         </div>
+        {children}
       </section>
       <div className="grid min-w-0 gap-6 @min-[900px]/app:col-start-1 @min-[900px]/app:row-start-1">
         <Endpoints title="Inputs" count={tx.inputs.length}>

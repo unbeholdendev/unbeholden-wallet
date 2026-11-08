@@ -1,11 +1,11 @@
 import { hex } from "@scure/base";
 import { Transaction } from "@scure/btc-signer";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { NotFoundError, type WalletBackend } from "../backend/backend";
+import { BroadcastError, NotFoundError, txidOf, type WalletBackend } from "../backend/backend";
 import { electrumBackend } from "../backend/electrum";
 import { fakeBackend, fakeEsplora, type FakeBackend } from "../backend/fake";
-import { demoBackend, DEMO_FOREIGN, DEMO_TXIDS } from "../backend/fixture";
-import { difficulty, lookupBlock, lookupTransaction } from "./lookup";
+import { demoBackend, DEMO_FOREIGN, DEMO_TXIDS, DEMO_UNSENT } from "../backend/fixture";
+import { decodeTransaction, difficulty, lookupBlock, lookupTransaction } from "./lookup";
 
 /** The fake chain behind a stand-in WebSocket that answers the Electrum calls a lookup makes. */
 function fakeElectrum(fake: FakeBackend): WalletBackend {
@@ -15,6 +15,7 @@ function fakeElectrum(fake: FakeBackend): WalletBackend {
       const tip = await fake.chainTip();
       return { height: tip.height, hex: hex.encode(tip.header) };
     }
+    if (method === "blockchain.transaction.broadcast") return fake.broadcast(hex.decode(params[0]));
     if (method === "blockchain.block.header") return hex.encode((await fake.blockHeaders([params[0]]))[0]!);
     if (method === "blockchain.transaction.get") return hex.encode((await fake.transactions([params[0]]))[0]!);
     if (method === "blockchain.scripthash.get_history") {
@@ -110,6 +111,59 @@ describe.each(servers)("looking a transaction up on %s", (_, server) => {
     burn.addOutput({ script: hex.decode("6a0100"), amount: 0n });
     const fake = fakeBackend({ startHeight: 7, blocks: [[parent.unsignedTx], [burn.unsignedTx]] });
     expect(await lookup(burn.id, fake)).toMatchObject({ height: 8, rbf: false, fee: 10_000, outputs: [{ address: null }] });
+  });
+});
+
+describe.each(servers)("broadcasting a raw transaction through %s", (_, server) => {
+  async function connected(fake: FakeBackend) {
+    const backend = server(fake);
+    await backend.connect();
+    return backend;
+  }
+
+  it("reads its fee from the transactions it spends, then broadcasts it", async () => {
+    const backend = await connected(demoBackend());
+    const raw = hex.decode(DEMO_UNSENT);
+    expect(await decodeTransaction(backend, raw, "mainnet")).toMatchObject({
+      txid: txidOf(raw),
+      fee: 2_500,
+      inputs: [{ txid: DEMO_FOREIGN.confirmed, vout: 1, value: 37_998_600, address: expect.stringMatching(/^bc1q/) }],
+      outputs: [{ vout: 0, value: 37_996_100 }],
+    });
+    expect(await backend.broadcast(raw)).toBe(txidOf(raw));
+    expect(await lookupTransaction(backend, txidOf(raw), "mainnet")).toMatchObject({ height: null, fee: 2_500 });
+    backend.close();
+  });
+
+  it("leaves the amount and fee unknown when the server lacks a transaction it spends", async () => {
+    const backend = await connected(demoBackend());
+    const orphan = new Transaction(PARSE);
+    orphan.addInput({ txid: "ab".repeat(32), index: 0 });
+    orphan.addOutput({ script: hex.decode("0014" + "22".repeat(20)), amount: 10_000n });
+    expect(await decodeTransaction(backend, orphan.unsignedTx, "mainnet")).toMatchObject({ fee: null, inputs: [{ value: null, address: null }] });
+    backend.close();
+  });
+
+  it("keeps the amounts of the inputs whose transactions the server has, when it lacks another's", async () => {
+    const backend = await connected(demoBackend());
+    const mixed = new Transaction(PARSE);
+    mixed.addInput({ txid: DEMO_FOREIGN.confirmed, index: 1 });
+    mixed.addInput({ txid: "ab".repeat(32), index: 0 });
+    mixed.addOutput({ script: hex.decode("0014" + "22".repeat(20)), amount: 10_000n });
+    expect(await decodeTransaction(backend, mixed.unsignedTx, "mainnet")).toMatchObject({
+      fee: null,
+      inputs: [{ value: 37_998_600, address: expect.stringMatching(/^bc1q/) }, { value: null, address: null }],
+    });
+    backend.close();
+  });
+
+  it("hands back the node's reason for refusing it, verbatim", async () => {
+    const reason = "bad-txns-inputs-missingorspent";
+    const backend = await connected(fakeBackend({ broadcastRejection: reason }));
+    const error = await backend.broadcast(hex.decode(DEMO_UNSENT)).catch((thrown: unknown) => thrown);
+    expect(error).toBeInstanceOf(BroadcastError);
+    expect((error as Error).message).toBe(reason);
+    backend.close();
   });
 });
 

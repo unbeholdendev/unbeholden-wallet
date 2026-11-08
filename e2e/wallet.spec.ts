@@ -116,3 +116,16 @@ test("long wallet names leave the header controls in view", async ({ page }) => 
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   }
 });
+
+test("searching raw transaction hex shows its fee, then broadcasts it", async ({ page }) => {
+  await open(page);
+  const raw: string = await page.evaluate(async (path) => (await import(path)).DEMO_UNSENT, "/src/backend/fixture.ts");
+  const box = page.getByRole("searchbox", { name: "Search the chain" });
+  await box.fill(raw);
+  await box.press("Enter");
+  await expect(page.getByRole("heading", { name: "Broadcast a transaction" })).toBeVisible();
+  await expect(page.getByText("2 500 sats")).toBeVisible();
+  await page.getByRole("button", { name: "Broadcast through your server" }).click();
+  await expect(page.getByText("Waiting for a block")).toBeVisible();
+  expect(await page.evaluate(() => location.hash)).toMatch(/^#\/tx\/[0-9a-f]{64}$/);
+});

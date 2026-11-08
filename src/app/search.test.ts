@@ -24,10 +24,13 @@ describe("a search", () => {
     expect(parseSearch("0", "mainnet")).toEqual({ route: "/block/0" });
   });
 
-  it("knows an address and a raw transaction, whose views are not here yet", () => {
+  it("sends a raw transaction to be broadcast, however it is cased", () => {
+    expect(parseSearch(` ${raw().toUpperCase()} `, "mainnet")).toEqual({ route: `/broadcast/${raw()}` });
+  });
+
+  it("knows an address, whose view is not here yet", () => {
     expect(parseSearch(MAINNET_P2WPKH, "mainnet")).toEqual({ error: expect.stringMatching(/address.*isn't here yet/i) });
     expect(parseSearch(`bitcoin:${MAINNET_P2WPKH}?amount=0.1`, "mainnet")).toEqual({ error: expect.stringMatching(/address.*isn't here yet/i) });
-    expect(parseSearch(raw(), "mainnet")).toEqual({ error: expect.stringMatching(/raw transaction.*isn't here yet/i) });
   });
 
   it("refuses an address on another network, naming it", () => {

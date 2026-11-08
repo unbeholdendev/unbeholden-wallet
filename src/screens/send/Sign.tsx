@@ -1,3 +1,4 @@
+import { hex } from "@scure/base";
 import { useMemo, useState, type ReactNode } from "react";
 import { useConnection } from "../../app/connection";
 import { navigate } from "../../app/route";
@@ -7,7 +8,7 @@ import { Icon } from "../../ui/icons";
 import { hostText, shortId } from "../../ui/format";
 import { Button, Chip, LinkButton, Notice, Panel } from "../../ui/kit";
 import { sourcesOf } from "../../ui/sources";
-import { adoptExternal, collectSigned, finaliseExternal, finaliseSigned, parsePsbt, reviewPsbt, type Collected } from "../../wallet/psbt";
+import { adoptExternal, collectSigned, finaliseExternal, finaliseSigned, hasMagic, parsePsbt, reviewPsbt, type Collected } from "../../wallet/psbt";
 import { CustodyLog } from "./CustodyLog";
 import { download, ExportQr } from "./ExportQr";
 import { rateText } from "./fees";
@@ -323,6 +324,8 @@ export function BroadcastSigned() {
   if (loaded) return <SignFlow external built={loaded.psbt} done={loaded.raw} title={title} warnings={[]} summary={[]} label="" onBack={() => (setLoaded(null), setPartial(null))} />;
 
   const signed = (psbt: Uint8Array) => {
+    // Past the first cosigner, a finished transaction is the next cosigner's signatures, not one to broadcast as it is.
+    if (!partial && !hasMagic(psbt)) return navigate(`/broadcast/${hex.encode(psbt)}`);
     try {
       if (multi) {
         const base = partial?.base ?? adoptExternal(psbt, snapshot.coins, descriptor, network);

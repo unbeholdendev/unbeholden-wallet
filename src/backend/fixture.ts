@@ -1,3 +1,4 @@
+import { hex } from "@scure/base";
 import { Transaction } from "@scure/btc-signer";
 import { parseDescriptor } from "../wallet/descriptor";
 import { derivePayment } from "../wallet/derive";
@@ -63,6 +64,9 @@ export const DEMO_FOREIGN = {
   pending: id(strangerPending),
   address: derivePayment(others, "mainnet", 0, 40).address!,
 };
+
+/** A stranger's transaction the server has not seen, in hex, to broadcast. It pays a 2 500 sat fee. */
+export const DEMO_UNSENT = hex.encode(tx([[id(strangerPaid), 1]], [[theirs(43), 37_996_100]]));
 
 export const DEMO_TXIDS = {
   kraken: id(kraken),
