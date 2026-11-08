@@ -5,4 +5,5 @@ services:
       - 127.0.0.1:8080:8080
     environment:
       ELECTRUM: ${ELECTRUM:-}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-}
     restart: unless-stopped

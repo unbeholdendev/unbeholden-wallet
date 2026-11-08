@@ -45,6 +45,8 @@ tailscale serve --bg 8080
 
 and open `https://<machine>.<tailnet>.ts.net`. The command prints the exact address. Another way is [your own domain](#your-own-domain).
 
+With `ELECTRUM` set, the container only answers to `localhost` and IP addresses, so a website you visit can't point its own name at your machine and use your Electrum server. To open it under a name, list the name in `ALLOWED_HOSTS`, for example `ALLOWED_HOSTS=<machine>.<tailnet>.ts.net ELECTRUM=192.168.1.20:50001 docker compose up -d`. Separate several names with commas.
+
 ### 3. Connect
 
 With `ELECTRUM` set, the connection screen fills in your server's address, so you only need to press Connect.
@@ -65,7 +67,7 @@ wallet.example.com {
 }
 ```
 
-Caddy gets the certificate itself, which needs port 80 open to the internet or a DNS challenge. Keep the container bound to `127.0.0.1`: opened over plain http from another device, the app stops, because the browser doesn't give a plain http page the encryption the vault needs.
+Start the container with `ALLOWED_HOSTS=wallet.example.com`. Caddy gets the certificate itself, which needs port 80 open to the internet or a DNS challenge. Keep the container bound to `127.0.0.1`: opened over plain http from another device, the app stops, because the browser doesn't give a plain http page the encryption the vault needs.
 
 ### An SSL port
 

@@ -1,4 +1,5 @@
 import type { ServerWebSocket, Socket } from "bun";
+import { isIP } from "node:net";
 import { normalize } from "node:path";
 
 const root = process.env.ROOT ?? "dist";
@@ -6,6 +7,7 @@ const hostname = process.env.HOST ?? "0.0.0.0";
 const port = Number(process.env.PORT ?? 8080);
 const electrum = process.env.ELECTRUM?.match(/^(?:(tcp|ssl):\/\/)?(.+):(\d+)$/);
 if (process.env.ELECTRUM && !electrum) throw new Error("ELECTRUM must be host:port, tcp://host:port or ssl://host:port");
+const allowedHosts = new Set(["localhost", ...(process.env.ALLOWED_HOSTS ?? "").split(",").map((name) => name.trim().toLowerCase())]);
 
 const headers = {
   "Content-Security-Policy": "frame-ancestors 'none'",
@@ -19,9 +21,6 @@ type Link = { tcp: Socket; ws: { current?: ServerWebSocket<Link> } };
 
 async function bridge(req: Request, server: Bun.Server<Link>) {
   if (req.headers.get("upgrade")?.toLowerCase() !== "websocket") return new Response("WebSocket only", { status: 426, headers });
-  // Browsers apply no CORS to WebSockets, so without this any site the user visits could reach the server.
-  const origin = req.headers.get("origin");
-  if (origin && URL.parse(origin)?.host !== new URL(req.url).host) return new Response("Wrong origin", { status: 403, headers });
   const ws: Link["ws"] = {};
   const decoder = new TextDecoder();
   let rest = "";
@@ -46,14 +45,20 @@ async function bridge(req: Request, server: Bun.Server<Link>) {
   return new Response("Bad WebSocket handshake", { status: 400, headers });
 }
 
-log("listening", { hostname, port, electrum: !!electrum });
-
 Bun.serve<Link>({
   hostname,
   port,
   maxRequestBodySize: 2000,
   async fetch(req, server) {
-    const { pathname, host, protocol } = new URL(req.url);
+    const { pathname, host, hostname: name, protocol } = new URL(req.url);
+    // A DNS rebinding page sends its own name as Host, and can't send an IP address.
+    if (electrum && !isIP(name.replace(/^\[|\]$/g, "")) && !allowedHosts.has(name)) {
+      log("refused host", { host });
+      return new Response(`Add ${name} to ALLOWED_HOSTS to serve the wallet under that name`, { status: 403, headers });
+    }
+    // Browsers apply no CORS to WebSockets or to a plain POST, so without this any site the user visits could use them.
+    const origin = req.headers.get("origin");
+    if (origin && URL.parse(origin)?.host !== host) return new Response("Wrong origin", { status: 403, headers });
     if (pathname === "/log" && req.method === "POST") {
       const body = await req.text();
       try {
@@ -87,3 +92,5 @@ Bun.serve<Link>({
     },
   },
 });
+
+log("listening", { hostname, port, electrum: !!electrum });

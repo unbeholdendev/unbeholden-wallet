@@ -148,6 +148,15 @@ or a DNS challenge, as in Reach your node below.
 The container's Electrum bridge works behind either: it offers
 `wss://<that name>/electrum` on the connection screen.
 
+With `ELECTRUM` set, the container only answers to `localhost` and IP
+addresses, so a website you visit can't point its own name at your machine
+and use your Electrum server. List the names you open it under in
+`ALLOWED_HOSTS`, separated by commas:
+
+```sh
+ALLOWED_HOSTS=<machine>.<tailnet>.ts.net ELECTRUM=192.168.1.20:50001 docker compose up -d
+```
+
 ## Reach your node
 
 A browser won't open `wss://` to a self-signed certificate it hasn't
