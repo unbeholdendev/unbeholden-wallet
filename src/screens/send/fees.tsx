@@ -44,7 +44,7 @@ export function rateOf(choice: FeeChoice, histogram: FeeBucket[] | null, floor =
 }
 
 const MVB = 1_000_000;
-const mvb = (vsize: number) => (vsize / MVB).toLocaleString("en-GB", { maximumFractionDigits: 1 });
+export const mvb = (vsize: number) => (vsize / MVB).toLocaleString("en-GB", { maximumFractionDigits: 1 });
 export const rateText = (rate: number) => rate.toLocaleString("en-GB", { maximumFractionDigits: 1 });
 
 export function eta(blocks: number) {

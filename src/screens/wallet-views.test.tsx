@@ -300,6 +300,32 @@ describe("wallet views on the demo history", () => {
     expect(location.hash).toBe(`#/bump/${DEMO_TXIDS.rent}`);
   });
 
+  it("places an unconfirmed transaction in the mempool, and a confirmed one not at all", async () => {
+    await openApp(`#/tx/${DEMO_TXIDS.rent}`);
+    const facts = () => screen.getByText("Fee rate").closest("dl")!;
+    await waitFor(() => expect(within(facts()).getByText("Ahead in the mempool").nextElementSibling!.textContent).toBe("0 MvB"));
+    expect(within(facts()).getByText("Expected in").nextElementSibling!.textContent).toBe("about 10 min");
+    go(`#/tx/${DEMO_TXIDS.tom}`);
+    await waitFor(() => expect(within(facts()).getByText("Status").nextElementSibling!.textContent).not.toBe("Waiting for a block"));
+    expect(within(facts()).queryByText("Expected in")).toBeNull();
+  });
+
+  it("holds a high-fee child of an unconfirmed payment back to the rate of the two together", async () => {
+    await openApp(`#/tx/${DEMO_TXIDS.rent}`);
+    const to = deriveAddress(parseDescriptor(DEMO_DESCRIPTOR, "mainnet"), "mainnet", 0, 7);
+    const child = new Tx({ allowUnknownInputs: true, allowUnknownOutputs: true, disableScriptCheck: true });
+    child.addInput({ txid: DEMO_TXIDS.rent, index: 1 });
+    child.addOutput({ script: OutScript.encode(Address(NETWORKS.mainnet).decode(to)), amount: 998_560n });
+    for (const b of backends) b.addToMempool(child.unsignedTx);
+    const facts = () => screen.getByText("Fee rate").closest("dl")!;
+    await screen.findByText("Ahead in the mempool");
+    expect(within(facts()).queryByText("Rate with its parents")).toBeNull();
+    go(`#/tx/${child.id}`);
+    await screen.findByText("50 000 sats");
+    expect(within(facts()).getByText("Rate with its parents").nextElementSibling!.textContent).toMatch(/^\d+(\.\d)? sat\/vB$/);
+    expect(within(facts()).getByText("Expected in").nextElementSibling!.textContent).toBe("about 10 min");
+  });
+
   it("labels an output that pays someone else", async () => {
     const user = await openApp(`#/tx/${DEMO_TXIDS.rent}`);
     await user.click(await screen.findByRole("button", { name: "Label this payment" }));

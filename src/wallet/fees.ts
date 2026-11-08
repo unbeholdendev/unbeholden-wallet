@@ -46,6 +46,37 @@ export function mempoolPosition(
   return { vsizeAhead, blocks: Math.floor(vsizeAhead / BLOCK_VSIZE) + 1 };
 }
 
+// Default for -limitancestorcount, the most in-mempool ancestors a node keeps a transaction with.
+// https://github.com/bitcoin/bitcoin/blob/master/src/policy/policy.h
+const ANCESTOR_LIMIT = 25;
+
+/** An unconfirmed transaction as the ancestor walk sees it. `parents` are its unconfirmed parents. */
+export type MempoolTx = { fee: number | null; vsize: number; parents: string[] };
+
+/**
+ * The rate a miner gets from a transaction: its own, or less when unconfirmed
+ * ancestors paying less must go in first. Null when an ancestor or its fee is
+ * unknown, or there are more ancestors than a node keeps.
+ */
+export function effectiveFeeRate(txid: string, mempool: (txid: string) => MempoolTx | undefined): number | null {
+  const own = mempool(txid);
+  if (!own || own.fee === null) return null;
+  const seen = new Set([txid]);
+  const queue = [...own.parents];
+  let fee = own.fee;
+  let vsize = own.vsize;
+  for (let id; (id = queue.pop()) !== undefined; ) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const tx = mempool(id);
+    if (!tx || tx.fee === null || seen.size > ANCESTOR_LIMIT + 1) return null;
+    fee += tx.fee;
+    vsize += tx.vsize;
+    queue.push(...tx.parents);
+  }
+  return Math.min(own.fee / own.vsize, fee / vsize);
+}
+
 function rateWithin(histogram: FeeBucket[], blocks: number): number {
   let depth = 0;
   for (let i = 0; i < histogram.length; i++) {

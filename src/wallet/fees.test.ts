@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { feeTargets, mempoolDepth, mempoolPosition } from "./fees";
+import { effectiveFeeRate, feeTargets, mempoolDepth, mempoolPosition, type MempoolTx } from "./fees";
 
 // The protocol's own example result.
 // https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#mempool-get-fee-histogram
@@ -67,5 +67,58 @@ describe("mempoolDepth", () => {
       { feeRate: 35.0, depth: 103088 },
     ]);
     expect(mempoolDepth([])).toEqual([]);
+  });
+});
+
+describe("effectiveFeeRate", () => {
+  const lookup = (txs: Record<string, MempoolTx>) => (txid: string) => txs[txid];
+
+  it("is the transaction's own rate with no unconfirmed parents", () => {
+    expect(effectiveFeeRate("a", lookup({ a: { fee: 1000, vsize: 200, parents: [] } }))).toBe(5);
+  });
+
+  it("does not let a high-fee parent speed up a low-fee child", () => {
+    const txs = lookup({
+      child: { fee: 200, vsize: 100, parents: ["parent"] },
+      parent: { fee: 5000, vsize: 100, parents: [] },
+    });
+    expect(effectiveFeeRate("child", txs)).toBe(2);
+  });
+
+  it("holds a child back to the package rate behind a low-fee parent", () => {
+    const txs = lookup({
+      child: { fee: 2000, vsize: 100, parents: ["parent"] },
+      parent: { fee: 100, vsize: 100, parents: [] },
+    });
+    expect(effectiveFeeRate("child", txs)).toBe(10.5);
+  });
+
+  it("counts an ancestor reached by two paths once", () => {
+    const txs = lookup({
+      child: { fee: 1000, vsize: 100, parents: ["left", "right"] },
+      left: { fee: 100, vsize: 100, parents: ["root"] },
+      right: { fee: 100, vsize: 100, parents: ["root"] },
+      root: { fee: 100, vsize: 100, parents: [] },
+    });
+    expect(effectiveFeeRate("child", txs)).toBe(3.25);
+  });
+
+  it("is unknown when an ancestor's fee or the ancestor itself is unknown", () => {
+    expect(
+      effectiveFeeRate("child", lookup({ child: { fee: 1000, vsize: 100, parents: ["parent"] }, parent: { fee: null, vsize: 100, parents: [] } })),
+    ).toBeNull();
+    expect(effectiveFeeRate("child", lookup({ child: { fee: 1000, vsize: 100, parents: ["parent"] } }))).toBeNull();
+    expect(effectiveFeeRate("a", lookup({ a: { fee: null, vsize: 100, parents: [] } }))).toBeNull();
+  });
+
+  it("walks up to 25 unconfirmed ancestors and no further", () => {
+    const chain = (ancestors: number) =>
+      lookup(
+        Object.fromEntries(
+          Array.from({ length: ancestors + 1 }, (_, i) => [`t${i}`, { fee: 100, vsize: 100, parents: i < ancestors ? [`t${i + 1}`] : [] }]),
+        ),
+      );
+    expect(effectiveFeeRate("t0", chain(25))).toBe(1);
+    expect(effectiveFeeRate("t0", chain(26))).toBeNull();
   });
 });

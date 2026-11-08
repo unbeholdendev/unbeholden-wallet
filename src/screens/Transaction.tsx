@@ -4,11 +4,14 @@ import type { ReactNode } from "react";
 import { navigate } from "../app/route";
 import { useWalletSnapshot } from "../app/session";
 import { feeRate, isOutgoing, txWhen, type AddressInfo, type TxInput, type TxOutput, type WalletTx } from "../core/view";
+import type { FeeBucket } from "../backend/backend";
 import { Amount, groupSats } from "../ui/amount";
 import { confText, dateText, satsText, shortId, timeText, txFallback } from "../ui/format";
 import { Icon } from "../ui/icons";
 import { Button, Chip, Empty, linkClass } from "../ui/kit";
+import { effectiveFeeRate, mempoolPosition, type MempoolTx } from "../wallet/fees";
 import { CopyButton, EditableLabel, GroupedAddress, Opening } from "./parts";
+import { eta, mvb, rateText, useFeeHistogram } from "./send/fees";
 
 function Back() {
   return (
@@ -55,9 +58,34 @@ function Endpoints({ title, count, children }: { title: string; count: number; c
 
 const coinbase = (input: TxInput) => /^0+$/.test(input.txid);
 
-function Facts({ tx }: { tx: WalletTx }) {
+function walletMempool(transactions: WalletTx[]) {
+  const byId = new Map(transactions.map((t) => [t.txid, t]));
+  return (txid: string): MempoolTx | undefined => {
+    const t = byId.get(txid);
+    if (t?.height !== null) return undefined;
+    const parents = t.inputs.map((i) => byId.get(i.txid));
+    // The server flags an unconfirmed parent but not which, so one outside the wallet has an unknown fee.
+    if (t.unconfirmedParents && parents.includes(undefined)) return undefined;
+    return { fee: t.fee, vsize: t.vsize, parents: parents.flatMap((p) => (p?.height === null ? [p.txid] : [])) };
+  };
+}
+
+function mempoolRows(histogram: FeeBucket[] | null, own: number, rate: number | null): [string, ReactNode][] {
+  if (!histogram) return [["Ahead in the mempool", "Asking your node"]];
+  if (rate === null) return [["Expected in", "Unknown, it depends on unconfirmed parents"]];
+  const { vsizeAhead, blocks } = mempoolPosition(histogram, rate);
+  const rows: [string, ReactNode][] = [
+    ["Ahead in the mempool", `${mvb(vsizeAhead)} MvB`],
+    ["Expected in", eta(blocks)],
+  ];
+  return rate < own ? [["Rate with its parents", `${rateText(rate)} sat/vB`], ...rows] : rows;
+}
+
+function Facts({ tx, transactions }: { tx: WalletTx; transactions: WalletTx[] }) {
   const rate = feeRate(tx);
   const when = txWhen(tx);
+  const histogram = useFeeHistogram();
+  const pending = tx.height === null;
   const rows: [string, ReactNode][] = [
     ["Status", tx.confirmations ? `${confText(tx.confirmations)}${tx.confirmations >= 6 ? `, ${groupSats(tx.confirmations)} blocks deep` : ""}` : "Waiting for a block"],
     ["Block", tx.height === null ? "None yet" : groupSats(tx.height)],
@@ -65,6 +93,7 @@ function Facts({ tx }: { tx: WalletTx }) {
     ["Fee", tx.fee === null ? "Unknown, an input's amount isn't known" : satsText(tx.fee)],
     ["Size", `${groupSats(tx.vsize)} vB`],
     ["Fee rate", rate === null ? "Unknown" : `${rate} sat/vB`],
+    ...(pending && tx.fee !== null ? mempoolRows(histogram, tx.fee / tx.vsize, effectiveFeeRate(tx.txid, walletMempool(transactions))) : []),
   ];
   return (
     <dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-2 text-sm">
@@ -142,7 +171,7 @@ export function Transaction({ txid }: { txid: string | undefined }) {
               </div>
             </div>
           )}
-          <Facts tx={tx} />
+          <Facts tx={tx} transactions={snapshot.transactions} />
           <div className="grid gap-1.5 border-t border-rule pt-3">
             <span className="text-sm text-ink-2">Transaction ID</span>
             <span className="font-mono text-[0.86em] break-all select-all">{tx.txid}</span>

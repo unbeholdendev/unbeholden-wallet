@@ -68,7 +68,7 @@ the user's own node.
 
 18. As a wallet owner, I want to see my confirmed and unconfirmed balance, so that I know what I hold and what is still settling.
 19. As a wallet owner, I want to see my transaction history newest first, with amounts, dates and confirmation counts, so that I can review activity.
-20. As a wallet owner, I want to open a transaction and see its inputs, outputs, fee, size, fee rate and block, so that I can understand exactly what happened.
+20. As a wallet owner, I want to open a transaction and see its inputs, outputs, fee, size, fee rate and block, and for an unconfirmed one its place in the mempool and an estimated time, so that I can understand exactly what happened.
 21. As a wallet owner, I want to see which outputs of a transaction were mine, so that I can read a transaction without decoding it myself.
 22. As a wallet owner, I want to see every UTXO I hold with its value, age, confirmation count and address, so that I can reason about my coins.
 23. As a wallet owner, I want to see my receive addresses, which have been used, and which is next unused, so that I can pick an address safely.
@@ -203,6 +203,7 @@ the user's own node.
 - A one-tap automatic selection runs branch-and-bound with a single-random-draw fallback, preferring changeless solutions.
 - Selecting coins updates fee, change, total and a privacy assessment live. The privacy assessment names which previously unlinked groups of coins the selection would join on-chain. This is the feature the product is differentiated on and is built, not deferred.
 - Fee rate options are derived from the mempool fee histogram obtained from the user's own server, not from `blockchain.estimatefee`. The current mempool is visualised so a fee choice can be seen in context. A manual sat/vB entry is always available.
+- An unconfirmed transaction's mempool position and estimated time use the lower of its own rate and its ancestor package rate: its fee plus its unconfirmed ancestors' fees, over their vsizes together, since a miner cannot include it before its parents. Up to 25 unconfirmed ancestors are walked, Core's default ancestor limit. Past that, or when an ancestor or its fee is not known, the estimate is shown as unknown. A wallet transaction counts only the wallet's own transactions as known ancestors. The estimate follows the fee histogram, which is fetched again every minute and on each block.
 - All transactions signal RBF.
 - Fee bumping is in v1: it reconstructs the transaction, re-selects coins if change cannot absorb the increase, and goes through the same signing round trip.
 - Cancelling (a replacement paying everything back to the wallet) and CPFP (a child that pays for its unconfirmed parent) use the same planner, fee panel and signing round trip.
