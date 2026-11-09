@@ -1,3 +1,4 @@
+import { SignMessage, VerifyMessage } from "./screens/Messages";
 import { FiatProvider } from "./app/fiat";
 import { Fragment, useEffect, useState } from "react";
 import { BackendProvider, ConnectionProvider, useConnection, type BackendFactory } from "./app/connection";
@@ -62,6 +63,7 @@ function Unlocked({ route }: { route: string[] }) {
     screen === "block" ? <Block height={detail} /> :
     !wallets.length ? <Start /> :
     screen === "coin" ? <CoinHistory point={detail} /> :
+    screen === "sign-message" ? <SignMessage /> :
     screen === "send" ? <Send /> :
     screen === "broadcast" ? <BroadcastSigned /> :
     BUMPS[screen] && detail ? <Bump key={screen + detail} txid={detail} mode={BUMPS[screen]} /> :
@@ -100,6 +102,7 @@ function Root() {
   const route = useRoute();
   const { state } = useVaultState();
   useEffect(() => log("screen", { screen: route[0] ?? "home", vault: state.phase }), [route[0], state.phase]);
+  if (route[0] === "verify-message") return <Page><VerifyMessage /></Page>;
   if (route[0] === "trust") return <Trust />;
   if (route[0] === "guide") return <Guide />;
   if (!window.isSecureContext) return <Insecure />;

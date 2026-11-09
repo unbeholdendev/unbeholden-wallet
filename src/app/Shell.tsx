@@ -83,6 +83,8 @@ function WalletSwitcher() {
           </button>
         ))}
         <hr className="my-1 border-rule" />
+        {["wpkh", "tr"].includes(scriptType(current) ?? "") && <a href="#/sign-message" onClick={close} className="rounded-control px-2.5 py-2 text-ink hover:bg-sunk">Sign a message</a>}
+        <a href="#/verify-message" onClick={close} className="rounded-control px-2.5 py-2 text-ink hover:bg-sunk">Verify a message</a>
         <a href="#/addresses" onClick={close} className="rounded-control px-2.5 py-2 text-ink hover:bg-sunk">
           Addresses
         </a>

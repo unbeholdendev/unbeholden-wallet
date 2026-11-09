@@ -315,7 +315,7 @@ last four are standing decisions and have none.
   price on each transaction's date, and asking a price service for those dates
   can identify the wallet's transactions. Fiat estimates use the current rate
   only, from a price service the user opts into (#91).
-- Message signing and verification (#97).
+- Message signing for Taproot and multisig wallets.
 - Anything Lightning (#98).
 - Deriving sibling hardened accounts from an imported extended public key.
   Multiple named accounts are supported by explicitly importing each account’s
@@ -366,3 +366,26 @@ plumbing.
 **Dev server port.** The dev server uses Vite's default, 5173. The Vite
 configuration must set `strictPort`, or a busy 5173 silently moves the server to
 another port.
+
+## Message signing and verification (#97)
+
+`#/sign-message` exports a single-frame signing request QR or a Coldcard text
+file for a wallet-owned P2WPKH single-sig address and its derivation path.
+The descriptor must include a key origin whose path length matches the
+extended key depth, so the signer gets the full path.
+Choose a receive or change address, then enter 1–240 printable ASCII
+characters. Spaces count; line breaks are not allowed. Taproot signing shows
+"Taproot message signing not supported yet". Multisig signing is excluded.
+
+Import a signature by QR, text file or paste. The app checks it against the
+selected address and exact message before offering an armoured text export.
+Imported armoured content must match both. Changing the message or address
+clears the request and any previous verification. Sharing a signed message
+links its contents to the address.
+
+`#/verify-message` works without opening a wallet. Enter the network, address
+and message, then scan, load or paste a signature. An armoured message fills
+the address and message fields. Verification accepts legacy signatures and
+BIP322 simple signatures for P2WPKH and P2TR. Malformed, unsupported and invalid
+signatures show a failure rather than a success. Editing the inputs clears
+the result. The signing-only ASCII limit does not restrict verification.
