@@ -34,11 +34,7 @@ function attempt(url: string, timeout: number): Promise<Attempt> {
  */
 export async function handshake(url: string, timeout: number): Promise<WebSocket> {
   const target = new URL(url);
-  if (
-    target.protocol === "ws:" &&
-    globalThis.location?.protocol === "https:" &&
-    !LOOPBACK.test(target.hostname)
-  ) {
+  if (target.protocol === "ws:" && globalThis.location?.protocol === "https:" && !LOOPBACK.test(target.hostname)) {
     throw new ConnectionError("mixed-content");
   }
   target.port = PROBE_PORT;
@@ -55,9 +51,7 @@ export async function handshake(url: string, timeout: number): Promise<WebSocket
     const answered = probe.timedOut || main.elapsed > 2 * probe.elapsed + 1;
     if (!answered) throw new ConnectionError("refused");
     if (round === 1) {
-      throw new ConnectionError(
-        target.protocol === "wss:" ? "certificate-rejected" : "not-electrum",
-      );
+      throw new ConnectionError(target.protocol === "wss:" ? "certificate-rejected" : "not-electrum");
     }
   }
 }

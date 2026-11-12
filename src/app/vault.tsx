@@ -1,40 +1,49 @@
-import type { FiatSettings } from "./fiat";
-import type { Network } from "../wallet/network";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  backupRecords,
+  type Contact,
+  type Settings as CoreSettings,
+  createWallet,
+  deleteWallet,
+  getSettings,
+  listWallets,
+  type Merged,
+  mergeBackup,
+  type NewWallet,
+  renameWallet,
+  renameWalletGroup,
+  saveSettings,
+  type WalletRecord,
+} from "../core/wallets";
 import { log } from "../log";
 import {
   createVault,
   DEFAULT_KDF,
   destroyVault,
   idleLock,
+  type KdfParams,
   memoryStore,
   openBackup,
   requestPersistence,
+  type Store,
   sealBackup,
   unlockVault,
   Vault,
   vaultExists,
-  type KdfParams,
-  type Store,
 } from "../vault/vault";
-import {
-  backupRecords,
-  createWallet,
-  deleteWallet,
-  getSettings,
-  listWallets,
-  mergeBackup,
-  renameWallet,
-  renameWalletGroup,
-  saveSettings,
-  type Merged,
-  type Contact,
-  type NewWallet,
-  type Settings as CoreSettings,
-  type WalletRecord,
-} from "../core/wallets";
+import type { Network } from "../wallet/network";
+import type { FiatSettings } from "./fiat";
 
-export type Settings = CoreSettings & { idleMinutes?: number; walletId?: string; notify?: boolean; skipForeignUnconfirmed?: boolean; fiat?: FiatSettings | null; unit?: Unit; hide?: boolean; explorers?: Partial<Record<Network, string>> };
+export type Settings = CoreSettings & {
+  idleMinutes?: number;
+  walletId?: string;
+  notify?: boolean;
+  skipForeignUnconfirmed?: boolean;
+  fiat?: FiatSettings | null;
+  unit?: Unit;
+  hide?: boolean;
+  explorers?: Partial<Record<Network, string>>;
+};
 export type Unit = "btc" | "sats";
 
 export type Persistence = Awaited<ReturnType<typeof requestPersistence>>;
@@ -54,9 +63,7 @@ type Open = {
   restored: number;
 };
 
-type VaultState =
-  | { phase: "loading" | "locked" }
-  | ({ phase: "open" } & Open);
+type VaultState = { phase: "loading" | "locked" } | ({ phase: "open" } & Open);
 
 type VaultApi = {
   state: VaultState;
@@ -153,7 +160,8 @@ export function VaultProvider({ kdf = DEFAULT_KDF, children }: { kdf?: KdfParams
     setState({ phase: "locked" });
   }, [vault]);
 
-  const idleMinutes = state.phase === "open" && state.passphrase ? (state.settings.idleMinutes ?? IDLE_DEFAULT_MINUTES) : null;
+  const idleMinutes =
+    state.phase === "open" && state.passphrase ? (state.settings.idleMinutes ?? IDLE_DEFAULT_MINUTES) : null;
   useEffect(() => {
     if (idleMinutes === null) return;
     const idle = idleLock(idleMinutes * 60_000, Date.now, lock);

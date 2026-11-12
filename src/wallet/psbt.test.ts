@@ -2,11 +2,11 @@ import { base64, hex } from "@scure/base";
 import { HDKey } from "@scure/bip32";
 import { Address, NETWORK, OutScript, SigHash, TEST_NETWORK, Transaction } from "@scure/btc-signer";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import * as regtest from "../../scripts/regtest/fixture";
 import { INVALID, VALID } from "./bip174-vectors";
 import type { Coin } from "./coin";
-import { descriptorFromExtendedKey, parseDescriptor } from "./descriptor";
-import * as regtest from "../../scripts/regtest/fixture";
 import { derivePayment } from "./derive";
+import { descriptorFromExtendedKey, parseDescriptor } from "./descriptor";
 import { buildPsbt, collectSigned, finaliseExternal, finaliseSigned, parsePsbt, reviewPsbt } from "./psbt";
 import { asVersion, BIP84_ZPUB, BIP86_XPUB, VERSION } from "./vectors";
 
@@ -20,19 +20,13 @@ describe("BIP174 vectors", () => {
   // could be misled by.
   const mismatched = (name: string) => name.startsWith("redeemScript with");
 
-  it.each(VALID.filter(([name]) => !mismatched(name)))(
-    "round-trips: %s",
-    (_, psbt) => {
-      expect(base64.encode(parsePsbt(base64.decode(psbt)).toPSBT())).toBe(psbt);
-    },
-  );
+  it.each(VALID.filter(([name]) => !mismatched(name)))("round-trips: %s", (_, psbt) => {
+    expect(base64.encode(parsePsbt(base64.decode(psbt)).toPSBT())).toBe(psbt);
+  });
 
-  it.each(VALID.filter(([name]) => mismatched(name)))(
-    "refuses an inconsistent script: %s",
-    (_, psbt) => {
-      expect(() => parsePsbt(base64.decode(psbt))).toThrow();
-    },
-  );
+  it.each(VALID.filter(([name]) => mismatched(name)))("refuses an inconsistent script: %s", (_, psbt) => {
+    expect(() => parsePsbt(base64.decode(psbt))).toThrow();
+  });
 });
 
 // Root keys and addresses from the BIP84 and BIP86 test vectors. The private
@@ -54,27 +48,18 @@ const BIP86 = {
   receive0: "bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr",
   receive1: "bc1p4qhjn9zdvkux4e44uhx8tc55attvtyu358kutcqkudyccelu0was9fqzwh",
   change0: "bc1p3qkhfews2uk44qtvauqyr2ttdsw7svhkl9nkm9s9c3x4ax5h60wqwruhk7",
-  internalKey0:
-    "cc8a4bc64d897bddc5fbc2f670f7a8ba0b386779106cf1223c6fc5d7cd6fc115",
+  internalKey0: "cc8a4bc64d897bddc5fbc2f670f7a8ba0b386779106cf1223c6fc5d7cd6fc115",
 };
 
 const root84 = HDKey.fromExtendedKey(asVersion(BIP84.rootpriv, VERSION.xprv));
 const root86 = HDKey.fromExtendedKey(BIP86.rootpriv);
-const fingerprint = (key: HDKey) =>
-  key.fingerprint.toString(16).padStart(8, "0");
+const fingerprint = (key: HDKey) => key.fingerprint.toString(16).padStart(8, "0");
 const H = 0x80000000;
 
-const wpkh = parseDescriptor(
-  `wpkh([${fingerprint(root84)}/84h/0h/0h]${BIP84_ZPUB}/<0;1>/*)`,
-  "mainnet",
-);
-const tr = parseDescriptor(
-  `tr([${fingerprint(root86)}/86h/0h/0h]${BIP86_XPUB}/<0;1>/*)`,
-  "mainnet",
-);
+const wpkh = parseDescriptor(`wpkh([${fingerprint(root84)}/84h/0h/0h]${BIP84_ZPUB}/<0;1>/*)`, "mainnet");
+const tr = parseDescriptor(`tr([${fingerprint(root86)}/86h/0h/0h]${BIP86_XPUB}/<0;1>/*)`, "mainnet");
 
-const script = (address: string) =>
-  hex.encode(OutScript.encode(Address(NETWORK).decode(address)));
+const script = (address: string) => hex.encode(OutScript.encode(Address(NETWORK).decode(address)));
 
 function coin(address: string, chain: number, index: number, value: number, n: number): Coin {
   return {
@@ -170,10 +155,7 @@ describe.each(wallets)("a $name wallet", (wallet) => {
       const input = tx.getInput(i);
       expect(input.sequence).toBe(0xfffffffd);
       expect(input.witnessUtxo?.amount).toBe(BigInt(wallet.coins[i]!.value));
-      const der =
-        wallet.name === "wpkh"
-          ? input.bip32Derivation![0]![1]
-          : input.tapBip32Derivation![0]![1].der;
+      const der = wallet.name === "wpkh" ? input.bip32Derivation![0]![1] : input.tapBip32Derivation![0]![1].der;
       expect(der.fingerprint).toBe(wallet.root.fingerprint);
       expect(der.path).toEqual([purpose + H, H, H, 0, i]);
     }
@@ -186,9 +168,7 @@ describe.each(wallets)("a $name wallet", (wallet) => {
     const review = reviewPsbt(build().psbt, wallet.descriptor, "mainnet");
     expect(review.fee).toBe(2_000);
     expect(review.feeRate).toBeCloseTo(2_000 / review.vsize);
-    expect(
-      review.outputs.map(({ address, value, mine, change }) => ({ address, value, mine, change })),
-    ).toEqual(
+    expect(review.outputs.map(({ address, value, mine, change }) => ({ address, value, mine, change }))).toEqual(
       expect.arrayContaining([
         { address: wallet.recipient, value: 70_000, mine: false, change: false },
         { address: wallet.changeAddress, value: 38_000, mine: true, change: true },
@@ -226,13 +206,19 @@ describe.each(wallets)("a $name wallet", (wallet) => {
     const returned = Transaction.fromRaw(signedTx.unsignedTx);
     for (let i = 0; i < signedTx.inputsLength; i++) {
       const { partialSig, tapKeySig, witnessUtxo } = signedTx.getInput(i);
-      returned.updateInput(i, {
-        partialSig,
-        tapKeySig,
-        ...(i === 0 && { witnessUtxo: { ...witnessUtxo!, amount: witnessUtxo!.amount + 1n } }),
-      }, true);
+      returned.updateInput(
+        i,
+        {
+          partialSig,
+          tapKeySig,
+          ...(i === 0 && { witnessUtxo: { ...witnessUtxo!, amount: witnessUtxo!.amount + 1n } }),
+        },
+        true,
+      );
     }
-    expect(() => finaliseSigned(psbt, returned.toPSBT())).toThrow("The signer saw a fee of 2001 sats, but the one built pays 2000 sats");
+    expect(() => finaliseSigned(psbt, returned.toPSBT())).toThrow(
+      "The signer saw a fee of 2001 sats, but the one built pays 2000 sats",
+    );
   });
 
   it("refuses conflicting previous-output scripts even when the fee matches", () => {
@@ -241,11 +227,15 @@ describe.each(wallets)("a $name wallet", (wallet) => {
     const returned = Transaction.fromRaw(signedTx.unsignedTx);
     for (let i = 0; i < signedTx.inputsLength; i++) {
       const { partialSig, tapKeySig, witnessUtxo } = signedTx.getInput(i);
-      returned.updateInput(i, {
-        partialSig,
-        tapKeySig,
-        witnessUtxo: { ...witnessUtxo!, script: signedTx.getInput(1 - i).witnessUtxo!.script },
-      }, true);
+      returned.updateInput(
+        i,
+        {
+          partialSig,
+          tapKeySig,
+          witnessUtxo: { ...witnessUtxo!, script: signedTx.getInput(1 - i).witnessUtxo!.script },
+        },
+        true,
+      );
     }
     expect(() => finaliseSigned(psbt, returned.toPSBT())).toThrow("Its details differ from the transaction built");
   });
@@ -288,10 +278,7 @@ describe.each(wallets)("a $name wallet", (wallet) => {
   it("refuses a returned PSBT that is missing a signature", () => {
     const { psbt } = build();
     const tx = Transaction.fromPSBT(psbt);
-    tx.signIdx(
-      wallet.root.derive(`m/${wallet.name === "wpkh" ? 84 : 86}'/0'/0'/0/0`).privateKey!,
-      0,
-    );
+    tx.signIdx(wallet.root.derive(`m/${wallet.name === "wpkh" ? 84 : 86}'/0'/0'/0/0`).privateKey!, 0);
     expect(() => finaliseSigned(psbt, tx.toPSBT())).toThrow("Input 2 isn't signed");
   });
 
@@ -394,9 +381,7 @@ describe("building", () => {
   });
 
   it("refuses a recipient on another network", () => {
-    const signetAddress = Address(TEST_NETWORK).encode(
-      OutScript.decode(hex.decode(script(BIP84.receive0))),
-    );
+    const signetAddress = Address(TEST_NETWORK).encode(OutScript.decode(hex.decode(script(BIP84.receive0))));
     expect(() =>
       buildPsbt({
         descriptor: wpkh,
@@ -439,12 +424,17 @@ describe("a 2-of-3 multisig wallet", () => {
     for (const [i, index] of [0, 1].entries()) {
       const input = tx.getInput(i);
       expect(input.witnessScript).toEqual(derivePayment(descriptor, "regtest", 0, index).witnessScript);
-      expect(input.bip32Derivation!.map(([, der]) => der.fingerprint.toString(16).padStart(8, "0")).sort()).toEqual([...fingerprints].sort());
-      expect(input.bip32Derivation!.every(([, der]) => der.path.join() === [48 + H, 1 + H, H, 2 + H, 0, index].join())).toBe(true);
+      expect(input.bip32Derivation!.map(([, der]) => der.fingerprint.toString(16).padStart(8, "0")).sort()).toEqual(
+        [...fingerprints].sort(),
+      );
+      expect(
+        input.bip32Derivation!.every(([, der]) => der.path.join() === [48 + H, 1 + H, H, 2 + H, 0, index].join()),
+      ).toBe(true);
     }
     const change = [0, 1].map((i) => tx.getOutput(i)).find((o) => o.witnessScript)!;
     expect(change.witnessScript).toEqual(derivePayment(descriptor, "regtest", 1, 0).witnessScript);
     expect(change.bip32Derivation).toHaveLength(3);
+    // biome-ignore lint/complexity/useLiteralKeys: Transaction keeps its global map private.
     const xpubs: [{ depth: number }, { fingerprint: number }][] = tx["global"].xpub;
     expect(xpubs.map(([, der]) => der.fingerprint.toString(16).padStart(8, "0"))).toEqual(fingerprints);
     expect(xpubs.map(([xpub]) => xpub.depth)).toEqual([4, 4, 4]);

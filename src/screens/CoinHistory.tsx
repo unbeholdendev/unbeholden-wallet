@@ -40,7 +40,10 @@ function Stop({ tx }: { tx: WalletTx }) {
   const own = tx.inputs.length > outside.length;
   return (
     <li className="relative grid gap-1 pb-5 pl-7 last:pb-0">
-      <span aria-hidden="true" className="absolute top-1.5 left-0 size-3 rounded-full border-2 border-carbon bg-sheet" />
+      <span
+        aria-hidden="true"
+        className="absolute top-1.5 left-0 size-3 rounded-full border-2 border-carbon bg-sheet"
+      />
       <span className="flex flex-wrap items-baseline justify-between gap-x-3">
         <a href={`#/tx/${tx.txid}`} className={`${linkClass} font-bold`}>
           {tx.label ?? txFallback(tx)}
@@ -50,8 +53,10 @@ function Stop({ tx }: { tx: WalletTx }) {
       <span className="flex flex-wrap items-center gap-1.5 text-sm text-ink-2">
         {outside.some((i) => i.txid === COINBASE) ? (
           <Chip tone="carbon">New coins from mining</Chip>
-        ) : outside.length > 0 && (
-          <Chip tone="carbon">{own ? "Joined with someone else's coins" : "Paid in from outside"}</Chip>
+        ) : (
+          outside.length > 0 && (
+            <Chip tone="carbon">{own ? "Joined with someone else's coins" : "Paid in from outside"}</Chip>
+          )
         )}
         {own && !outside.length && <span>Spent your earlier coins</span>}
         {tx.outputs.some((o) => o.mine && o.kyc) && (
@@ -100,7 +105,8 @@ export function CoinHistory({ point }: { point: string | undefined }) {
         {others.length ? (
           <div className="grid gap-1.5 text-sm">
             <span>
-              Already linked on-chain with {others.length === 1 ? "another coin" : `${others.length} other coins`} you hold:
+              Already linked on-chain with {others.length === 1 ? "another coin" : `${others.length} other coins`} you
+              hold:
             </span>
             <ul className="m-0 grid list-none gap-1 p-0">
               {others.map((c) => (
@@ -108,7 +114,9 @@ export function CoinHistory({ point }: { point: string | undefined }) {
                   <a href={`#/coin/${outpoint(c)}`} className={linkClass}>
                     <Amount sats={c.value} />
                   </a>
-                  <span className="text-ink-2">{c.label ?? <span className="font-mono text-xs">{shortId(c.address, 10, 6)}</span>}</span>
+                  <span className="text-ink-2">
+                    {c.label ?? <span className="font-mono text-xs">{shortId(c.address, 10, 6)}</span>}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -133,8 +141,8 @@ export function CoinHistory({ point }: { point: string | undefined }) {
         </ol>
         {missing > 0 && (
           <p className="m-0 text-sm text-warn">
-            {missing === 1 ? "An earlier transaction isn't" : `${missing} earlier transactions aren't`} in this wallet&rsquo;s cache, so the trail stops short.
-            Syncing again may fetch {missing === 1 ? "it" : "them"}.
+            {missing === 1 ? "An earlier transaction isn't" : `${missing} earlier transactions aren't`} in this
+            wallet&rsquo;s cache, so the trail stops short. Syncing again may fetch {missing === 1 ? "it" : "them"}.
           </p>
         )}
       </section>

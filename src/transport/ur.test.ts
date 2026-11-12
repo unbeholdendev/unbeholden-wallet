@@ -1,17 +1,11 @@
 import { hex } from "@scure/base";
 import { describe, expect, it } from "vitest";
-import {
-  chooseFragments,
-  crc32,
-  FountainDecoder,
-  FountainEncoder,
-  Xoshiro256,
-} from "./fountain";
+import { chooseFragments, crc32, FountainDecoder, FountainEncoder, Xoshiro256 } from "./fountain";
 import {
   bytewordsDecode,
+  bytewordsEncode,
   descriptorsFromUr,
   descriptorUrDecoder,
-  bytewordsEncode,
   partCbor,
   psbtFromUr,
   psbtUrDecoder,
@@ -55,13 +49,106 @@ describe("primitives", () => {
     expect(bytewordsDecode("aeadaolazmjendeoti")).toEqual(input);
 
     const long = Uint8Array.of(
-      245, 215, 20, 198, 241, 235, 69, 59, 209, 205, 165, 18, 150, 158, 116,
-      135, 229, 212, 19, 159, 17, 37, 239, 240, 253, 11, 109, 191, 37, 242, 38,
-      120, 223, 41, 156, 189, 242, 254, 147, 204, 66, 163, 216, 175, 191, 72,
-      169, 54, 32, 60, 144, 230, 210, 137, 184, 197, 33, 113, 88, 14, 157, 31,
-      177, 46, 1, 115, 205, 69, 225, 150, 65, 235, 58, 144, 65, 240, 133, 69,
-      113, 247, 63, 53, 242, 165, 160, 144, 26, 13, 79, 237, 133, 71, 82, 69,
-      254, 165, 138, 41, 85, 24,
+      245,
+      215,
+      20,
+      198,
+      241,
+      235,
+      69,
+      59,
+      209,
+      205,
+      165,
+      18,
+      150,
+      158,
+      116,
+      135,
+      229,
+      212,
+      19,
+      159,
+      17,
+      37,
+      239,
+      240,
+      253,
+      11,
+      109,
+      191,
+      37,
+      242,
+      38,
+      120,
+      223,
+      41,
+      156,
+      189,
+      242,
+      254,
+      147,
+      204,
+      66,
+      163,
+      216,
+      175,
+      191,
+      72,
+      169,
+      54,
+      32,
+      60,
+      144,
+      230,
+      210,
+      137,
+      184,
+      197,
+      33,
+      113,
+      88,
+      14,
+      157,
+      31,
+      177,
+      46,
+      1,
+      115,
+      205,
+      69,
+      225,
+      150,
+      65,
+      235,
+      58,
+      144,
+      65,
+      240,
+      133,
+      69,
+      113,
+      247,
+      63,
+      53,
+      242,
+      165,
+      160,
+      144,
+      26,
+      13,
+      79,
+      237,
+      133,
+      71,
+      82,
+      69,
+      254,
+      165,
+      138,
+      41,
+      85,
+      24,
     );
     const encoded =
       "yktsbbswwnwmfefrttsnonbgmtnnjyltvwtybwne" +
@@ -83,19 +170,27 @@ describe("primitives", () => {
   it("generates the reference xoshiro256** sequences", () => {
     const rng1 = new Xoshiro256("Wolf");
     expect(Array.from({ length: 100 }, () => Number(rng1.next() % 100n))).toEqual([
-      42, 81, 85, 8, 82, 84, 76, 73, 70, 88, 2, 74, 40, 48, 77, 54, 88, 7, 5, 88, 37, 25, 82, 13, 69, 59, 30, 39, 11, 82, 19, 99, 45, 87, 30, 15, 32, 22, 89, 44, 92, 77, 29, 78, 4, 92, 44, 68, 92, 69, 1, 42, 89, 50, 37, 84, 63, 34, 32, 3, 17, 62, 40, 98, 82, 89, 24, 43, 85, 39, 15, 3, 99, 29, 20, 42, 27, 10, 85, 66, 50, 35, 69, 70, 70, 74, 30, 13, 72, 54, 11, 5, 70, 55, 91, 52, 10, 43, 43, 52,
+      42, 81, 85, 8, 82, 84, 76, 73, 70, 88, 2, 74, 40, 48, 77, 54, 88, 7, 5, 88, 37, 25, 82, 13, 69, 59, 30, 39, 11,
+      82, 19, 99, 45, 87, 30, 15, 32, 22, 89, 44, 92, 77, 29, 78, 4, 92, 44, 68, 92, 69, 1, 42, 89, 50, 37, 84, 63, 34,
+      32, 3, 17, 62, 40, 98, 82, 89, 24, 43, 85, 39, 15, 3, 99, 29, 20, 42, 27, 10, 85, 66, 50, 35, 69, 70, 70, 74, 30,
+      13, 72, 54, 11, 5, 70, 55, 91, 52, 10, 43, 43, 52,
     ]);
 
     const checksum = crc32(utf8("Wolf"));
     const seed = Uint8Array.of(checksum >>> 24, (checksum >>> 16) & 255, (checksum >>> 8) & 255, checksum & 255);
     const rng2 = new Xoshiro256(seed);
     expect(Array.from({ length: 100 }, () => Number(rng2.next() % 100n))).toEqual([
-      88, 44, 94, 74, 0, 99, 7, 77, 68, 35, 47, 78, 19, 21, 50, 15, 42, 36, 91, 11, 85, 39, 64, 22, 57, 11, 25, 12, 1, 91, 17, 75, 29, 47, 88, 11, 68, 58, 27, 65, 21, 54, 47, 54, 73, 83, 23, 58, 75, 27, 26, 15, 60, 36, 30, 21, 55, 57, 77, 76, 75, 47, 53, 76, 9, 91, 14, 69, 3, 95, 11, 73, 20, 99, 68, 61, 3, 98, 36, 98, 56, 65, 14, 80, 74, 57, 63, 68, 51, 56, 24, 39, 53, 80, 57, 51, 81, 3, 1, 30,
+      88, 44, 94, 74, 0, 99, 7, 77, 68, 35, 47, 78, 19, 21, 50, 15, 42, 36, 91, 11, 85, 39, 64, 22, 57, 11, 25, 12, 1,
+      91, 17, 75, 29, 47, 88, 11, 68, 58, 27, 65, 21, 54, 47, 54, 73, 83, 23, 58, 75, 27, 26, 15, 60, 36, 30, 21, 55,
+      57, 77, 76, 75, 47, 53, 76, 9, 91, 14, 69, 3, 95, 11, 73, 20, 99, 68, 61, 3, 98, 36, 98, 56, 65, 14, 80, 74, 57,
+      63, 68, 51, 56, 24, 39, 53, 80, 57, 51, 81, 3, 1, 30,
     ]);
 
     const rng3 = new Xoshiro256("Wolf");
     expect(Array.from({ length: 100 }, () => rng3.nextInt(1, 10))).toEqual([
-      6, 5, 8, 4, 10, 5, 7, 10, 4, 9, 10, 9, 7, 7, 1, 1, 2, 9, 9, 2, 6, 4, 5, 7, 8, 5, 4, 2, 3, 8, 7, 4, 5, 1, 10, 9, 3, 10, 2, 6, 8, 5, 7, 9, 3, 1, 5, 2, 7, 1, 4, 4, 4, 4, 9, 4, 5, 5, 6, 9, 5, 1, 2, 8, 3, 3, 2, 8, 4, 3, 2, 1, 10, 8, 9, 3, 10, 8, 5, 5, 6, 7, 10, 5, 8, 9, 4, 6, 4, 2, 10, 2, 1, 7, 9, 6, 7, 4, 2, 5,
+      6, 5, 8, 4, 10, 5, 7, 10, 4, 9, 10, 9, 7, 7, 1, 1, 2, 9, 9, 2, 6, 4, 5, 7, 8, 5, 4, 2, 3, 8, 7, 4, 5, 1, 10, 9, 3,
+      10, 2, 6, 8, 5, 7, 9, 3, 1, 5, 2, 7, 1, 4, 4, 4, 4, 9, 4, 5, 5, 6, 9, 5, 1, 2, 8, 3, 3, 2, 8, 4, 3, 2, 1, 10, 8,
+      9, 3, 10, 8, 5, 5, 6, 7, 10, 5, 8, 9, 4, 6, 4, 2, 10, 2, 1, 7, 9, 6, 7, 4, 2, 5,
     ]);
   });
 
@@ -103,14 +198,37 @@ describe("primitives", () => {
     const message = makeMessage(1024);
     const fragmentCount = new FountainEncoder(message, 100, 0, 10).seqLen;
     expect(fragmentCount).toBe(11);
-    expect(
-      Array.from({ length: 30 }, (_, i) => chooseFragments(i + 1, fragmentCount, crc32(message))),
-    ).toEqual([
-      [0], [1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [9],
-      [2, 5, 6, 8, 9, 10], [8], [1, 5], [1], [0, 2, 4, 5, 8, 10], [5], [2], [2],
-      [0, 1, 3, 4, 5, 7, 9, 10], [0, 1, 2, 3, 5, 6, 8, 9, 10], [0, 2, 4, 5, 7, 8, 9, 10],
-      [3, 5], [4], [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [0, 1, 3, 4, 5, 6, 7, 9, 10],
-      [6], [5, 6], [7],
+    expect(Array.from({ length: 30 }, (_, i) => chooseFragments(i + 1, fragmentCount, crc32(message)))).toEqual([
+      [0],
+      [1],
+      [2],
+      [3],
+      [4],
+      [5],
+      [6],
+      [7],
+      [8],
+      [9],
+      [10],
+      [9],
+      [2, 5, 6, 8, 9, 10],
+      [8],
+      [1, 5],
+      [1],
+      [0, 2, 4, 5, 8, 10],
+      [5],
+      [2],
+      [2],
+      [0, 1, 3, 4, 5, 7, 9, 10],
+      [0, 1, 2, 3, 5, 6, 8, 9, 10],
+      [0, 2, 4, 5, 7, 8, 9, 10],
+      [3, 5],
+      [4],
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      [0, 1, 3, 4, 5, 6, 7, 9, 10],
+      [6],
+      [5, 6],
+      [7],
     ]);
   });
 });
@@ -246,7 +364,11 @@ describe("UR", () => {
     expect(decoder.receive(new UrEncoder(makeMessageUr(300), 30).nextPart())).toBe(false);
     expect(decoder.receive(encoder.nextPart().replace("ur:bytes", "ur:other"))).toBe(false);
     expect(decoder.receive("bitcoin:bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu")).toBe(false);
-    expect(decoder.receive("ur:bytes/2-9/lpaoascfadaxcywenbpljkhdcagwdpfnsboxgwlbaawzuefywkdplrsrjynbvygabwjldapfcsgmghhkhstlrdcxaefa")).toBe(false);
+    expect(
+      decoder.receive(
+        "ur:bytes/2-9/lpaoascfadaxcywenbpljkhdcagwdpfnsboxgwlbaawzuefywkdplrsrjynbvygabwjldapfcsgmghhkhstlrdcxaefa",
+      ),
+    ).toBe(false);
   });
 });
 
@@ -291,10 +413,12 @@ const OUTPUT_TEXTS = [
 ];
 
 // https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2020-015-account.md
-const CRYPTO_ACCOUNT = "ur:crypto-account/oeadcyemrewytyaolttaadeetaadmutaaddloxaxhdclaxwmfmdeiamecsdsemgtvsjzcncygrkowtrontzschgezokstswkkscfmklrtauteyaahdcxiehfonurdppfyntapejpproypegrdawkgmaewejlsfdtsrfybdehcaflmtrlbdhpamtaaddyoeadlncsdwykaeykaeykaocyemrewytyaycynlytsnyltaadeetaadmhtaadmwtaaddloxaxhdclaostvelfemdyynwydwyaievosrgmambklovabdgypdglldvespsthysadamhpmjeinaahdcxntdllnaaeykoytdacygegwhgjsiyonpywmcmrpwphsvodsrerozsbyaxluzcoxdpamtaaddyoeadlncsehykaeykaeykaocyemrewytyaycypdbskeuytaadeetaadmwtaaddloxaxhdclaxzcfxeegdrpmogrgwkbzctlttweadkiengrwlhtprremouoluutqdpfbncedkynfhaahdcxjpwevdeogthttkmeswzcolcpsaahcfnshkhtehytclmnteatmoteadtlwynnftloamtaaddyoeadlncsghykaeykaeykaocyemrewytyaycybthlvytstaadeetaadmhtaadnytaaddloxaxhdclaxhhsnhdrpftdwuocntilydibehnecmovdfekpjkclcslasbhkpawsaddmcmmnahnyaahdcxlotedtndfymyltclhlmtpfsadscnhtztaolbnnkistaedegwfmmedreetnwmcycnamtaaddyoeadlfcsdpykaocyemrewytyaycyemrewytytaadeetaadmhtaadmetaadnytaaddloxaxhdclaxdwkswmztpytnswtsecnblfbayajkdldeclqzzolrsnhljedsgminetytbnahatbyaahdcxkkguwsvyimjkvwteytwztyswvendtpmncpasfrrylprnhtkblndrgrmkoyjtbkrpamtaaddyoeadlocsdyykaeykaeykadykaocyemrewytyaycyhkrpnddrtaadeetaadmetaadnytaaddloxaxhdclaohnhffmvsbndslrfgclpfjejyatbdpebacnzokotofxntaoemvskpaowmryfnotfgaahdcxdlnbvecentssfsssgylnhkrstoytecrdlyadrekirfaybglahltalsrfcaeerobwamtaaddyoeadlocsdyykaeykaeykaoykaocyemrewytyaycyhkrpnddrtaadeetaadnltaaddloxaxhdclaorkrhkeytwsoykorletwstbwycagtbsotmeptjkesgwrfcmveskvdmngujzttgtdpaahdcxgrfgmuvyylmwcxjtttechplslgoegagaptdniatidmhdmebdwfryfsnsdkcplyvaamtaaddyoeadlncshfykaeykaeykaocyemrewytyaycytostatbngmdavolk";
+const CRYPTO_ACCOUNT =
+  "ur:crypto-account/oeadcyemrewytyaolttaadeetaadmutaaddloxaxhdclaxwmfmdeiamecsdsemgtvsjzcncygrkowtrontzschgezokstswkkscfmklrtauteyaahdcxiehfonurdppfyntapejpproypegrdawkgmaewejlsfdtsrfybdehcaflmtrlbdhpamtaaddyoeadlncsdwykaeykaeykaocyemrewytyaycynlytsnyltaadeetaadmhtaadmwtaaddloxaxhdclaostvelfemdyynwydwyaievosrgmambklovabdgypdglldvespsthysadamhpmjeinaahdcxntdllnaaeykoytdacygegwhgjsiyonpywmcmrpwphsvodsrerozsbyaxluzcoxdpamtaaddyoeadlncsehykaeykaeykaocyemrewytyaycypdbskeuytaadeetaadmwtaaddloxaxhdclaxzcfxeegdrpmogrgwkbzctlttweadkiengrwlhtprremouoluutqdpfbncedkynfhaahdcxjpwevdeogthttkmeswzcolcpsaahcfnshkhtehytclmnteatmoteadtlwynnftloamtaaddyoeadlncsghykaeykaeykaocyemrewytyaycybthlvytstaadeetaadmhtaadnytaaddloxaxhdclaxhhsnhdrpftdwuocntilydibehnecmovdfekpjkclcslasbhkpawsaddmcmmnahnyaahdcxlotedtndfymyltclhlmtpfsadscnhtztaolbnnkistaedegwfmmedreetnwmcycnamtaaddyoeadlfcsdpykaocyemrewytyaycyemrewytytaadeetaadmhtaadmetaadnytaaddloxaxhdclaxdwkswmztpytnswtsecnblfbayajkdldeclqzzolrsnhljedsgminetytbnahatbyaahdcxkkguwsvyimjkvwteytwztyswvendtpmncpasfrrylprnhtkblndrgrmkoyjtbkrpamtaaddyoeadlocsdyykaeykaeykadykaocyemrewytyaycyhkrpnddrtaadeetaadmetaadnytaaddloxaxhdclaohnhffmvsbndslrfgclpfjejyatbdpebacnzokotofxntaoemvskpaowmryfnotfgaahdcxdlnbvecentssfsssgylnhkrstoytecrdlyadrekirfaybglahltalsrfcaeerobwamtaaddyoeadlocsdyykaeykaeykaoykaocyemrewytyaycyhkrpnddrtaadeetaadnltaaddloxaxhdclaorkrhkeytwsoykorletwstbwycagtbsotmeptjkesgwrfcmveskvdmngujzttgtdpaahdcxgrfgmuvyylmwcxjtttechplslgoegagaptdniatidmhdmebdwfryfsnsdkcplyvaamtaaddyoeadlncshfykaeykaeykaocyemrewytyaycytostatbngmdavolk";
 
 // https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2023-019-account-descriptor.md
-const ACCOUNT_DESCRIPTOR = "ur:account-descriptor/oeadcyemrewytyaolttantjyoeadiojojeisdefzdydtaolytantjloxaxhdclaxwmfmdeiamecsdsemgtvsjzcncygrkowtrontzschgezokstswkkscfmklrtauteyaahdcxiehfonurdppfyntapejpproypegrdawkgmaewejlsfdtsrfybdehcaflmtrlbdhpamtantjooeadlncsdwykaeykaeykaocyemrewytyaycynlytsnyltantjyoeadjzjkisdektjojeisdefzdydtdtaolytantjloxaxhdclaostvelfemdyynwydwyaievosrgmambklovabdgypdglldvespsthysadamhpmjeinaahdcxntdllnaaeykoytdacygegwhgjsiyonpywmcmrpwphsvodsrerozsbyaxluzcoxdpamtantjooeadlncsehykaeykaeykaocyemrewytyaycypdbskeuytantjyoeadisktjojeisdefzdydtaolytantjloxaxhdclaxzcfxeegdrpmogrgwkbzctlttweadkiengrwlhtprremouoluutqdpfbncedkynfhaahdcxjpwevdeogthttkmeswzcolcpsaahcfnshkhtehytclmnteatmoteadtlwynnftloamtantjooeadlncsghykaeykaeykaocyemrewytyaycybthlvytstantjyoeadjojkisdeiajljkiniojtihjpdefzdydtdtaolytantjloxaxhdclaxhhsnhdrpftdwuocntilydibehnecmovdfekpjkclcslasbhkpawsaddmcmmnahnyaahdcxlotedtndfymyltclhlmtpfsadscnhtztaolbnnkistaedegwfmmedreetnwmcycnamtantjooeadlfcsdpykaocyemrewytyaycyemrewytytantjyoeadkpjkisdektjkisdeiajljkiniojtihjpdefzdydtdtdtaolytantjloxaxhdclaxdwkswmztpytnswtsecnblfbayajkdldeclqzzolrsnhljedsgminetytbnahatbyaahdcxkkguwsvyimjkvwteytwztyswvendtpmncpasfrrylprnhtkblndrgrmkoyjtbkrpamtantjooeadlocsdyykaeykaeykadykaocyemrewytyaycyhkrpnddrtantjyoeadjsktjkisdeiajljkiniojtihjpdefzdydtdtaolytantjloxaxhdclaohnhffmvsbndslrfgclpfjejyatbdpebacnzokotofxntaoemvskpaowmryfnotfgaahdcxdlnbvecentssfsssgylnhkrstoytecrdlyadrekirfaybglahltalsrfcaeerobwamtantjooeadlocsdyykaeykaeykaoykaocyemrewytyaycyhkrpnddrtantjyoeadiyjyjpdefzdydtaolytantjloxaxhdclaorkrhkeytwsoykorletwstbwycagtbsotmeptjkesgwrfcmveskvdmngujzttgtdpaahdcxgrfgmuvyylmwcxjtttechplslgoegagaptdniatidmhdmebdwfryfsnsdkcplyvaamtantjooeadlncshfykaeykaeykaocyemrewytyaycytostatbnyadleoeh";
+const ACCOUNT_DESCRIPTOR =
+  "ur:account-descriptor/oeadcyemrewytyaolttantjyoeadiojojeisdefzdydtaolytantjloxaxhdclaxwmfmdeiamecsdsemgtvsjzcncygrkowtrontzschgezokstswkkscfmklrtauteyaahdcxiehfonurdppfyntapejpproypegrdawkgmaewejlsfdtsrfybdehcaflmtrlbdhpamtantjooeadlncsdwykaeykaeykaocyemrewytyaycynlytsnyltantjyoeadjzjkisdektjojeisdefzdydtdtaolytantjloxaxhdclaostvelfemdyynwydwyaievosrgmambklovabdgypdglldvespsthysadamhpmjeinaahdcxntdllnaaeykoytdacygegwhgjsiyonpywmcmrpwphsvodsrerozsbyaxluzcoxdpamtantjooeadlncsehykaeykaeykaocyemrewytyaycypdbskeuytantjyoeadisktjojeisdefzdydtaolytantjloxaxhdclaxzcfxeegdrpmogrgwkbzctlttweadkiengrwlhtprremouoluutqdpfbncedkynfhaahdcxjpwevdeogthttkmeswzcolcpsaahcfnshkhtehytclmnteatmoteadtlwynnftloamtantjooeadlncsghykaeykaeykaocyemrewytyaycybthlvytstantjyoeadjojkisdeiajljkiniojtihjpdefzdydtdtaolytantjloxaxhdclaxhhsnhdrpftdwuocntilydibehnecmovdfekpjkclcslasbhkpawsaddmcmmnahnyaahdcxlotedtndfymyltclhlmtpfsadscnhtztaolbnnkistaedegwfmmedreetnwmcycnamtantjooeadlfcsdpykaocyemrewytyaycyemrewytytantjyoeadkpjkisdektjkisdeiajljkiniojtihjpdefzdydtdtdtaolytantjloxaxhdclaxdwkswmztpytnswtsecnblfbayajkdldeclqzzolrsnhljedsgminetytbnahatbyaahdcxkkguwsvyimjkvwteytwztyswvendtpmncpasfrrylprnhtkblndrgrmkoyjtbkrpamtantjooeadlocsdyykaeykaeykadykaocyemrewytyaycyhkrpnddrtantjyoeadjsktjkisdeiajljkiniojtihjpdefzdydtdtaolytantjloxaxhdclaohnhffmvsbndslrfgclpfjejyatbdpebacnzokotofxntaoemvskpaowmryfnotfgaahdcxdlnbvecentssfsssgylnhkrstoytecrdlyadrekirfaybglahltalsrfcaeerobwamtantjooeadlocsdyykaeykaeykaoykaocyemrewytyaycyhkrpnddrtantjyoeadiyjyjpdefzdydtaolytantjloxaxhdclaorkrhkeytwsoykorletwstbwycagtbsotmeptjkesgwrfcmveskvdmngujzttgtdpaahdcxgrfgmuvyylmwcxjtttechplslgoegagaptdniatidmhdmebdwfryfsnsdkcplyvaamtantjooeadlncshfykaeykaeykaocyemrewytyaycytostatbnyadleoeh";
 
 // The same account in both, as the two specs list it.
 const ACCOUNT_TEXTS = [
@@ -308,9 +432,12 @@ const ACCOUNT_TEXTS = [
 ];
 
 // https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2023-010-output-descriptor.md
-const MULTISIG_CBOR = "d99d74a301781c77736828736f727465646d756c746928322c40302c40312c403229290283d99d6fa5035821021c0b479ecf6e67713ddf0c43b634592f51c037b6f951fb1dc6361a98b1e5735e0458206b3a4cfb6a45f6305efe6e0e976b5d26ba27f7c344d7fc7abef7be2d06d52dfd06d99d70a201881830f500f500f502f5021adc56727607d99d70a101838400f401f480f4081a18f8c2e7d99d6fa50358210397fcf2274abd243d42d42d3c248608c6d1935efca46138afef43af08e9712896045820c887c72d9d8ac29cddd5b2b060e8b0239039a149c784abe6079e24445db4aa8a06d99d70a201881830f500f500f502f5021af245ae3807d99d70a101838400f401f480f4081a221eb5a0d99d6fa5035821028342f5f7773f6fab374e1c2d3ccdba26bc0933fc4f63828b662b4357e4cc37910458205afed56d755c088320ec9bc6acd84d33737b580083759e0a0ff8f26e429e0b7706d99d70a201881830f500f500f502f5021ac5d8729707d99d70a101838400f401f480f4081a1c0ae906036f5361746f7368692773205374617368";
-const MULTISIG_TEXT = "wsh(sortedmulti(2,[dc567276/48'/0'/0'/2']xpub6DiYrfRwNnjeX4vHsWMajJVFKrbEEnu8gAW9vDuQzgTWEsEHE16sGWeXXUV1LBWQE1yCTmeprSNcqZ3W74hqVdgDbtYHUv3eM4W2TEUhpan/<0;1>/*,[f245ae38/48'/0'/0'/2']xpub6DnT4E1fT8VxuAZW29avMjr5i99aYTHBp9d7fiLnpL5t4JEprQqPMbTw7k7rh5tZZ2F5g8PJpssqrZoebzBChaiJrmEvWwUTEMAbHsY39Ge/<0;1>/*,[c5d87297/48'/0'/0'/2']xpub6DjrnfAyuonMaboEb3ZQZzhQ2ZEgaKV2r64BFmqymZqJqviLTe1JzMr2X2RfQF892RH7MyYUbcy77R7pPu1P71xoj8cDUMNhAMGYzKR4noZ/<0;1>/*))";
-const PRIVATE_KEY_CBOR = "d99d74a20167706b68284030290281d99d72a202f5035820347c4acb73f7bf2268b958230e215986eda87a984959c4ddbd4d62c07de6310e";
+const MULTISIG_CBOR =
+  "d99d74a301781c77736828736f727465646d756c746928322c40302c40312c403229290283d99d6fa5035821021c0b479ecf6e67713ddf0c43b634592f51c037b6f951fb1dc6361a98b1e5735e0458206b3a4cfb6a45f6305efe6e0e976b5d26ba27f7c344d7fc7abef7be2d06d52dfd06d99d70a201881830f500f500f502f5021adc56727607d99d70a101838400f401f480f4081a18f8c2e7d99d6fa50358210397fcf2274abd243d42d42d3c248608c6d1935efca46138afef43af08e9712896045820c887c72d9d8ac29cddd5b2b060e8b0239039a149c784abe6079e24445db4aa8a06d99d70a201881830f500f500f502f5021af245ae3807d99d70a101838400f401f480f4081a221eb5a0d99d6fa5035821028342f5f7773f6fab374e1c2d3ccdba26bc0933fc4f63828b662b4357e4cc37910458205afed56d755c088320ec9bc6acd84d33737b580083759e0a0ff8f26e429e0b7706d99d70a201881830f500f500f502f5021ac5d8729707d99d70a101838400f401f480f4081a1c0ae906036f5361746f7368692773205374617368";
+const MULTISIG_TEXT =
+  "wsh(sortedmulti(2,[dc567276/48'/0'/0'/2']xpub6DiYrfRwNnjeX4vHsWMajJVFKrbEEnu8gAW9vDuQzgTWEsEHE16sGWeXXUV1LBWQE1yCTmeprSNcqZ3W74hqVdgDbtYHUv3eM4W2TEUhpan/<0;1>/*,[f245ae38/48'/0'/0'/2']xpub6DnT4E1fT8VxuAZW29avMjr5i99aYTHBp9d7fiLnpL5t4JEprQqPMbTw7k7rh5tZZ2F5g8PJpssqrZoebzBChaiJrmEvWwUTEMAbHsY39Ge/<0;1>/*,[c5d87297/48'/0'/0'/2']xpub6DjrnfAyuonMaboEb3ZQZzhQ2ZEgaKV2r64BFmqymZqJqviLTe1JzMr2X2RfQF892RH7MyYUbcy77R7pPu1P71xoj8cDUMNhAMGYzKR4noZ/<0;1>/*))";
+const PRIVATE_KEY_CBOR =
+  "d99d74a20167706b68284030290281d99d72a202f5035820347c4acb73f7bf2268b958230e215986eda87a984959c4ddbd4d62c07de6310e";
 
 describe("descriptor URs", () => {
   const decode = (...parts: string[]) => {
@@ -346,12 +473,16 @@ describe("descriptor URs", () => {
     decoder.receive(CRYPTO_ACCOUNT);
     const encoder = new UrEncoder(decoder.result!, 100);
     expect(encoder.seqLen).toBeGreaterThan(1);
-    const parts = Array.from({ length: encoder.seqLen * 2 }, () => encoder.nextPart()).slice(1).reverse();
+    const parts = Array.from({ length: encoder.seqLen * 2 }, () => encoder.nextPart())
+      .slice(1)
+      .reverse();
     expect(decode(...parts)).toEqual(ACCOUNT_TEXTS);
   });
 
   it("refuses a private key", () => {
-    expect(() => descriptorsFromUr({ type: "output-descriptor", cbor: hex.decode(PRIVATE_KEY_CBOR) })).toThrow(/private key/);
+    expect(() => descriptorsFromUr({ type: "output-descriptor", cbor: hex.decode(PRIVATE_KEY_CBOR) })).toThrow(
+      /private key/,
+    );
   });
 
   it("ignores a PSBT", () => {

@@ -1,27 +1,20 @@
 import { HDKey } from "@scure/bip32";
-import { multisig, p2tr, p2wpkh, type P2Ret } from "@scure/btc-signer/payment.js";
-import { childPath, HARDENED, type Descriptor } from "./descriptor";
+import { multisig, type P2Ret, p2tr, p2wpkh } from "@scure/btc-signer/payment.js";
+import { childPath, type Descriptor, HARDENED } from "./descriptor";
 import { BIP32_VERSIONS } from "./extended-key";
 import { NETWORKS, type Network } from "./network";
 
 const chains = new Map<string, HDKey>();
 
 /** The public keys a descriptor derives for one chain and address index, in the order its keys are written. */
-export function derivePublicKeys(
-  descriptor: Descriptor,
-  network: Network,
-  chain: number,
-  index: number,
-): Uint8Array[] {
+export function derivePublicKeys(descriptor: Descriptor, network: Network, chain: number, index: number): Uint8Array[] {
   const multipath = descriptor.keys[0]!.path.find((step) => Array.isArray(step));
   if (multipath) {
     if (!Number.isInteger(chain) || chain < 0 || chain >= multipath.length) {
       throw new Error(`This descriptor has no chain ${chain}`);
     }
   } else if (chain !== 0) {
-    throw new Error(
-      `This descriptor covers a single chain, so not chain ${chain}`,
-    );
+    throw new Error(`This descriptor covers a single chain, so not chain ${chain}`);
   }
   if (!Number.isInteger(index) || index < 0 || index >= HARDENED) {
     throw new Error(`${index} is not an address index`);
@@ -56,11 +49,6 @@ export function derivePayment(descriptor: Descriptor, network: Network, chain: n
 }
 
 /** The address a descriptor derives for one chain and address index. */
-export function deriveAddress(
-  descriptor: Descriptor,
-  network: Network,
-  chain: number,
-  index: number,
-): string {
+export function deriveAddress(descriptor: Descriptor, network: Network, chain: number, index: number): string {
   return derivePayment(descriptor, network, chain, index).address!;
 }

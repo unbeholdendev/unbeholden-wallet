@@ -1,6 +1,6 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { useConnection } from "../app/connection";
-import { lookupBlock, type LookedUpBlock } from "../core/lookup";
+import { type LookedUpBlock, lookupBlock } from "../core/lookup";
 import { groupSats } from "../ui/amount";
 import { dateText, timeText } from "../ui/format";
 import { Empty, linkClass } from "../ui/kit";
@@ -39,7 +39,11 @@ export function Block({ height: param }: { height: string | undefined }) {
     return (
       <Empty title="Not connected">
         <p className="m-0">
-          Looking a block up needs the server. <a href="#/connect" className={linkClass}>Connect to it</a>.
+          Looking a block up needs the server.{" "}
+          <a href="#/connect" className={linkClass}>
+            Connect to it
+          </a>
+          .
         </p>
       </Empty>
     );
@@ -47,7 +51,11 @@ export function Block({ height: param }: { height: string | undefined }) {
     return (
       <Empty title={`Block ${groupSats(height)} isn't mined yet`}>
         <p className="m-0">
-          The chain's tip is <a href={`#/block/${tip}`} className={linkClass}>block {groupSats(tip)}</a>.
+          The chain's tip is{" "}
+          <a href={`#/block/${tip}`} className={linkClass}>
+            block {groupSats(tip)}
+          </a>
+          .
         </p>
       </Empty>
     );

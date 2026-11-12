@@ -19,8 +19,7 @@ export function crc32(data: Uint8Array): number {
   return (c ^ 0xffffffff) >>> 0;
 }
 
-export const uint32Bytes = (n: number) =>
-  Uint8Array.of(n >>> 24, (n >>> 16) & 0xff, (n >>> 8) & 0xff, n & 0xff);
+export const uint32Bytes = (n: number) => Uint8Array.of(n >>> 24, (n >>> 16) & 0xff, (n >>> 8) & 0xff, n & 0xff);
 
 const MASK = (1n << 64n) - 1n;
 const rotl = (x: bigint, k: bigint) => ((x << k) | (x >> (64n - k))) & MASK;
@@ -30,9 +29,7 @@ export class Xoshiro256 {
   private s: [bigint, bigint, bigint, bigint];
 
   constructor(seed: Uint8Array | string) {
-    const digest = sha256(
-      typeof seed === "string" ? new TextEncoder().encode(seed) : seed,
-    );
+    const digest = sha256(typeof seed === "string" ? new TextEncoder().encode(seed) : seed);
     const view = new DataView(digest.buffer, digest.byteOffset, 32);
     this.s = [0, 8, 16, 24].map((o) => view.getBigUint64(o)) as Xoshiro256["s"];
   }
@@ -94,18 +91,13 @@ function shuffled<T>(items: T[], rng: Xoshiro256): T[] {
 }
 
 /** The fragments mixed into a part, ascending. */
-export function chooseFragments(
-  seqNum: number,
-  seqLen: number,
-  checksum: number,
-): number[] {
+export function chooseFragments(seqNum: number, seqLen: number, checksum: number): number[] {
   if (seqNum <= seqLen) return [seqNum - 1];
   const seed = new Uint8Array(8);
   seed.set(uint32Bytes(seqNum));
   seed.set(uint32Bytes(checksum), 4);
   const rng = new Xoshiro256(seed);
-  const degree =
-    sampler(Array.from({ length: seqLen }, (_, i) => 1 / (i + 1)))(rng) + 1;
+  const degree = sampler(Array.from({ length: seqLen }, (_, i) => 1 / (i + 1)))(rng) + 1;
   const indexes = Array.from({ length: seqLen }, (_, i) => i);
   return shuffled(indexes, rng)
     .slice(0, degree)
@@ -137,26 +129,18 @@ export class FountainEncoder {
   private readonly checksum: number;
   private seqNum: number;
 
-  constructor(
-    message: Uint8Array,
-    maxFragmentLength: number,
-    firstSeqNum = 0,
-    minFragmentLength = 10,
-  ) {
+  constructor(message: Uint8Array, maxFragmentLength: number, firstSeqNum = 0, minFragmentLength = 10) {
     let length = message.length;
     const maxCount = Math.floor(message.length / minFragmentLength);
     for (let count = 1; count <= maxCount; count++) {
       length = Math.ceil(message.length / count);
       if (length <= maxFragmentLength) break;
     }
-    this.fragments = Array.from(
-      { length: Math.ceil(message.length / length) },
-      (_, i) => {
-        const fragment = new Uint8Array(length);
-        fragment.set(message.subarray(i * length, (i + 1) * length));
-        return fragment;
-      },
-    );
+    this.fragments = Array.from({ length: Math.ceil(message.length / length) }, (_, i) => {
+      const fragment = new Uint8Array(length);
+      fragment.set(message.subarray(i * length, (i + 1) * length));
+      return fragment;
+    });
     this.seqLen = this.fragments.length;
     this.messageLen = message.length;
     this.checksum = crc32(message);
@@ -185,10 +169,7 @@ const key = (part: Mixed) => part.indexes.join(",");
 
 /** Takes `b` out of `a` when `b` holds a strict subset of `a`'s fragments. */
 function reduce(a: Mixed, b: Mixed): Mixed {
-  if (
-    b.indexes.length >= a.indexes.length ||
-    !b.indexes.every((i) => a.indexes.includes(i))
-  ) {
+  if (b.indexes.length >= a.indexes.length || !b.indexes.every((i) => a.indexes.includes(i))) {
     return a;
   }
   return {
@@ -209,9 +190,11 @@ export type Progress = {
 export class FountainDecoder {
   result: Uint8Array | null = null;
   error: Error | null = null;
-  private expected: Omit<FountainPart, "seqNum" | "data"> & {
-    fragmentLength: number;
-  } | null = null;
+  private expected:
+    | (Omit<FountainPart, "seqNum" | "data"> & {
+        fragmentLength: number;
+      })
+    | null = null;
   private simple = new Map<number, Uint8Array>();
   private mixed = new Map<string, Mixed>();
   private queue: Mixed[] = [];
@@ -253,9 +236,7 @@ export class FountainDecoder {
 
   get progress(): Progress {
     const expected = this.expected?.seqLen ?? 0;
-    const fraction = this.result
-      ? 1
-      : expected && Math.min(0.99, this.processed / (expected * 1.75));
+    const fraction = this.result ? 1 : expected && Math.min(0.99, this.processed / (expected * 1.75));
     return { captured: this.simple.size, expected, fraction };
   }
 

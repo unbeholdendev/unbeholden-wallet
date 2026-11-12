@@ -6,8 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../App";
 import { scriptHash, txidOf } from "../backend/backend";
 import type { ConnectionStatus } from "../backend/electrum";
-import { fakeBackend, type FakeBackend } from "../backend/fake";
-import { demoBackend, DEMO_DESCRIPTOR, DEMO_FOREIGN, DEMO_TXIDS, seedDemoVault } from "../backend/fixture";
+import { type FakeBackend, fakeBackend } from "../backend/fake";
+import { DEMO_DESCRIPTOR, DEMO_FOREIGN, DEMO_TXIDS, demoBackend, seedDemoVault } from "../backend/fixture";
 import { createWallet, saveSettings } from "../core/wallets";
 import { createVault, destroyVault, unlockVault } from "../vault/vault";
 import { deriveAddress } from "../wallet/derive";
@@ -52,7 +52,10 @@ const go = (hash: string) => {
 
 const row = (label: string) => screen.getByRole("link", { name: label }).closest("li")!.textContent;
 const shownLabels = () =>
-  screen.getAllByRole("link").filter((a) => a.getAttribute("href")?.startsWith("#/tx/")).map((a) => a.textContent);
+  screen
+    .getAllByRole("link")
+    .filter((a) => a.getAttribute("href")?.startsWith("#/tx/"))
+    .map((a) => a.textContent);
 const spendable = () => {
   const label = screen.getByText("Spendable now");
   return (label.tagName === "DT" ? label : label.parentElement!).nextElementSibling!.textContent;
@@ -91,12 +94,18 @@ describe("wallet views on the demo history", () => {
     expect(link.getAttribute("href")).toBe(`https://explorer.example/bitcoin/tx/${DEMO_TXIDS.tom}`);
     expect(link.getAttribute("target")).toBe("_blank");
     expect(link.getAttribute("rel")).toBe("noopener noreferrer");
-    expect(screen.getAllByRole("link").some((a) => a.getAttribute("href")?.startsWith("https://explorer.example/bitcoin/address/"))).toBe(true);
+    expect(
+      screen
+        .getAllByRole("link")
+        .some((a) => a.getAttribute("href")?.startsWith("https://explorer.example/bitcoin/address/")),
+    ).toBe(true);
     await user.click(screen.getByRole("button", { name: "Lock" }));
     await user.type(await screen.findByLabelText("Passphrase"), PASSPHRASE);
     await user.click(screen.getByRole("button", { name: "Unlock" }));
     go(`#/tx/${DEMO_TXIDS.tom}`);
-    expect((await screen.findByRole("link", { name: "View in explorer" })).getAttribute("href")).toContain(DEMO_TXIDS.tom);
+    expect((await screen.findByRole("link", { name: "View in explorer" })).getAttribute("href")).toContain(
+      DEMO_TXIDS.tom,
+    );
     go("#/settings");
     await user.clear(await screen.findByLabelText("Explorer URL"));
     await user.click(screen.getByRole("button", { name: "Save explorer" }));
@@ -109,7 +118,9 @@ describe("wallet views on the demo history", () => {
     const user = await openApp("#/settings");
     await user.type(await screen.findByLabelText("Explorer URL"), "javascript:alert(1)");
     await user.click(screen.getByRole("button", { name: "Save explorer" }));
-    expect(await screen.findByText("Enter an http:// or https:// base URL without a login, query or fragment.")).toBeTruthy();
+    expect(
+      await screen.findByText("Enter an http:// or https:// base URL without a login, query or fragment."),
+    ).toBeTruthy();
     go(`#/tx/${DEMO_TXIDS.tom}`);
     expect(screen.queryByRole("link", { name: "View in explorer" })).toBeNull();
   });
@@ -147,14 +158,19 @@ describe("wallet views on the demo history", () => {
     expect(stats).toContain("Coins held8");
     expect(stats).toMatch(/Oldest coin[5-7] Aug 2026/);
     expect(stats).toContain("To spend every coin at 50 sat/vB0.00 029 300");
-    const chart = screen.getByRole("img", { name: /^Balance over time, from / }).querySelector("path")!.getAttribute("d")!;
+    const chart = screen
+      .getByRole("img", { name: /^Balance over time, from / })
+      .querySelector("path")!
+      .getAttribute("d")!;
     for (const x of chart.matchAll(/H([\d.]+)/g)) expect(Number(x[1])).toBeLessThanOrEqual(320);
   });
 
   it("splits the coins by age, adding up to what they hold", async () => {
     await openApp();
     const age = screen.getByRole("heading", { name: "Coin age" }).closest("section")!;
-    const rows = within(age).getAllByRole("listitem").map((li) => li.textContent!);
+    const rows = within(age)
+      .getAllByRole("listitem")
+      .map((li) => li.textContent!);
     const sats = rows.map((r) => Number(r.match(/([\d.\u202f ]+) ·/)![1]!.replace(/[^\d]/g, "")));
     expect(sats.reduce((a, b) => a + b, 0)).toBe(30_948_173);
     expect(rows.map((r) => Number(r.match(/(\d+)%/)![1])).reduce((a, b) => a + b, 0)).toBeGreaterThanOrEqual(98);
@@ -219,7 +235,12 @@ describe("wallet views on the demo history", () => {
     const backend = demoBackend();
     const address = deriveAddress(parseDescriptor(DEMO_DESCRIPTOR, "mainnet"), "mainnet", 0, 7);
     const script = OutScript.encode(Address(NETWORKS.mainnet).decode(address));
-    const changeAddress = deriveAddress(parseDescriptor(DEMO_DESCRIPTOR.replace("<0;1>", "<2;3>"), "mainnet"), "mainnet", 0, 0);
+    const changeAddress = deriveAddress(
+      parseDescriptor(DEMO_DESCRIPTOR.replace("<0;1>", "<2;3>"), "mainnet"),
+      "mainnet",
+      0,
+      0,
+    );
     const changeScript = OutScript.encode(Address(NETWORKS.mainnet).decode(changeAddress));
     let previous = DEMO_TXIDS.kraken;
     for (let i = 0; i < 51; i++) {
@@ -288,8 +309,14 @@ describe("wallet views on the demo history", () => {
     const lines = (await exported!.text()).trim().split("\r\n");
     expect(lines[0]).toBe("date,txid,direction,net_btc,net_sats,fee_btc,fee_sats,confirmations,height,label");
     expect(lines).toHaveLength(11);
-    expect(lines).toContainEqual(expect.stringMatching(new RegExp(`^[^,]*,${DEMO_TXIDS.rent},sent,-0.01451440,-1451440,0.00001440,1440,0,,"Rent, October"$`)));
-    expect(lines).toContainEqual(expect.stringMatching(new RegExp(`,${DEMO_TXIDS.tom},received,0.00650000,650000,,,3,153498,Sold bike to Tom$`)));
+    expect(lines).toContainEqual(
+      expect.stringMatching(
+        new RegExp(`^[^,]*,${DEMO_TXIDS.rent},sent,-0.01451440,-1451440,0.00001440,1440,0,,"Rent, October"$`),
+      ),
+    );
+    expect(lines).toContainEqual(
+      expect.stringMatching(new RegExp(`,${DEMO_TXIDS.tom},received,0.00650000,650000,,,3,153498,Sold bike to Tom$`)),
+    );
     await waitFor(() => expect(revoke).toHaveBeenCalledWith("blob:history"));
     vi.restoreAllMocks();
   });
@@ -306,10 +333,14 @@ describe("wallet views on the demo history", () => {
   it("places an unconfirmed transaction in the mempool, and a confirmed one not at all", async () => {
     await openApp(`#/tx/${DEMO_TXIDS.rent}`);
     const facts = () => screen.getByText("Fee rate").closest("dl")!;
-    await waitFor(() => expect(within(facts()).getByText("Ahead in the mempool").nextElementSibling!.textContent).toBe("0 MvB"));
+    await waitFor(() =>
+      expect(within(facts()).getByText("Ahead in the mempool").nextElementSibling!.textContent).toBe("0 MvB"),
+    );
     expect(within(facts()).getByText("Expected in").nextElementSibling!.textContent).toBe("about 10 min");
     go(`#/tx/${DEMO_TXIDS.tom}`);
-    await waitFor(() => expect(within(facts()).getByText("Status").nextElementSibling!.textContent).not.toBe("Waiting for a block"));
+    await waitFor(() =>
+      expect(within(facts()).getByText("Status").nextElementSibling!.textContent).not.toBe("Waiting for a block"),
+    );
     expect(within(facts()).queryByText("Expected in")).toBeNull();
   });
 
@@ -325,7 +356,9 @@ describe("wallet views on the demo history", () => {
     expect(within(facts()).queryByText("Rate with its parents")).toBeNull();
     go(`#/tx/${child.id}`);
     await screen.findByText("Rate with its parents");
-    expect(within(facts()).getByText("Rate with its parents").nextElementSibling!.textContent).toMatch(/^\d+(\.\d)? sat\/vB$/);
+    expect(within(facts()).getByText("Rate with its parents").nextElementSibling!.textContent).toMatch(
+      /^\d+(\.\d)? sat\/vB$/,
+    );
     expect(within(facts()).getByText("Expected in").nextElementSibling!.textContent).toBe("about 10 min");
   });
 
@@ -369,7 +402,10 @@ describe("wallet views on the demo history", () => {
     await user.click(await screen.findByRole("link", { name: /0\.01 048 560/ }));
     expect(location.hash).toBe(`#/coin/${DEMO_TXIDS.rent}:1`);
     const trail = within(await screen.findByRole("region", { name: "How it got here" }));
-    expect(trail.getAllByRole("link").map((a) => a.textContent)).toEqual(["Rent, October", "Northwind payroll, August"]);
+    expect(trail.getAllByRole("link").map((a) => a.textContent)).toEqual([
+      "Rent, October",
+      "Northwind payroll, August",
+    ]);
     expect(trail.getByText("Paid in from outside")).toBeTruthy();
     const source = within(screen.getByRole("region", { name: "Source" }));
     expect(source.getByText(/Already linked on-chain with another coin/)).toBeTruthy();
@@ -483,7 +519,9 @@ describe("wallet views on the demo history", () => {
 
   it("keeps an edited label after locking and unlocking", async () => {
     const user = await openApp(`#/tx/${DEMO_TXIDS.tom}`);
-    await user.click(within(await screen.findByRole("heading", { level: 1, name: /Sold bike to Tom/ })).getByRole("button"));
+    await user.click(
+      within(await screen.findByRole("heading", { level: 1, name: /Sold bike to Tom/ })).getByRole("button"),
+    );
     await user.clear(screen.getByLabelText("Label"));
     await user.type(screen.getByLabelText("Label"), "Bike sale{Enter}");
     expect(await screen.findByRole("button", { name: /^Bike sale, edit label/ })).toBeTruthy();
@@ -500,12 +538,22 @@ describe("wallet views on the demo history", () => {
     const user = await openApp("#/settings");
     await user.click(screen.getByRole("button", { name: "Export labels" }));
     const text = await exported!.text();
-    const lines = text.trim().split("\n").map((l) => JSON.parse(l));
-    expect(lines).toContainEqual({ type: "tx", ref: DEMO_TXIDS.tom, label: "Sold bike to Tom", origin: "wpkh([d34db33f/84'/0'/0'])" });
+    const lines = text
+      .trim()
+      .split("\n")
+      .map((l) => JSON.parse(l));
+    expect(lines).toContainEqual({
+      type: "tx",
+      ref: DEMO_TXIDS.tom,
+      label: "Sold bike to Tom",
+      origin: "wpkh([d34db33f/84'/0'/0'])",
+    });
     expect(lines).toContainEqual(expect.objectContaining({ ref: `${DEMO_TXIDS.dust}:0`, spendable: false }));
 
     go(`#/tx/${DEMO_TXIDS.tom}`);
-    await user.click(within(await screen.findByRole("heading", { level: 1, name: /Sold bike to Tom/ })).getByRole("button"));
+    await user.click(
+      within(await screen.findByRole("heading", { level: 1, name: /Sold bike to Tom/ })).getByRole("button"),
+    );
     await user.clear(screen.getByLabelText("Label"));
     await user.type(screen.getByLabelText("Label"), "Changed{Enter}");
     await screen.findByRole("button", { name: /^Changed, edit label/ });
@@ -525,11 +573,19 @@ describe("a wallet with no history", () => {
     await destroyVault();
     const vault = await createVault(PASSPHRASE, CHEAP);
     await saveSettings(vault, { server: "wss://node.example.ts.net:50004" });
-    await createWallet(vault, { name: "Fresh", descriptor: DEMO_DESCRIPTOR.replace("<0;1>", "<2;3>"), network: "mainnet" });
+    await createWallet(vault, {
+      name: "Fresh",
+      descriptor: DEMO_DESCRIPTOR.replace("<0;1>", "<2;3>"),
+      network: "mainnet",
+    });
     vault.lock();
     await openApp();
     expect(await screen.findByRole("heading", { name: "No transactions yet" })).toBeTruthy();
-    expect(within(screen.getByRole("heading", { name: "No transactions yet" }).parentElement!).getByRole("link", { name: "Receive" })).toBeTruthy();
+    expect(
+      within(screen.getByRole("heading", { name: "No transactions yet" }).parentElement!).getByRole("link", {
+        name: "Receive",
+      }),
+    ).toBeTruthy();
   });
 });
 
@@ -539,7 +595,8 @@ describe("every wallet in the vault", () => {
   const savings = parseDescriptor(SAVINGS, "mainnet");
   const spending = parseDescriptor(DEMO_DESCRIPTOR, "mainnet");
   const script = (address: string) => OutScript.encode(Address(NETWORKS.mainnet).decode(address));
-  const hashOf = (descriptor: typeof savings, index: number) => scriptHash(script(deriveAddress(descriptor, "mainnet", 0, index)));
+  const hashOf = (descriptor: typeof savings, index: number) =>
+    scriptHash(script(deriveAddress(descriptor, "mainnet", 0, index)));
   let asked: string[][];
   let watched: string[];
 
@@ -671,7 +728,9 @@ describe("the connection", () => {
   it("warns when the server's newest block is hours old, as when its node has lost its peers", async () => {
     vi.setSystemTime(DEMO_TIP_TIME + 3 * 3_600_000);
     await unlockWith(demoBackend);
-    expect(await screen.findByText(/newest block, 153.500, is 3 hours old/, undefined, { timeout: 15_000 })).toBeTruthy();
+    expect(
+      await screen.findByText(/newest block, 153.500, is 3 hours old/, undefined, { timeout: 15_000 }),
+    ).toBeTruthy();
     expect(screen.queryByText(/Up to date/)).toBeNull();
   });
 
@@ -681,7 +740,8 @@ describe("the connection", () => {
     let down = false;
     const factory = vi.fn(() => ({
       ...demo,
-      history: (hashes: string[]) => (down ? Promise.reject(new Error("The connection to the server was lost")) : demo.history(hashes)),
+      history: (hashes: string[]) =>
+        down ? Promise.reject(new Error("The connection to the server was lost")) : demo.history(hashes),
       onStatus: (listener: typeof report) => ((report = listener), () => {}),
     }));
     await unlockWith(factory);
@@ -699,17 +759,23 @@ describe("the connection", () => {
     down = false;
     act(() => report("connected"));
 
-    await waitFor(() => expect(screen.getByRole("region", { name: "Balance" }).textContent).toContain("Spendable nowBTCsats0.30 936 773"));
+    await waitFor(() =>
+      expect(screen.getByRole("region", { name: "Balance" }).textContent).toContain("Spendable nowBTCsats0.30 936 773"),
+    );
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
   });
 
   it("says why it could not connect and leads to what to do about it", async () => {
     const user = await unlockWith(() => fakeBackend({ failure: "refused" }));
-    expect(await screen.findByText(/Not connected to node.example.ts.net:50004. Nothing there accepted the connection/)).toBeTruthy();
+    expect(
+      await screen.findByText(/Not connected to node.example.ts.net:50004. Nothing there accepted the connection/),
+    ).toBeTruthy();
     expect(screen.getByText(/Balances are as of the last sync, \d{1,2} \w{3,4} \d{4} at \d\d:\d\d\./)).toBeTruthy();
     expect(spendable()).toContain("0.30 926 773");
     await user.click(screen.getByRole("link", { name: "What to do" }));
-    expect(await screen.findByRole("heading", { name: "Nothing at node.example.ts.net:50004 accepted the connection" })).toBeTruthy();
+    expect(
+      await screen.findByRole("heading", { name: "Nothing at node.example.ts.net:50004 accepted the connection" }),
+    ).toBeTruthy();
   });
 
   it("says when the wallet cannot be opened, and offers a way on", async () => {
@@ -740,18 +806,26 @@ describe("the receive request", () => {
   it("still gives SeedSigner the address to verify", () => {
     const uri = bip21(address, 300_000, "Invoice: 118");
     // https://github.com/SeedSigner/seedsigner/blob/dev/src/seedsigner/models/decode_qr.py (BitcoinAddressQrDecoder)
-    const found = /^((bc1q|tb1q|bcrt1q|bc1p|tb1p|bcrt1p|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,64})/i.exec(uri.split(":").at(-1)!);
+    const found = /^((bc1q|tb1q|bcrt1q|bc1p|tb1p|bcrt1p|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,64})/i.exec(
+      uri.split(":").at(-1)!,
+    );
     expect(found?.[1]?.toLowerCase()).toBe(address);
   });
 });
 
 describe("optional fiat prices", () => {
   beforeEach(() => {
-    HTMLDialogElement.prototype.showModal = function () { this.open = true; };
-    HTMLDialogElement.prototype.close = function () { this.open = false; };
+    HTMLDialogElement.prototype.showModal = function () {
+      this.open = true;
+    };
+    HTMLDialogElement.prototype.close = function () {
+      this.open = false;
+    };
   });
   it("waits for consent, shows the chosen currency and stops when disabled", async () => {
-    const fetcher = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ USD: { last: 100000 }, EUR: { last: 90000 } })));
+    const fetcher = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(JSON.stringify({ USD: { last: 100000 }, EUR: { last: 90000 } })));
     try {
       const user = await openApp();
       expect(fetcher).not.toHaveBeenCalled();
@@ -775,53 +849,72 @@ describe("optional fiat prices", () => {
 });
 
 describe("fiat price lifecycle", () => {
-  it.each(["blockchain", "mempool"] as const)("shows a current-rate fallback in confirmed history rows with %s", async (source) => {
-    const vault = await unlockVault(PASSPHRASE);
-    await vault.put("settings", { server: "wss://node.example", fiat: { source, currency: "EUR" } });
-    vault.lock();
-    const fetcher = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
-      if (String(input).includes("historical-price")) throw new TypeError("offline");
-      return new Response(JSON.stringify(source === "blockchain" ? { EUR: { last: 90000 } } : { EUR: 90000 }));
-    });
-    try {
-      await openApp();
-      await within(screen.getByRole("region", { name: "Balance" })).findByText(/EUR.*at current rate/);
-      const confirmed = screen.getAllByRole("link").filter(a => a.getAttribute("href")?.startsWith("#/tx/"))
-        .map(a => a.closest("li")!).find(li => !li.textContent!.toLowerCase().includes("unconfirmed"))!;
-      expect(confirmed).toBeTruthy();
-      await waitFor(() => expect(confirmed.textContent).toMatch(/≈ EUR.*at current rate/));
-    } finally { fetcher.mockRestore(); }
-  });
+  it.each(["blockchain", "mempool"] as const)(
+    "shows a current-rate fallback in confirmed history rows with %s",
+    async (source) => {
+      const vault = await unlockVault(PASSPHRASE);
+      await vault.put("settings", { server: "wss://node.example", fiat: { source, currency: "EUR" } });
+      vault.lock();
+      const fetcher = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+        if (String(input).includes("historical-price")) throw new TypeError("offline");
+        return new Response(JSON.stringify(source === "blockchain" ? { EUR: { last: 90000 } } : { EUR: 90000 }));
+      });
+      try {
+        await openApp();
+        await within(screen.getByRole("region", { name: "Balance" })).findByText(/EUR.*at current rate/);
+        const confirmed = screen
+          .getAllByRole("link")
+          .filter((a) => a.getAttribute("href")?.startsWith("#/tx/"))
+          .map((a) => a.closest("li")!)
+          .find((li) => !li.textContent!.toLowerCase().includes("unconfirmed"))!;
+        expect(confirmed).toBeTruthy();
+        await waitFor(() => expect(confirmed.textContent).toMatch(/≈ EUR.*at current rate/));
+      } finally {
+        fetcher.mockRestore();
+      }
+    },
+  );
 
   it("reads mempool prices, keeps currency local and aborts on lock", async () => {
     const vault = await unlockVault(PASSPHRASE);
     await vault.put("settings", { server: "wss://node.example", fiat: { source: "mempool", currency: "EUR" } });
     vault.lock();
-    const fetcher = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ EUR: 90000, USD: 100000 })));
+    const fetcher = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(JSON.stringify({ EUR: 90000, USD: 100000 })));
     try {
       const user = await openApp();
       await within(screen.getByRole("region", { name: "Balance" })).findByText(/EUR.*at current rate/);
-      expect(screen.getByRole("heading", { name: "Statistics" }).closest("section")!.textContent).toMatch(/0\.00 003 560≈ EUR\s?3\.20/);
+      expect(screen.getByRole("heading", { name: "Statistics" }).closest("section")!.textContent).toMatch(
+        /0\.00 003 560≈ EUR\s?3\.20/,
+      );
       expect(fetcher.mock.calls.map(([url]) => url).sort()).toEqual([
         "https://mempool.space/api/v1/historical-price?currency=EUR",
         "https://mempool.space/api/v1/prices",
       ]);
-      for (const [, init] of fetcher.mock.calls) expect(init).toMatchObject({ credentials: "omit", referrerPolicy: "no-referrer", redirect: "error" });
+      for (const [, init] of fetcher.mock.calls)
+        expect(init).toMatchObject({ credentials: "omit", referrerPolicy: "no-referrer", redirect: "error" });
       await user.click(screen.getByRole("button", { name: "Lock" }));
       for (const [, init] of fetcher.mock.calls) expect(init?.signal?.aborted).toBe(true);
-    } finally { fetcher.mockRestore(); }
+    } finally {
+      fetcher.mockRestore();
+    }
   });
 
   it("keeps the wallet usable when prices are invalid without contacting another provider", async () => {
     const vault = await unlockVault(PASSPHRASE);
     await vault.put("settings", { server: "wss://node.example", fiat: { source: "blockchain", currency: "USD" } });
     vault.lock();
-    const fetcher = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ USD: { last: -1 }, EUR: { last: 90000 } })));
+    const fetcher = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(JSON.stringify({ USD: { last: -1 }, EUR: { last: 90000 } })));
     try {
       await openApp();
       await screen.findByText("Price unavailable. Check the price source in Settings.");
       expect(spendable()).toContain("0.30 926 773");
       expect(fetcher).toHaveBeenCalledTimes(1);
-    } finally { fetcher.mockRestore(); }
+    } finally {
+      fetcher.mockRestore();
+    }
   });
 });

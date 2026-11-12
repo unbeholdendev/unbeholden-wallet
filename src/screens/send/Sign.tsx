@@ -1,14 +1,23 @@
 import { hex } from "@scure/base";
-import { useMemo, useState, type ReactNode } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { useConnection } from "../../app/connection";
 import { navigate } from "../../app/route";
 import { useWallet, useWalletSession, useWalletSnapshot } from "../../app/session";
 import { Amount, groupSats } from "../../ui/amount";
-import { Icon } from "../../ui/icons";
 import { hostText, shortId } from "../../ui/format";
+import { Icon } from "../../ui/icons";
 import { Button, Chip, LinkButton, Notice, Panel } from "../../ui/kit";
 import { sourcesOf } from "../../ui/sources";
-import { adoptExternal, collectSigned, finaliseExternal, finaliseSigned, hasMagic, parsePsbt, reviewPsbt, type Collected } from "../../wallet/psbt";
+import {
+  adoptExternal,
+  type Collected,
+  collectSigned,
+  finaliseExternal,
+  finaliseSigned,
+  hasMagic,
+  parsePsbt,
+  reviewPsbt,
+} from "../../wallet/psbt";
 import { CustodyLog } from "./CustodyLog";
 import { download, ExportQr } from "./ExportQr";
 import { rateText } from "./fees";
@@ -26,7 +35,10 @@ function Facts({ rows }: { rows: [ReactNode, ReactNode][] }) {
   return (
     <dl className="m-0 grid">
       {rows.map(([k, v], i) => (
-        <div key={i} className="flex items-baseline justify-between gap-3 border-b border-dotted border-rule-2 py-2 text-sm last:border-b-0">
+        <div
+          key={i}
+          className="flex items-baseline justify-between gap-3 border-b border-dotted border-rule-2 py-2 text-sm last:border-b-0"
+        >
           <dt className="text-ink-2">{k}</dt>
           <dd className="m-0 min-w-0 text-right">{v}</dd>
         </div>
@@ -83,19 +95,25 @@ export function SignFlow({
   const [refusal, setRefusal] = useState<string | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
-  const paths = new Map([...(snapshot?.addresses.receive ?? []), ...(snapshot?.addresses.change ?? [])].map((a) => [a.address, a.path]));
+  const paths = new Map(
+    [...(snapshot?.addresses.receive ?? []), ...(snapshot?.addresses.change ?? [])].map((a) => [a.address, a.path]),
+  );
   const review = useMemo(() => {
     const review = reviewPsbt(built, descriptor, network);
     // A PSBT signed elsewhere need not say which outputs are this wallet's, so its known addresses say too.
     const change = new Set(snapshot?.addresses.change.map((a) => a.address));
-    const outputs = review.outputs.map((o) => (o.address && paths.has(o.address) ? { ...o, mine: true, change: change.has(o.address) } : o));
+    const outputs = review.outputs.map((o) =>
+      o.address && paths.has(o.address) ? { ...o, mine: true, change: change.has(o.address) } : o,
+    );
     return { ...review, outputs };
   }, [built, descriptor, network, snapshot]);
   const inputCount = useMemo(() => parsePsbt(built).inputsLength, [built]);
   const sources = useMemo(() => (snapshot && inputs ? sourcesOf(snapshot) : []), [snapshot, inputs]);
 
   const { multi } = descriptor;
-  const [collected, setCollected] = useState(() => (multi && partial ? collectSigned(built, partial, partial, multi.threshold) : null));
+  const [collected, setCollected] = useState(() =>
+    multi && partial ? collectSigned(built, partial, partial, multi.threshold) : null,
+  );
   const toSign = collected?.psbt ?? built;
 
   const signed = (psbt: Uint8Array) => {
@@ -104,7 +122,7 @@ export function SignFlow({
       if (multi) {
         const next = collectSigned(built, toSign, psbt, multi.threshold);
         setRefusal(null);
-        if (!next.raw) return setCollected(next), onPartial?.(next.psbt);
+        if (!next.raw) return (setCollected(next), onPartial?.(next.psbt));
         final = next.raw;
       } else final = finaliseSigned(built, psbt);
       setRaw(final);
@@ -125,7 +143,8 @@ export function SignFlow({
       const txid = await backend.broadcast(raw);
       await session.addTransaction(raw);
       if (label) await session.setLabel("tx", txid, label);
-      for (const [vout, o] of review.outputs.entries()) if (o.address && names[o.address]) await session.setLabel("output", `${txid}:${vout}`, names[o.address]!);
+      for (const [vout, o] of review.outputs.entries())
+        if (o.address && names[o.address]) await session.setLabel("output", `${txid}:${vout}`, names[o.address]!);
       navigate(`/tx/${txid}`);
     } catch (e) {
       setFailure((e as Error).message);
@@ -138,26 +157,43 @@ export function SignFlow({
   const leaving = payments.filter((o) => !o.mine).reduce((a, o) => a + o.value, 0);
   const notices =
     review.fee > leaving / 10 && leaving > 0
-      ? [...warnings, `The fee is ${Math.round((review.fee / leaving) * 100)}% of what you're sending. Make sure that's what you meant.`]
+      ? [
+          ...warnings,
+          `The fee is ${Math.round((review.fee / leaving) * 100)}% of what you're sending. Make sure that's what you meant.`,
+        ]
       : warnings;
 
   const check = (
-    <Panel title={external || stage === "verified" ? "Check before you broadcast" : "Check before you sign"} aside={`${review.outputs.length} output${review.outputs.length === 1 ? "" : "s"}`}>
+    <Panel
+      title={external || stage === "verified" ? "Check before you broadcast" : "Check before you sign"}
+      aside={`${review.outputs.length} output${review.outputs.length === 1 ? "" : "s"}`}
+    >
       <ul className="m-0 grid list-none gap-2 p-0">
-        {[...review.outputs].sort((a, b) => Number(a.change) - Number(b.change)).map((o, i) => (
-          <li key={i} className={`grid gap-1 rounded-control border px-3 py-2.5 ${o.change ? "border-rule bg-sunk" : "border-rule-2"}`}>
-            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-              <span className="text-sm font-medium text-ink-2">
-                {o.change ? "Change back to you" : o.mine ? "To one of your own addresses" : `Payment ${payments.indexOf(o) + 1}${o.address && names[o.address] ? ` to ${names[o.address]}` : ""}`}
-              </span>
-              <span className="text-md font-medium">
-                <Amount sats={o.value} unit />
-              </span>
-            </div>
-            <span className="font-mono text-[0.86em] break-all">{o.address ?? "A script with no address"}</span>
-            {o.mine && o.address && paths.get(o.address) && <span className="font-mono text-xs text-ink-3">{paths.get(o.address)}</span>}
-          </li>
-        ))}
+        {[...review.outputs]
+          .sort((a, b) => Number(a.change) - Number(b.change))
+          .map((o, i) => (
+            <li
+              key={i}
+              className={`grid gap-1 rounded-control border px-3 py-2.5 ${o.change ? "border-rule bg-sunk" : "border-rule-2"}`}
+            >
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                <span className="text-sm font-medium text-ink-2">
+                  {o.change
+                    ? "Change back to you"
+                    : o.mine
+                      ? "To one of your own addresses"
+                      : `Payment ${payments.indexOf(o) + 1}${o.address && names[o.address] ? ` to ${names[o.address]}` : ""}`}
+                </span>
+                <span className="text-md font-medium">
+                  <Amount sats={o.value} unit />
+                </span>
+              </div>
+              <span className="font-mono text-[0.86em] break-all">{o.address ?? "A script with no address"}</span>
+              {o.mine && o.address && paths.get(o.address) && (
+                <span className="font-mono text-xs text-ink-3">{paths.get(o.address)}</span>
+              )}
+            </li>
+          ))}
       </ul>
       <Facts
         rows={[
@@ -169,11 +205,14 @@ export function SignFlow({
       />
       {!external && (
         <p className="m-0 text-sm text-ink-2">
-          <Chip tone="carbon">Replaceable (RBF)</Chip> Every transaction this wallet builds can be replaced, so you can raise its fee later if it's slow to confirm.
+          <Chip tone="carbon">Replaceable (RBF)</Chip> Every transaction this wallet builds can be replaced, so you can
+          raise its fee later if it's slow to confirm.
         </p>
       )}
       {notices.map((w) => (
-        <Notice key={w} tone="warn">{w}</Notice>
+        <Notice key={w} tone="warn">
+          {w}
+        </Notice>
       ))}
     </Panel>
   );
@@ -184,7 +223,16 @@ export function SignFlow({
       <Facts
         rows={[
           ["Sending", <Amount sats={leaving} unit />],
-          ["To", payments.length === 1 ? <span className="font-mono">{payments[0]!.address ? shortId(payments[0]!.address, 10, 8) : "A script with no address"}</span> : `${payments.length} recipients`],
+          [
+            "To",
+            payments.length === 1 ? (
+              <span className="font-mono">
+                {payments[0]!.address ? shortId(payments[0]!.address, 10, 8) : "A script with no address"}
+              </span>
+            ) : (
+              `${payments.length} recipients`
+            ),
+          ],
           ["Fee", `${groupSats(review.fee)} sats, ${rateText(review.feeRate)} sat/vB`],
           ["Change", change ? <Amount sats={change} /> : "None"],
         ]}
@@ -246,7 +294,10 @@ export function SignFlow({
                       ["Fee matches", `${groupSats(review.fee)} sats`],
                     ]),
               ].map(([what, detail]) => (
-                <li key={what} className="grid grid-cols-[24px_1fr_auto] items-center gap-2.5 rounded-control border border-rule px-3 py-2.5">
+                <li
+                  key={what}
+                  className="grid grid-cols-[24px_1fr_auto] items-center gap-2.5 rounded-control border border-rule px-3 py-2.5"
+                >
                   <span className="grid size-[22px] place-items-center rounded-full bg-ok text-sheet">
                     <Icon name="check" className="size-3.5 stroke-[2.6]" />
                   </span>
@@ -267,7 +318,11 @@ export function SignFlow({
               </div>
             )}
             <div className="flex flex-wrap gap-2">
-              <Button variant="primary" onClick={broadcast} disabled={sending || !backend || connection.phase !== "connected"}>
+              <Button
+                variant="primary"
+                onClick={broadcast}
+                disabled={sending || !backend || connection.phase !== "connected"}
+              >
                 {sending ? "Broadcasting" : "Broadcast through your server"}
               </Button>
               <Button variant="danger" onClick={onBack} className="ml-auto">
@@ -286,7 +341,11 @@ export function SignFlow({
         <h1 className="m-0 text-xl font-bold">{title}</h1>
         <LinkButton onClick={onBack}>{external ? "Load another" : "Back to coins"}</LinkButton>
       </div>
-      <nav aria-label="Signing steps" hidden={external} className="flex overflow-hidden rounded-panel border border-rule-2 bg-sheet @min-[900px]:max-w-[720px]">
+      <nav
+        aria-label="Signing steps"
+        hidden={external}
+        className="flex overflow-hidden rounded-panel border border-rule-2 bg-sheet @min-[900px]:max-w-[720px]"
+      >
         {STEPS.map(([s, name], i) => (
           <button
             key={s}
@@ -296,7 +355,9 @@ export function SignFlow({
             onClick={() => setStage(s)}
             className="flex min-h-11 flex-1 items-center justify-center gap-2 border-l border-rule px-1 text-sm font-medium text-ink-3 first:border-l-0 disabled:cursor-not-allowed aria-[current=step]:bg-carbon-tint aria-[current=step]:text-ink"
           >
-            <i className={`grid size-5 flex-none place-items-center rounded-full border-[1.5px] border-current text-[11px] font-bold not-italic ${s === stage ? "border-carbon bg-carbon text-carbon-ink" : i < at ? "text-ink-2" : ""}`}>
+            <i
+              className={`grid size-5 flex-none place-items-center rounded-full border-[1.5px] border-current text-[11px] font-bold not-italic ${s === stage ? "border-carbon bg-carbon text-carbon-ink" : i < at ? "text-ink-2" : ""}`}
+            >
               {i < at ? <Icon name="check" className="size-3 stroke-[2.6]" /> : i + 1}
             </i>
             {name}
@@ -321,7 +382,19 @@ export function BroadcastSigned() {
   const [refusal, setRefusal] = useState<string | null>(null);
   const title = "Broadcast a signed transaction";
   if (!snapshot) return <p className="m-0 text-ink-2">Opening this wallet.</p>;
-  if (loaded) return <SignFlow external built={loaded.psbt} done={loaded.raw} title={title} warnings={[]} summary={[]} label="" onBack={() => (setLoaded(null), setPartial(null))} />;
+  if (loaded)
+    return (
+      <SignFlow
+        external
+        built={loaded.psbt}
+        done={loaded.raw}
+        title={title}
+        warnings={[]}
+        summary={[]}
+        label=""
+        onBack={() => (setLoaded(null), setPartial(null))}
+      />
+    );
 
   const signed = (psbt: Uint8Array) => {
     // Past the first cosigner, a finished transaction is the next cosigner's signatures, not one to broadcast as it is.

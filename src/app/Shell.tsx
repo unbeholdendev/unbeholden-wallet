@@ -1,12 +1,12 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
+import { type WalletRecord, walletDescriptor } from "../core/wallets";
 import { groupSats } from "../ui/amount";
 import { hostText } from "../ui/format";
 import { Icon, type IconName } from "../ui/icons";
-import { useConnection, type Connection } from "./connection";
+import { type Connection, useConnection } from "./connection";
 import { Footer, InstallPrompt } from "./layout";
 import { usePaymentNotifications } from "./notify";
 import { Search } from "./Search";
-import { walletDescriptor, type WalletRecord } from "../core/wallets";
 import { useVault } from "./vault";
 
 export type Tab = "home" | "send" | "receive" | "coins";
@@ -83,12 +83,22 @@ function WalletSwitcher() {
           </button>
         ))}
         <hr className="my-1 border-rule" />
-        {["wpkh", "tr"].includes(scriptType(current) ?? "") && <a href="#/sign-message" onClick={close} className="rounded-control px-2.5 py-2 text-ink hover:bg-sunk">Sign a message</a>}
-        <a href="#/verify-message" onClick={close} className="rounded-control px-2.5 py-2 text-ink hover:bg-sunk">Verify a message</a>
+        {["wpkh", "tr"].includes(scriptType(current) ?? "") && (
+          <a href="#/sign-message" onClick={close} className="rounded-control px-2.5 py-2 text-ink hover:bg-sunk">
+            Sign a message
+          </a>
+        )}
+        <a href="#/verify-message" onClick={close} className="rounded-control px-2.5 py-2 text-ink hover:bg-sunk">
+          Verify a message
+        </a>
         <a href="#/addresses" onClick={close} className="rounded-control px-2.5 py-2 text-ink hover:bg-sunk">
           Addresses
         </a>
-        <a href="#/import" onClick={close} className="flex items-center gap-2 rounded-control px-2.5 py-2 font-medium text-carbon hover:bg-sunk">
+        <a
+          href="#/import"
+          onClick={close}
+          className="flex items-center gap-2 rounded-control px-2.5 py-2 font-medium text-carbon hover:bg-sunk"
+        >
           <Icon name="plus" className="size-4" /> Add a wallet
         </a>
       </div>
@@ -99,7 +109,15 @@ function WalletSwitcher() {
 function statusOf(connection: Connection) {
   switch (connection.phase) {
     case "connected":
-      return { dot: "bg-ok", text: <>Connected to <b className="font-medium text-ink">{hostText(connection.url)}</b></>, short: connection.tip === null ? "Connected" : groupSats(connection.tip) };
+      return {
+        dot: "bg-ok",
+        text: (
+          <>
+            Connected to <b className="font-medium text-ink">{hostText(connection.url)}</b>
+          </>
+        ),
+        short: connection.tip === null ? "Connected" : groupSats(connection.tip),
+      };
     case "connecting":
       return { dot: "bg-warn animate-pulse", text: <>Connecting to {hostText(connection.url)}</>, short: "Connecting" };
     case "retrying":
@@ -114,7 +132,10 @@ function ConnectionStatus() {
   const status = statusOf(connection);
   const tip = connection.phase === "connected" && connection.tip !== null ? connection.tip : null;
   return (
-    <a href="#/connect" className="ml-auto flex min-w-0 items-center gap-2.5 rounded-control px-2 py-1.5 text-sm whitespace-nowrap text-ink-2 no-underline hover:bg-sunk">
+    <a
+      href="#/connect"
+      className="ml-auto flex min-w-0 items-center gap-2.5 rounded-control px-2 py-1.5 text-sm whitespace-nowrap text-ink-2 no-underline hover:bg-sunk"
+    >
       <span aria-hidden="true" className={`size-2 flex-none rounded-full ${status.dot}`} />
       <span className="@min-[720px]/app:hidden">{status.short}</span>
       <span className="hidden truncate @min-[720px]/app:inline">
@@ -125,7 +146,8 @@ function ConnectionStatus() {
   );
 }
 
-const barButton = "grid size-10 flex-none place-items-center rounded-control border border-rule-2 bg-sheet text-ink hover:bg-sunk";
+const barButton =
+  "grid size-10 flex-none place-items-center rounded-control border border-rule-2 bg-sheet text-ink hover:bg-sunk";
 
 /** The signed-in frame: top bar, tab bar at the bottom on a phone. */
 export function Shell({ tab, children }: { tab: Tab | null; children: ReactNode }) {
@@ -149,7 +171,13 @@ export function Shell({ tab, children }: { tab: Tab | null; children: ReactNode 
         </nav>
         <ConnectionStatus />
         <Search />
-        <button type="button" aria-label="Hide amounts" aria-pressed={!!settings.hide} onClick={() => void saveSettings({ hide: !settings.hide })} className={barButton}>
+        <button
+          type="button"
+          aria-label="Hide amounts"
+          aria-pressed={!!settings.hide}
+          onClick={() => void saveSettings({ hide: !settings.hide })}
+          className={barButton}
+        >
           <Icon name={settings.hide ? "eyeOff" : "eye"} />
         </button>
         <a href="#/settings" aria-label="Settings" className={barButton}>
@@ -166,7 +194,10 @@ export function Shell({ tab, children }: { tab: Tab | null; children: ReactNode 
         {children}
         <Footer />
       </main>
-      <nav aria-label="Main" className="sticky bottom-0 z-10 grid grid-cols-4 border-t border-rule bg-sheet pb-[env(safe-area-inset-bottom)] text-ink-2 @min-[720px]/app:hidden">
+      <nav
+        aria-label="Main"
+        className="sticky bottom-0 z-10 grid grid-cols-4 border-t border-rule bg-sheet pb-[env(safe-area-inset-bottom)] text-ink-2 @min-[720px]/app:hidden"
+      >
         {tabs.map((t) => (
           <a
             key={t.id}

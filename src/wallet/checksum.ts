@@ -4,13 +4,7 @@ const INPUT_CHARSET =
   "0123456789()[],'/*abcdefgh@:$%{}IJKLMNOPQRSTUVWXYZ&+-.;<=>?!^_|~ijklmnopqrstuvwxyzABCDEFGH`#\"\\ ";
 const CHECKSUM_CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 
-const GENERATOR = [
-  0xf5dee51989n,
-  0xa9fdca3312n,
-  0x1bab10e32dn,
-  0x3706b1677an,
-  0x644d626ffdn,
-];
+const GENERATOR = [0xf5dee51989n, 0xa9fdca3312n, 0x1bab10e32dn, 0x3706b1677an, 0x644d626ffdn];
 
 function polymod(symbols: number[]): bigint {
   let chk = 1n;
@@ -30,9 +24,7 @@ function expand(payload: string): number[] {
   for (const character of payload) {
     const value = INPUT_CHARSET.indexOf(character);
     if (value === -1) {
-      throw new Error(
-        `Descriptor contains a character that can't appear in one: ${JSON.stringify(character)}`,
-      );
+      throw new Error(`Descriptor contains a character that can't appear in one: ${JSON.stringify(character)}`);
     }
     symbols.push(value & 31);
     groups.push(value >> 5);
@@ -62,9 +54,7 @@ export function stripChecksum(text: string): string {
   if (hash === -1) return text;
   const payload = text.slice(0, hash);
   const checksum = text.slice(hash + 1);
-  const malformed =
-    checksum.length !== 8 ||
-    [...checksum].some((c) => !CHECKSUM_CHARSET.includes(c));
+  const malformed = checksum.length !== 8 || [...checksum].some((c) => !CHECKSUM_CHARSET.includes(c));
   if (malformed) {
     throw new Error("Descriptor checksum must be eight bech32 characters");
   }

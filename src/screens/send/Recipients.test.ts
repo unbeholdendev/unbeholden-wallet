@@ -25,7 +25,9 @@ describe("parseAmount", () => {
     ["0.5", 50_000_000],
   ])("reads %j as %i sats", (text, sats) => expect(parseAmount(text)).toBe(sats));
 
-  it.each(["sats", "1.5 sats", "-1 sats", "2100000000000001 sats"])("refuses %j", (text) => expect(parseAmount(text)).toBeNull());
+  it.each(["sats", "1.5 sats", "-1 sats", "2100000000000001 sats"])("refuses %j", (text) =>
+    expect(parseAmount(text)).toBeNull(),
+  );
 });
 
 // The examples in https://github.com/bitcoin/bips/blob/master/bip-0021.mediawiki#examples
@@ -35,13 +37,19 @@ describe("parseUri", () => {
   it("reads the BIP21 examples", () => {
     expect(parseUri(`bitcoin:${address}`)).toEqual({ address });
     expect(parseUri(`bitcoin:${address}?label=Luke-Jr`)).toEqual({ address, label: "Luke-Jr" });
-    expect(parseUri(`bitcoin:${address}?amount=20.3&label=Luke-Jr`)).toEqual({ address, amount: "20.3", label: "Luke-Jr" });
+    expect(parseUri(`bitcoin:${address}?amount=20.3&label=Luke-Jr`)).toEqual({
+      address,
+      amount: "20.3",
+      label: "Luke-Jr",
+    });
     expect(parseUri(`bitcoin:${address}?amount=50&label=Luke-Jr&message=Donation%20for%20project%20xyz`)).toEqual({
       address,
       amount: "50",
       label: "Luke-Jr",
     });
-    expect(parseUri(`bitcoin:${address}?somethingyoudontunderstand=50&somethingelseyoudontget=999`)).toEqual({ address });
+    expect(parseUri(`bitcoin:${address}?somethingyoudontunderstand=50&somethingelseyoudontget=999`)).toEqual({
+      address,
+    });
   });
 
   it("leaves a URI with an unknown required parameter whole, so it fails as an address", () => {

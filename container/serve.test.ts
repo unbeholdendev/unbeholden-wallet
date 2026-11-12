@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import { type ChildProcess, spawn } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { request } from "node:http";
 import { createServer } from "node:net";
@@ -42,7 +42,9 @@ function send(port: number, path: string, headers: Record<string, string>, metho
 describe("serve.ts with the Electrum bridge on", () => {
   let server: { child: ChildProcess; port: number };
   // Nothing listens on port 1, so a request that gets past the checks fails to reach Electrum.
-  beforeAll(async () => (server = await start({ ELECTRUM: "127.0.0.1:1", ALLOWED_HOSTS: "wallet.example, other.example" })));
+  beforeAll(
+    async () => (server = await start({ ELECTRUM: "127.0.0.1:1", ALLOWED_HOSTS: "wallet.example, other.example" })),
+  );
   afterAll(() => server.child.kill());
 
   it("refuses a name it wasn't told about, as a DNS rebinding page sends", async () => {

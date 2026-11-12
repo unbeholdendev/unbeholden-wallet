@@ -4,7 +4,9 @@ import { Segmented } from "./kit";
 /** BTC with the eight decimals grouped as sats, `0.12 000 000`, split where the significant digits start. */
 export function btcParts(sats: number) {
   const abs = Math.abs(sats);
-  const whole = Math.floor(abs / 1e8).toLocaleString("en-GB").replace(/,/g, " ");
+  const whole = Math.floor(abs / 1e8)
+    .toLocaleString("en-GB")
+    .replace(/,/g, " ");
   const frac = String(abs % 1e8).padStart(8, "0");
   const full = `${whole}.${frac.slice(0, 2)} ${frac.slice(2, 5)} ${frac.slice(5)}`;
   let i = 0;
@@ -16,7 +18,12 @@ export function btcParts(sats: number) {
 
 export function Amount({ sats, unit = false, signed = false }: { sats: number; unit?: boolean; signed?: boolean }) {
   const inSats = useUnit() === "sats";
-  if (useHidden()) return <span aria-label="Hidden" className="whitespace-nowrap text-ink-3">••••••</span>;
+  if (useHidden())
+    return (
+      <span role="img" aria-label="Hidden" className="whitespace-nowrap text-ink-3">
+        ••••••
+      </span>
+    );
   const { lead, rest } = inSats ? { lead: "", rest: groupSats(Math.abs(sats)) } : btcParts(sats);
   const incoming = signed && sats > 0;
   const sign = sats < 0 ? "−" : incoming ? "+" : "";
@@ -25,7 +32,11 @@ export function Amount({ sats, unit = false, signed = false }: { sats: number; u
       {sign}
       <span className={incoming ? "opacity-75" : "font-normal text-ink-3"}>{lead}</span>
       {rest}
-      {unit && <span className="ml-[0.3em] text-[0.62em] font-bold tracking-[0.04em] text-ink-3">{inSats ? "sats" : "BTC"}</span>}
+      {unit && (
+        <span className="ml-[0.3em] text-[0.62em] font-bold tracking-[0.04em] text-ink-3">
+          {inSats ? "sats" : "BTC"}
+        </span>
+      )}
     </span>
   );
 }

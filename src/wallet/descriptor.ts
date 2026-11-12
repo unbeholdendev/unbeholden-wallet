@@ -51,9 +51,7 @@ function parseIndex(text: string, allowHardened: boolean): number {
   if (index >= HARDENED) throw new Error(`Derivation step ${digits} is too big`);
   if (!hardened) return index;
   if (!allowHardened) {
-    throw new Error(
-      "A descriptor can't derive hardened steps from a public key",
-    );
+    throw new Error("A descriptor can't derive hardened steps from a public key");
   }
   return index + HARDENED;
 }
@@ -74,9 +72,7 @@ function parsePath(steps: string[]): PathStep[] {
   const path = steps.map((step): PathStep => {
     if (step === "*") return "*";
     if (step === "*h" || step === "*'") {
-      throw new Error(
-        "A descriptor can't derive hardened steps from a public key",
-      );
+      throw new Error("A descriptor can't derive hardened steps from a public key");
     }
     if (step.startsWith("<") && step.endsWith(">")) {
       if (multipath) {
@@ -94,9 +90,7 @@ function parsePath(steps: string[]): PathStep[] {
     return parseIndex(step, false);
   });
   if (path.at(-1) !== "*" || path.indexOf("*") !== path.length - 1) {
-    throw new Error(
-      "A wallet descriptor must end in the * wildcard, and hold only one",
-    );
+    throw new Error("A wallet descriptor must end in the * wildcard, and hold only one");
   }
   return path;
 }
@@ -142,9 +136,7 @@ export function parseDescriptor(text: string, network: Network): Descriptor {
     throw new Error("This wallet supports only wpkh, tr and wsh multisig descriptors");
   }
   if (inner.includes(",")) {
-    throw new Error(
-      `${scriptType}() must hold a single key; script trees and multiple keys aren't supported`,
-    );
+    throw new Error(`${scriptType}() must hold a single key; script trees and multiple keys aren't supported`);
   }
   return { scriptType, keys: [parseKey(inner, network)] };
 }
@@ -155,39 +147,29 @@ export function parseDescriptor(text: string, network: Network): Descriptor {
  * does the BIP44 purpose of a `[fingerprint/path]` origin before it; a bare
  * `xpub` or `tpub` does not, so the caller must supply one.
  */
-export function descriptorFromExtendedKey(
-  text: string,
-  network: Network,
-  scriptType?: ScriptType,
-): Descriptor {
+export function descriptorFromExtendedKey(text: string, network: Network, scriptType?: ScriptType): Descriptor {
   const origin = /^\[([^\]]*)\](.*)$/.exec(text.trim());
   if (origin) {
     const parsed = parseOrigin(origin[1]!);
     const purpose = BIP44_PURPOSES[parsed.path[0]! - HARDENED];
     if (!purpose) {
-      throw new Error("This key's path isn't a wpkh (84h) or tr (86h) account. For a multisig, paste its whole descriptor");
+      throw new Error(
+        "This key's path isn't a wpkh (84h) or tr (86h) account. For a multisig, paste its whole descriptor",
+      );
     }
     const { key, path } = descriptorFromExtendedKey(origin[2]!, network, purpose).keys[0]!;
     return { scriptType: purpose, keys: [{ origin: parsed, key, path }] };
   }
   const normalised = normaliseExtendedKey(text, network);
-  if (
-    normalised.scriptType &&
-    scriptType &&
-    normalised.scriptType !== scriptType
-  ) {
-    throw new Error(
-      `This key's prefix says ${normalised.scriptType}, but ${scriptType} was asked for`,
-    );
+  if (normalised.scriptType && scriptType && normalised.scriptType !== scriptType) {
+    throw new Error(`This key's prefix says ${normalised.scriptType}, but ${scriptType} was asked for`);
   }
   if (normalised.scriptType === "wsh") {
     throw new Error("This is one cosigner's key of a multisig. Paste the multisig's whole descriptor instead");
   }
   const chosen = normalised.scriptType ?? scriptType;
   if (!chosen) {
-    throw new Error(
-      "This key's prefix doesn't say which script type to use. Choose wpkh or tr",
-    );
+    throw new Error("This key's prefix doesn't say which script type to use. Choose wpkh or tr");
   }
   return {
     scriptType: chosen,

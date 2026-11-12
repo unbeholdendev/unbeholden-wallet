@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { navigate } from "../../app/route";
 import { useSendDraft, useWallet, useWalletSnapshot } from "../../app/session";
-import { planBump, planCpfp, type BumpProblem } from "../../core/bump";
+import { type BumpProblem, planBump, planCpfp } from "../../core/bump";
 import { nextChange } from "../../core/view";
 import { Amount, groupSats } from "../../ui/amount";
 import { Button, Empty, linkClass, Notice, Panel } from "../../ui/kit";
 import { outpoint } from "../../wallet/coin";
 import { buildPsbt } from "../../wallet/psbt";
-import { FeePanel, rateOf, rateText, useFeeHistogram, type FeeChoice } from "./fees";
+import { type FeeChoice, FeePanel, rateOf, rateText, useFeeHistogram } from "./fees";
 import { blankDraft, stillPending } from "./Send";
 
 export type BumpMode = "speed" | "cancel" | "cpfp";
@@ -15,7 +15,8 @@ export type BumpMode = "speed" | "cancel" | "cpfp";
 const COPY = {
   speed: {
     heading: "Speed up this transaction",
-    intro: "A replacement pays the same people the same amounts with a higher fee, so miners prefer it. It goes through your signer again.",
+    intro:
+      "A replacement pays the same people the same amounts with a higher fee, so miners prefer it. It goes through your signer again.",
     after: "Replacement",
     build: "Build the replacement",
     sign: "Sign the replacement",
@@ -23,7 +24,8 @@ const COPY = {
   },
   cancel: {
     heading: "Cancel this transaction",
-    intro: "A replacement sends the same coins back to your own address with a higher fee, so miners prefer it. It works only if it reaches a block first: if the original confirms before it, the payment stands. It goes through your signer again.",
+    intro:
+      "A replacement sends the same coins back to your own address with a higher fee, so miners prefer it. It works only if it reaches a block first: if the original confirms before it, the payment stands. It goes through your signer again.",
     after: "Replacement",
     build: "Build the cancellation",
     sign: "Sign the cancellation",
@@ -31,7 +33,8 @@ const COPY = {
   },
   cpfp: {
     heading: "Speed up with a child transaction",
-    intro: "A new transaction spends what this one pays you back to your own address, with a fee high enough that miners take both together. The original stays as it is. The child goes through your signer.",
+    intro:
+      "A new transaction spends what this one pays you back to your own address, with a fee high enough that miners take both together. The original stays as it is. The child goes through your signer.",
     after: "With the child",
     build: "Build the child",
     sign: "Sign the child transaction",
@@ -87,11 +90,14 @@ export function Bump({ txid, mode }: { txid: string; mode: BumpMode }) {
   const copy = COPY[mode];
   const wallet = { ...kind, network, nextChange: nextChange(snapshot) };
   const planAt = (rate: number) =>
-    mode === "cpfp" ? planCpfp(tx, snapshot.transactions, snapshot.coins, rate, wallet) : planBump(tx, snapshot.coins, rate, wallet, mode === "cancel");
+    mode === "cpfp"
+      ? planCpfp(tx, snapshot.transactions, snapshot.coins, rate, wallet)
+      : planBump(tx, snapshot.coins, rate, wallet, mode === "cancel");
   const plan = planAt(rateOf(fee, histogram, planAt(rateOf(fee, histogram)).minFeeRate));
   const added = mode === "cpfp" ? [] : plan.coins.slice(tx.inputs.length);
   const changeOut = (o: { mine: { chain: number } | null }) => o.mine?.chain === 1;
-  const before = mode === "cpfp" ? plan.coins.reduce((a, c) => a + c.value, 0) : (tx.outputs.find(changeOut)?.value ?? 0);
+  const before =
+    mode === "cpfp" ? plan.coins.reduce((a, c) => a + c.value, 0) : (tx.outputs.find(changeOut)?.value ?? 0);
   const payments = tx.outputs.filter((o) => !changeOut(o)).reduce((a, o) => a + (o.value ?? 0), 0);
   const extra = mode === "cpfp" ? plan.spend.fee : plan.spend.fee - plan.oldFee;
 
@@ -99,7 +105,14 @@ export function Bump({ txid, mode }: { txid: string; mode: BumpMode }) {
 
   const build = () => {
     try {
-      const { psbt, warnings } = buildPsbt({ descriptor, network, coins: plan.coins, recipients: plan.recipients, change: plan.change, tip: snapshot.tip });
+      const { psbt, warnings } = buildPsbt({
+        descriptor,
+        network,
+        coins: plan.coins,
+        recipients: plan.recipients,
+        change: plan.change,
+        tip: snapshot.tip,
+      });
       setError(null);
       store((d) => ({
         ...(d ?? blankDraft()),
@@ -124,7 +137,9 @@ export function Bump({ txid, mode }: { txid: string; mode: BumpMode }) {
   };
 
   const side = (title: string, r: number, sats: number, accent: boolean) => (
-    <div className={`grid gap-1 rounded-control border px-3 py-3 ${accent ? "border-carbon bg-carbon-tint" : "border-rule bg-sunk"}`}>
+    <div
+      className={`grid gap-1 rounded-control border px-3 py-3 ${accent ? "border-carbon bg-carbon-tint" : "border-rule bg-sunk"}`}
+    >
       <span className="text-sm font-medium text-ink-2">{title}</span>
       <span className="text-xl font-medium">
         {rateText(r)} <small className="text-sm font-normal text-ink-2">sat/vB</small>
@@ -134,7 +149,12 @@ export function Bump({ txid, mode }: { txid: string; mode: BumpMode }) {
   );
   const after =
     mode === "cpfp"
-      ? side(copy.after, (plan.oldFee + plan.spend.fee) / (plan.oldVsize + plan.spend.vsize), plan.oldFee + plan.spend.fee, true)
+      ? side(
+          copy.after,
+          (plan.oldFee + plan.spend.fee) / (plan.oldVsize + plan.spend.vsize),
+          plan.oldFee + plan.spend.fee,
+          true,
+        )
       : side(copy.after, plan.spend.fee / plan.spend.vsize, plan.spend.fee, true);
 
   return (
@@ -161,7 +181,9 @@ export function Bump({ txid, mode }: { txid: string; mode: BumpMode }) {
             {mode !== "cpfp" && (
               <div>
                 <dt>{mode === "cancel" ? "Payments, cancelled" : "Payments, unchanged"}</dt>
-                <dd><Amount sats={payments} /></dd>
+                <dd>
+                  <Amount sats={payments} />
+                </dd>
               </div>
             )}
             <div>
@@ -177,13 +199,18 @@ export function Bump({ txid, mode }: { txid: string; mode: BumpMode }) {
           </dl>
           {mode === "cpfp" && (
             <p className="m-0 text-sm text-ink-2">
-              The child alone pays {rateText(plan.spend.fee / plan.spend.vsize)} sat/vB. Your node takes it only if that meets its minimum relay fee, or if it supports package relay and takes the two together. If the original is replaced, the child goes with it.
-              {plan.oldVsize > tx.vsize && " The original spends coins from other unconfirmed transactions of yours, so those count too, as miners count them."}
+              The child alone pays {rateText(plan.spend.fee / plan.spend.vsize)} sat/vB. Your node takes it only if that
+              meets its minimum relay fee, or if it supports package relay and takes the two together. If the original
+              is replaced, the child goes with it.
+              {plan.oldVsize > tx.vsize &&
+                " The original spends coins from other unconfirmed transactions of yours, so those count too, as miners count them."}
             </p>
           )}
           {plan.partial && (
             <Notice tone="warn">
-              It, or a transaction before it, spends coins from one this wallet doesn't have, and your server says something it spends from is not in a block yet. Miners count that too, so the rate with the child may be lower than shown.
+              It, or a transaction before it, spends coins from one this wallet doesn't have, and your server says
+              something it spends from is not in a block yet. Miners count that too, so the rate with the child may be
+              lower than shown.
             </Notice>
           )}
           {added.length > 0 && (
@@ -202,7 +229,11 @@ export function Bump({ txid, mode }: { txid: string; mode: BumpMode }) {
           {error && <Notice tone="bad">{error}</Notice>}
           {busy && (
             <Notice tone="warn">
-              Another transaction is built and waiting to be signed or broadcast. <a className={linkClass} href="#/send">Finish or discard it</a> first.
+              Another transaction is built and waiting to be signed or broadcast.{" "}
+              <a className={linkClass} href="#/send">
+                Finish or discard it
+              </a>{" "}
+              first.
             </Notice>
           )}
           <Button variant="primary" wide disabled={!!plan.problem || busy} onClick={build}>

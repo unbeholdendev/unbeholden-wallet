@@ -95,10 +95,7 @@ async function deriveKey(passphrase: string, salt: string, kdf: KdfParams) {
     ...kdf,
     dkLen: 32,
   });
-  return crypto.subtle.importKey("raw", bytes, "AES-GCM", false, [
-    "encrypt",
-    "decrypt",
-  ]);
+  return crypto.subtle.importKey("raw", bytes, "AES-GCM", false, ["encrypt", "decrypt"]);
 }
 
 // The record's name is the additional data, so a ciphertext moved to another name fails.
@@ -180,7 +177,7 @@ export async function sealBackup(
 /** @throws {WrongPassphrase} or {BadBackup} */
 export async function openBackup(text: string, passphrase: string): Promise<Record<string, unknown>> {
   const notOne = new BadBackup("This isn't a backup file from this app.");
-  let file;
+  let file: any;
   try {
     file = JSON.parse(text);
   } catch {
@@ -217,11 +214,7 @@ export async function vaultExists(): Promise<boolean> {
   }
 }
 
-export async function createVault(
-  passphrase: string | null,
-  kdf = DEFAULT_KDF,
-  now: Clock = Date.now,
-): Promise<Vault> {
+export async function createVault(passphrase: string | null, kdf = DEFAULT_KDF, now: Clock = Date.now): Promise<Vault> {
   const { header, key } = await newHeader(passphrase, kdf);
   const db = await openDb();
   const tx = db.transaction("header", "readwrite");
@@ -237,10 +230,7 @@ export async function createVault(
 }
 
 /** @throws {WrongPassphrase} whether the passphrase is wrong or there is no vault. */
-export async function unlockVault(
-  passphrase: string | null,
-  now: Clock = Date.now,
-): Promise<Vault> {
+export async function unlockVault(passphrase: string | null, now: Clock = Date.now): Promise<Vault> {
   const db = await openDb();
   try {
     const header = await readHeader(db);
@@ -302,17 +292,13 @@ export class Vault {
 
   async get<T>(name: string): Promise<T | undefined> {
     const db = this.#open();
-    const sealed: Sealed | undefined = await done(
-      db.transaction("records").objectStore("records").get(name),
-    );
+    const sealed: Sealed | undefined = await done(db.transaction("records").objectStore("records").get(name));
     return sealed && unseal(this.#key, name, sealed);
   }
 
   async put(name: string, value: unknown): Promise<void> {
     this.#open();
-    await this.#serial(async () =>
-      this.#write([[name, await seal(this.#key, name, value)]]),
-    );
+    await this.#serial(async () => this.#write([[name, await seal(this.#key, name, value)]]));
   }
 
   async delete(...names: string[]): Promise<void> {
@@ -321,9 +307,7 @@ export class Vault {
 
   async keys(prefix = ""): Promise<string[]> {
     const db = this.#open();
-    const keys = await done(
-      db.transaction("records").objectStore("records").getAllKeys(),
-    );
+    const keys = await done(db.transaction("records").objectStore("records").getAllKeys());
     return (keys as string[]).filter((key) => key.startsWith(prefix));
   }
 
@@ -335,9 +319,7 @@ export class Vault {
   /** When anything in the vault was last written, by the injected clock. */
   async writtenAt(): Promise<number | undefined> {
     const db = this.#open();
-    return done(
-      db.transaction("header").objectStore("header").get("writtenAt"),
-    );
+    return done(db.transaction("header").objectStore("header").get("writtenAt"));
   }
 
   /**
@@ -345,11 +327,7 @@ export class Vault {
    * no passphrase, and `kdf` is how to raise the costs.
    * @throws {VaultChanged} when another tab wrote meanwhile.
    */
-  async changePassphrase(
-    oldPassphrase: string | null,
-    newPassphrase: string | null,
-    kdf = DEFAULT_KDF,
-  ): Promise<void> {
+  async changePassphrase(oldPassphrase: string | null, newPassphrase: string | null, kdf = DEFAULT_KDF): Promise<void> {
     await checkPassphrase(oldPassphrase, await readHeader(this.#open()));
     const { header, key } = await newHeader(newPassphrase, kdf);
     await this.#serial(async () => {
@@ -362,10 +340,7 @@ export class Vault {
       const resealed = await Promise.all(
         sealed.map(async (s, i): Promise<[string, Sealed]> => {
           const name = names[i] as string;
-          return [
-            name,
-            await seal(key, name, await unseal(this.#key, name, s)),
-          ];
+          return [name, await seal(key, name, await unseal(this.#key, name, s))];
         }),
       );
       await this.#write(resealed, { header, writes });
@@ -384,10 +359,7 @@ export class Vault {
 
   // Refuses on a moved salt (another tab changed the passphrase) and, for a
   // rekey, on any write since its snapshot: both would strand records.
-  async #write(
-    records: [string, Sealed | null][],
-    rekey?: { header: Header; writes: number | undefined },
-  ) {
+  async #write(records: [string, Sealed | null][], rekey?: { header: Header; writes: number | undefined }) {
     const tx = this.#open().transaction(["header", "records"], "readwrite");
     const headers = tx.objectStore("header");
     const store = tx.objectStore("records");
@@ -451,9 +423,7 @@ export function idleLock(timeoutMs: number, now: Clock, lock: () => void) {
   };
 }
 
-export async function requestPersistence(): Promise<
-  "persisted" | "denied" | "unsupported"
-> {
+export async function requestPersistence(): Promise<"persisted" | "denied" | "unsupported"> {
   if (!navigator.storage?.persist) return "unsupported";
   return (await navigator.storage.persist()) ? "persisted" : "denied";
 }

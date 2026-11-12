@@ -1,11 +1,12 @@
 import { useEffect, useId, useState } from "react";
 import { useConnection } from "../../app/connection";
 import type { FeeBucket } from "../../backend/backend";
-import { feeTargets, MAX_FEE_RATE, MIN_FEE_RATE, mempoolPosition, type FeeTargets } from "../../wallet/fees";
 import { LinkButton, Panel } from "../../ui/kit";
+import { type FeeTargets, feeTargets, MAX_FEE_RATE, MIN_FEE_RATE, mempoolPosition } from "../../wallet/fees";
 
 // A NaN rate passes every comparison, so it would get past the fee clamp and the bump checks.
-const valid = ({ feeRate, vsize }: FeeBucket) => Number.isFinite(feeRate) && feeRate > 0 && Number.isFinite(vsize) && vsize >= 0;
+const valid = ({ feeRate, vsize }: FeeBucket) =>
+  Number.isFinite(feeRate) && feeRate > 0 && Number.isFinite(vsize) && vsize >= 0;
 
 /** The node's mempool histogram, fetched again on each block and every minute. Null until the first answer. */
 export function useFeeHistogram(): FeeBucket[] | null {
@@ -15,7 +16,11 @@ export function useFeeHistogram(): FeeBucket[] | null {
   useEffect(() => {
     if (!backend) return;
     let live = true;
-    const load = () => backend.feeHistogram().then((h) => live && setHistogram(h.filter(valid)), () => {});
+    const load = () =>
+      backend.feeHistogram().then(
+        (h) => live && setHistogram(h.filter(valid)),
+        () => {},
+      );
     load();
     const timer = setInterval(load, 60_000);
     return () => {
@@ -49,7 +54,11 @@ export const rateText = (rate: number) => rate.toLocaleString("en-GB", { maximum
 
 export function eta(blocks: number) {
   const minutes = blocks * 10;
-  return minutes < 60 ? `about ${minutes} min` : minutes < 240 ? `about ${Math.round(minutes / 60)} hour${minutes >= 90 ? "s" : ""}` : "several hours";
+  return minutes < 60
+    ? `about ${minutes} min`
+    : minutes < 240
+      ? `about ${Math.round(minutes / 60)} hour${minutes >= 90 ? "s" : ""}`
+      : "several hours";
 }
 
 const W = 360;
@@ -79,7 +88,12 @@ function Section({ histogram, rate }: { histogram: FeeBucket[]; rate: number }) 
   const flip = hx > W - 110;
   const step = maxX > 6 ? 2 : 1;
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Mempool cross-section. ${mvb(ahead * MVB)} MvB of transactions pay more than ${rateText(rate)} sat/vB.`} className="block h-auto w-full">
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      role="img"
+      aria-label={`Mempool cross-section. ${mvb(ahead * MVB)} MvB of transactions pay more than ${rateText(rate)} sat/vB.`}
+      className="block h-auto w-full"
+    >
       <defs>
         <clipPath id={clip}>
           <path d={d} />
@@ -106,7 +120,12 @@ function Section({ histogram, rate }: { histogram: FeeBucket[]; rate: number }) 
         </g>
       ))}
       <line x1={hx} x2={hx} y1={10} y2={H - B} className="stroke-carbon stroke-[1.6] [stroke-dasharray:4_3]" />
-      <text x={flip ? hx - 5 : hx + 5} y={18} textAnchor={flip ? "end" : "start"} className="fill-carbon text-[10px] font-bold">
+      <text
+        x={flip ? hx - 5 : hx + 5}
+        y={18}
+        textAnchor={flip ? "end" : "start"}
+        className="fill-carbon text-[10px] font-bold"
+      >
         You are here{ahead > maxX ? ", further down" : ""}
       </text>
       <text x={W - 6} y={H - 1} textAnchor="end" className="fill-ink-3 text-[9px]">
@@ -155,19 +174,29 @@ export function FeePanel({
         <p className="m-0 text-sm text-ink-3">Asking your node for its mempool.</p>
       ) : rates.every((r) => r === rates[0]) ? (
         <p className="m-0 text-sm text-ink-2">
-          {histogram.length === 0 && "Your node's mempool is empty, so there's nothing to outbid. "}Any rate from {rateText(rates[0]!)} sat/vB makes the next block.
+          {histogram.length === 0 && "Your node's mempool is empty, so there's nothing to outbid. "}Any rate from{" "}
+          {rateText(rates[0]!)} sat/vB makes the next block.
         </p>
       ) : (
         <div className="grid gap-3 @min-[640px]:grid-cols-2 @min-[640px]:items-start">
-          <LinkButton aria-expanded={chart} onClick={() => setChart(!chart)} className="justify-self-start text-sm md:hidden">
+          <LinkButton
+            aria-expanded={chart}
+            onClick={() => setChart(!chart)}
+            className="justify-self-start text-sm md:hidden"
+          >
             {chart ? "Hide" : "Show"} the mempool
           </LinkButton>
           <div className={`gap-3 md:grid ${chart ? "grid" : "hidden"}`}>
             <Section histogram={histogram} rate={rate} />
             <p className="m-0 text-sm text-ink-2">
-              At {rateText(rate)} sat/vB, {mvb(mempoolPosition(histogram, rate).vsizeAhead)} MvB pays more than you: {eta(blocks(rate))}.
+              At {rateText(rate)} sat/vB, {mvb(mempoolPosition(histogram, rate).vsizeAhead)} MvB pays more than you:{" "}
+              {eta(blocks(rate))}.
               {lower < rate && (
-                <> At {rateText(lower)} sat/vB that would be {mvb(mempoolPosition(histogram, lower).vsizeAhead)} MvB, {eta(blocks(lower))}.</>
+                <>
+                  {" "}
+                  At {rateText(lower)} sat/vB that would be {mvb(mempoolPosition(histogram, lower).vsizeAhead)} MvB,{" "}
+                  {eta(blocks(lower))}.
+                </>
               )}
             </p>
           </div>
@@ -192,7 +221,9 @@ export function FeePanel({
         <label htmlFor={id} className="text-sm font-medium text-ink-2">
           Custom rate
         </label>
-        <span className={`inline-flex overflow-hidden rounded-control border bg-sheet ${invalid ? "border-bad" : "border-rule-2"}`}>
+        <span
+          className={`inline-flex overflow-hidden rounded-control border bg-sheet ${invalid ? "border-bad" : "border-rule-2"}`}
+        >
           <button type="button" aria-label="Lower fee rate" className={stepper} onClick={() => set(rate - 1)}>
             −
           </button>

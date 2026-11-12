@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useConnection } from "../../app/connection";
 import { useSendDraft, useWallet, useWalletSession, useWalletSnapshot } from "../../app/session";
 import { useBook, useVault } from "../../app/vault";
@@ -9,15 +9,15 @@ import { shortId } from "../../ui/format";
 import { Icon } from "../../ui/icons";
 import { Button, Chip, linkClass, Notice } from "../../ui/kit";
 import { Sheet } from "../../ui/sheet";
-import { sourcesOf, type Source } from "../../ui/sources";
+import { type Source, sourcesOf } from "../../ui/sources";
 import { outpoint } from "../../wallet/coin";
 import { assessPrivacy } from "../../wallet/privacy";
 import { buildPsbt } from "../../wallet/psbt";
-import { selectCoins, spend, type Payment, type Spend } from "../../wallet/select";
+import { type Payment, type Spend, selectCoins, spend } from "../../wallet/select";
 import { bulk, CoinList, selectable } from "./CoinList";
 import { CustodyLog } from "./CustodyLog";
-import { FeePanel, rateOf, rateText, useFeeHistogram, type FeeChoice } from "./fees";
-import { checkAddress, parseAmount, Recipients, type Draft } from "./Recipients";
+import { type FeeChoice, FeePanel, rateOf, rateText, useFeeHistogram } from "./fees";
+import { checkAddress, type Draft, parseAmount, Recipients } from "./Recipients";
 import { SignFlow } from "./Sign";
 
 const and = (names: string[]) => (names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names[0]);
@@ -34,15 +34,31 @@ function Flash({ value, children }: { value: number; children: ReactNode }) {
   );
 }
 
-export type Built = { psbt: Uint8Array; warnings: string[]; title?: string; label: string; names?: Record<string, string>; summary: [ReactNode, ReactNode][] };
+export type Built = {
+  psbt: Uint8Array;
+  warnings: string[];
+  title?: string;
+  label: string;
+  names?: Record<string, string>;
+  summary: [ReactNode, ReactNode][];
+};
 
 /** `picked` null lets the wallet choose coins for the amount; a tap fixes the choice. `replaces` is set for a fee bump or cancellation, whose `inputs` are only the coins it adds. */
-export type SendDraft = { drafts: Draft[]; fee: FeeChoice; seed: string; picked: string[] | null; built: (Built & { inputs: string[]; replaces?: string; signed?: Uint8Array; partial?: Uint8Array }) | null };
+export type SendDraft = {
+  drafts: Draft[];
+  fee: FeeChoice;
+  seed: string;
+  picked: string[] | null;
+  built: (Built & { inputs: string[]; replaces?: string; signed?: Uint8Array; partial?: Uint8Array }) | null;
+};
 
 /** Whether a built send can still go out: its coins unspent and what it replaces still unconfirmed. */
 export function stillPending(built: NonNullable<SendDraft["built"]>, snapshot: WalletSnapshot) {
   const unspent = new Set(snapshot.coins.map(outpoint));
-  return built.inputs.every((k) => unspent.has(k)) && (!built.replaces || snapshot.transactions.some((t) => t.txid === built.replaces && t.height === null));
+  return (
+    built.inputs.every((k) => unspent.has(k)) &&
+    (!built.replaces || snapshot.transactions.some((t) => t.txid === built.replaces && t.height === null))
+  );
 }
 
 export const blankDraft = (): SendDraft => ({
@@ -64,7 +80,17 @@ function blocker(drafts: Draft[], valid: boolean[], result: Spend): string | nul
   return null;
 }
 
-function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnapshot; draft: SendDraft; update: (patch: Partial<SendDraft>) => void; onDiscard?: () => void }) {
+function Compose({
+  snapshot,
+  draft,
+  update,
+  onDiscard,
+}: {
+  snapshot: WalletSnapshot;
+  draft: SendDraft;
+  update: (patch: Partial<SendDraft>) => void;
+  onDiscard?: () => void;
+}) {
   const { descriptor, network, kind } = useWallet();
   const { drafts, fee } = draft;
   const setDrafts = (drafts: Draft[]) => update({ drafts });
@@ -81,17 +107,29 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
 
   const sources = useMemo(() => sourcesOf(snapshot), [snapshot]);
   const nameOf = useMemo(() => new Map(sources.flatMap((s) => s.coins.map((c) => [outpoint(c), s.name]))), [sources]);
-  const kycOf = useMemo(() => new Set(sources.filter((s) => s.kyc.length).flatMap((s) => s.coins.map(outpoint))), [sources]);
-  const own = useMemo(() => new Set([...snapshot.addresses.receive, ...snapshot.addresses.change].map((a) => a.address)), [snapshot]);
+  const kycOf = useMemo(
+    () => new Set(sources.filter((s) => s.kyc.length).flatMap((s) => s.coins.map(outpoint))),
+    [sources],
+  );
+  const own = useMemo(
+    () => new Set([...snapshot.addresses.receive, ...snapshot.addresses.change].map((a) => a.address)),
+    [snapshot],
+  );
   const rate = rateOf(fee, histogram);
   // An unfinished address still has to cost its output's bytes, so it stands in as one of the wallet's own type.
-  const placeholder = kind.scriptType === "wpkh" ? `0014${"00".repeat(20)}` : `${kind.scriptType === "tr" ? "5120" : "0020"}${"00".repeat(32)}`;
+  const placeholder =
+    kind.scriptType === "wpkh"
+      ? `0014${"00".repeat(20)}`
+      : `${kind.scriptType === "tr" ? "5120" : "0020"}${"00".repeat(32)}`;
   const checks = drafts.map((d) => (d.address.trim() ? checkAddress(d.address, network) : null));
   const addresses = checks.map((c) => (c && "address" in c ? c.address : ""));
   const payment: Payment = {
     recipients: drafts.map((d, i) => {
       const check = checks[i];
-      return { script: check && "script" in check ? check.script : placeholder, value: d.max ? "max" : (parseAmount(d.amount) ?? 0) };
+      return {
+        script: check && "script" in check ? check.script : placeholder,
+        value: d.max ? "max" : (parseAmount(d.amount) ?? 0),
+      };
     }),
     feeRate: rate,
     ...kind,
@@ -119,9 +157,18 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
   const known = sources.filter((s) => s.kyc.length && s.coins.some(bulk));
   const open = sources.filter((s) => !s.kyc.length && s.coins.some((c) => selected.has(outpoint(c))));
   const knownCoins = known.flatMap((s) => s.coins.filter(bulk));
-  const suggest = linked > 1 && typed && open.length > 0 && open.length < linked && !sources.some((s) => covers(s.coins.filter(bulk)));
+  const suggest =
+    linked > 1 &&
+    typed &&
+    open.length > 0 &&
+    open.length < linked &&
+    !sources.some((s) => covers(s.coins.filter(bulk)));
   const foreign = chosen.filter((c) => c.status === "foreign-unconfirmed");
-  const stop = blocker(drafts, checks.map((c) => !c || "script" in c), result);
+  const stop = blocker(
+    drafts,
+    checks.map((c) => !c || "script" in c),
+    result,
+  );
   const change = nextChange(snapshot);
   const sweepable = snapshot.coins.filter(take);
   const swept = drafts.some((d) => d.max) && sweepable.length > 0 && sweepable.every((c) => selected.has(outpoint(c)));
@@ -159,9 +206,17 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
       update({
         built: {
           ...built,
-          label: drafts.map((d, i) => d.label.trim() || named.get(addresses[i]!)).filter(Boolean).join(", "),
+          label: drafts
+            .map((d, i) => d.label.trim() || named.get(addresses[i]!))
+            .filter(Boolean)
+            .join(", "),
           names: Object.fromEntries(addresses.flatMap((a) => (named.has(a) ? [[a, named.get(a)!]] : []))),
-          summary: [["Inputs", `${result.coins.length} coin${result.coins.length === 1 ? "" : "s"} from ${linked} source${linked === 1 ? "" : "s"}`]],
+          summary: [
+            [
+              "Inputs",
+              `${result.coins.length} coin${result.coins.length === 1 ? "" : "s"} from ${linked} source${linked === 1 ? "" : "s"}`,
+            ],
+          ],
           inputs: result.coins.map(outpoint),
         },
       });
@@ -195,10 +250,12 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
             own={own}
             maxAmounts={result.amounts}
             book={book}
-            onSave={(c) => saveBook([...book.filter((b) => b.address !== c.address), c])}          />
+            onSave={(c) => saveBook([...book.filter((b) => b.address !== c.address), c])}
+          />
           {swept && left.length > 0 && (
             <Notice tone="warn">
-              Sending everything spendable. Left out, <Amount sats={left.reduce((a, c) => a + c.value, 0)} unit />: {leftOut}.
+              Sending everything spendable. Left out, <Amount sats={left.reduce((a, c) => a + c.value, 0)} unit />:{" "}
+              {leftOut}.
             </Notice>
           )}
           <FeePanel histogram={histogram} choice={fee} onChange={setFee} />
@@ -216,13 +273,26 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
           />
         </div>
         <div className="grid min-w-0 content-start gap-4 @min-[900px]:sticky @min-[900px]:top-20 @min-[900px]:max-h-[calc(100dvh-96px)] @min-[900px]:overflow-y-auto">
-          <section ref={log} aria-label="Custody log" className="scroll-mt-20 rounded-panel border border-rule bg-sheet">
+          <section
+            ref={log}
+            aria-label="Custody log"
+            className="scroll-mt-20 rounded-panel border border-rule bg-sheet"
+          >
             <div className="flex items-center justify-between gap-3 px-4 pt-4">
               <h2 className="text-md font-bold">Custody log</h2>
-              {linked > 1 && <Chip tone="join"><Icon name="join" className="size-3.5" />Joins {linked}</Chip>}
+              {linked > 1 && (
+                <Chip tone="join">
+                  <Icon name="join" className="size-3.5" />
+                  Joins {linked}
+                </Chip>
+              )}
             </div>
-            <p className="m-0 px-4 pt-1 text-sm text-ink-3">What a chain analyst would write down about this transaction.</p>
-            <p aria-live="polite" className="sr-only">{linked > 1 ? `Joins ${linked} sources` : linked === 1 ? "No new links" : ""}</p>
+            <p className="m-0 px-4 pt-1 text-sm text-ink-3">
+              What a chain analyst would write down about this transaction.
+            </p>
+            <p aria-live="polite" className="sr-only">
+              {linked > 1 ? `Joins ${linked} sources` : linked === 1 ? "No new links" : ""}
+            </p>
             <div className="grid gap-2.5 px-4 pt-3 pb-4">
               <CustodyLog sources={sources} selected={selected} />
               {linked !== 1 && (
@@ -245,7 +315,9 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
                 (covers(knownCoins) ? (
                   <div className="grid justify-items-start gap-2 rounded-control border border-rule-2 p-3">
                     <span>
-                      No single source covers this payment. Use only coins from sources that already know who you are, {and(known.map((s) => s.name))}, and {and(open.map((s) => s.name))} {open.length > 1 ? "stay" : "stays"} private.
+                      No single source covers this payment. Use only coins from sources that already know who you are,{" "}
+                      {and(known.map((s) => s.name))}, and {and(open.map((s) => s.name))}{" "}
+                      {open.length > 1 ? "stay" : "stays"} private.
                     </span>
                     <Button size="sm" onClick={() => setSelected(new Set(knownCoins.map(outpoint)))}>
                       Use only those coins
@@ -253,13 +325,16 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
                   </div>
                 ) : (
                   <p className="m-0 max-w-[60ch] text-sm text-ink-2">
-                    No single source covers this payment, and neither do the sources that already know you, so some private coins have to be joined.
+                    No single source covers this payment, and neither do the sources that already know you, so some
+                    private coins have to be joined.
                   </p>
                 ))}
               {report.change && <p className="m-0 max-w-[60ch] text-sm text-ink-2">{report.change}</p>}
               {foreign.length > 0 && (
                 <Notice tone="warn">
-                  {foreign.length === 1 ? "One selected coin is" : `${foreign.length} selected coins are`} an unconfirmed payment from someone else. They can still replace it, and then this transaction fails with it.
+                  {foreign.length === 1 ? "One selected coin is" : `${foreign.length} selected coins are`} an
+                  unconfirmed payment from someone else. They can still replace it, and then this transaction fails with
+                  it.
                 </Notice>
               )}
             </div>
@@ -272,58 +347,108 @@ function Compose({ snapshot, draft, update, onDiscard }: { snapshot: WalletSnaps
             <dl className="m-0 grid px-4 pt-1 pb-4 text-sm [&>div]:flex [&>div]:items-baseline [&>div]:justify-between [&>div]:gap-3 [&>div]:border-b [&>div]:border-dotted [&>div]:border-rule-2 [&>div]:py-1.5 [&_dt]:text-ink-2 [&_dd]:m-0 [&_dd]:text-right">
               <div>
                 <dt>Coins in ({chosen.length})</dt>
-                <dd><Flash value={result.coins.reduce((a, c) => a + c.value, 0)}><Amount sats={result.coins.reduce((a, c) => a + c.value, 0)} /></Flash></dd>
+                <dd>
+                  <Flash value={result.coins.reduce((a, c) => a + c.value, 0)}>
+                    <Amount sats={result.coins.reduce((a, c) => a + c.value, 0)} />
+                  </Flash>
+                </dd>
               </div>
               <div>
                 <dt>Sending</dt>
-                <dd><Amount sats={result.amounts.reduce((a, b) => a + b, 0)} /></dd>
+                <dd>
+                  <Amount sats={result.amounts.reduce((a, b) => a + b, 0)} />
+                </dd>
               </div>
               <div>
                 <dt>
                   Fee
-                  <small className="block text-xs text-ink-3">{rateText(rate)} sat/vB &middot; {result.vsize} vB</small>
+                  <small className="block text-xs text-ink-3">
+                    {rateText(rate)} sat/vB &middot; {result.vsize} vB
+                  </small>
                 </dt>
-                <dd><Flash value={result.fee}>{groupSats(result.fee)} sats</Flash></dd>
+                <dd>
+                  <Flash value={result.fee}>{groupSats(result.fee)} sats</Flash>
+                </dd>
               </div>
               <div>
                 <dt>
                   Change back to you
-                  {result.change > 0 && <small className="block font-mono text-xs text-ink-3">{shortId(change.address, 10, 6)} &middot; {change.path}</small>}
+                  {result.change > 0 && (
+                    <small className="block font-mono text-xs text-ink-3">
+                      {shortId(change.address, 10, 6)} &middot; {change.path}
+                    </small>
+                  )}
                 </dt>
-                <dd><Flash value={result.change}>{result.change ? <Amount sats={result.change} /> : "None"}</Flash></dd>
+                <dd>
+                  <Flash value={result.change}>{result.change ? <Amount sats={result.change} /> : "None"}</Flash>
+                </dd>
               </div>
               <div className="border-b-0 pt-2.5 text-md font-bold [&_dt]:text-ink">
                 <dt>Total leaving the wallet</dt>
-                <dd><Flash value={result.total}><Amount sats={result.total} unit /></Flash></dd>
+                <dd>
+                  <Flash value={result.total}>
+                    <Amount sats={result.total} unit />
+                  </Flash>
+                </dd>
               </div>
             </dl>
             <div className="grid gap-2 px-4 pb-4">
               {error && <Notice tone="bad">{error}</Notice>}
               {primary("md")}
-              {onDiscard && <Button variant="danger" size="sm" onClick={onDiscard} className="justify-self-center">Discard this send</Button>}
-              <a href="#/broadcast" className={`${linkClass} justify-self-center text-sm`}>Broadcast a PSBT signed elsewhere</a>
+              {onDiscard && (
+                <Button variant="danger" size="sm" onClick={onDiscard} className="justify-self-center">
+                  Discard this send
+                </Button>
+              )}
+              <a href="#/broadcast" className={`${linkClass} justify-self-center text-sm`}>
+                Broadcast a PSBT signed elsewhere
+              </a>
             </div>
           </section>
         </div>
       </div>
       <div className="sticky bottom-[calc(56px+env(safe-area-inset-bottom))] z-[2] -mx-4 mt-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 border-t border-rule-2 bg-sheet px-4 pt-2.5 pb-3 shadow-[0_-6px_16px_-10px_rgb(0_0_0/0.25)] @min-[900px]:hidden">
         <span className="truncate text-sm text-ink-2">
-          <b className="font-bold text-ink">{chosen.length} coin{chosen.length === 1 ? "" : "s"}</b>, <Amount sats={result.coins.reduce((a, c) => a + c.value, 0)} /> in &middot; fee {groupSats(result.fee)} sats
+          <b className="font-bold text-ink">
+            {chosen.length} coin{chosen.length === 1 ? "" : "s"}
+          </b>
+          , <Amount sats={result.coins.reduce((a, c) => a + c.value, 0)} /> in &middot; fee {groupSats(result.fee)} sats
         </span>
         {primary("sm")}
         {linked > 1 ? (
-          <button type="button" onClick={() => log.current?.scrollIntoView({ behavior: "smooth" })} className="justify-self-start">
-            <Chip tone="join"><Icon name="join" className="size-3.5" />Joins {linked} sources</Chip>
+          <button
+            type="button"
+            onClick={() => log.current?.scrollIntoView({ behavior: "smooth" })}
+            className="justify-self-start"
+          >
+            <Chip tone="join">
+              <Icon name="join" className="size-3.5" />
+              Joins {linked} sources
+            </Chip>
           </button>
         ) : (
           <span />
         )}
-        <span className="text-right text-sm text-ink-2">{stop ?? (result.change ? <>Change <Amount sats={result.change} /></> : "No change")}</span>
+        <span className="text-right text-sm text-ink-2">
+          {stop ??
+            (result.change ? (
+              <>
+                Change <Amount sats={result.change} />
+              </>
+            ) : (
+              "No change"
+            ))}
+        </span>
       </div>
       <Sheet open={!!pending} onClose={() => setPending(null)} title="Spend someone else's unconfirmed payment?">
         <p className="m-0 text-ink-2">
-          {pending && <><Amount sats={pending.value} unit /> {pending.label ? `(${pending.label}) ` : ""}</>}
-          hasn't confirmed yet, and it came from someone else. Until it confirms they can replace it with a transaction that pays you nothing, and anything that spends it disappears too.
+          {pending && (
+            <>
+              <Amount sats={pending.value} unit /> {pending.label ? `(${pending.label}) ` : ""}
+            </>
+          )}
+          hasn't confirmed yet, and it came from someone else. Until it confirms they can replace it with a transaction
+          that pays you nothing, and anything that spends it disappears too.
         </p>
         <p className="m-0 text-ink-2">Waiting for one confirmation is the safe choice.</p>
         <div className="flex flex-wrap gap-2">
@@ -368,7 +493,22 @@ export function Send() {
       <div hidden={!!built}>
         <Compose snapshot={snapshot} draft={draft} update={update} onDiscard={stored ? () => store(null) : undefined} />
       </div>
-      {built && <SignFlow built={built.psbt} title={built.title ?? "Sign and send"} warnings={built.warnings} summary={built.summary} label={built.label} names={built.names} inputs={built.replaces ? undefined : built.inputs} onBack={() => update({ built: null })} done={built.signed} onDone={(signed) => update({ built: { ...built, signed } })} partial={built.partial} onPartial={(partial) => update({ built: { ...built, partial } })} />}
+      {built && (
+        <SignFlow
+          built={built.psbt}
+          title={built.title ?? "Sign and send"}
+          warnings={built.warnings}
+          summary={built.summary}
+          label={built.label}
+          names={built.names}
+          inputs={built.replaces ? undefined : built.inputs}
+          onBack={() => update({ built: null })}
+          done={built.signed}
+          onDone={(signed) => update({ built: { ...built, signed } })}
+          partial={built.partial}
+          onPartial={(partial) => update({ built: { ...built, partial } })}
+        />
+      )}
     </>
   );
 }

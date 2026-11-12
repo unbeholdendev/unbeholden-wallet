@@ -2,9 +2,9 @@ import { hex } from "@scure/base";
 import { HDKey } from "@scure/bip32";
 import { Address, OutScript, Transaction } from "@scure/btc-signer";
 import { equalBytes } from "@scure/btc-signer/utils.js";
-import { outpoint, type Coin } from "./coin";
+import { type Coin, outpoint } from "./coin";
 import { derivePayment } from "./derive";
-import { childPath, HARDENED, type Descriptor, type DescriptorKey } from "./descriptor";
+import { childPath, type Descriptor, type DescriptorKey, HARDENED } from "./descriptor";
 import { BIP32_VERSIONS } from "./extended-key";
 import { NETWORKS, type Network } from "./network";
 
@@ -69,12 +69,7 @@ function origin(key: DescriptorKey, network: Network) {
 }
 
 /** The output script and the PSBT fields that let a signer recognise it. */
-function derivation(
-  descriptor: Descriptor,
-  network: Network,
-  chain: number,
-  index: number,
-) {
+function derivation(descriptor: Descriptor, network: Network, chain: number, index: number) {
   const { script, witnessScript, keys } = derivePayment(descriptor, network, chain, index);
   const ders = descriptor.keys.map((key, i) => {
     const from = origin(key, network);
@@ -92,10 +87,7 @@ function derivation(
     script,
     fields: {
       tapInternalKey: xOnly,
-      tapBip32Derivation: [[xOnly, { hashes: [], der }]] as [
-        Uint8Array,
-        { hashes: Uint8Array[]; der: typeof der },
-      ][],
+      tapBip32Derivation: [[xOnly, { hashes: [], der }]] as [Uint8Array, { hashes: Uint8Array[]; der: typeof der }][],
     },
   };
 }
@@ -149,16 +141,9 @@ export function buildPsbt(request: PsbtRequest): BuiltPsbt {
 
   const tx = new Transaction({ version: 2, lockTime: lockTime(tip) });
   for (const coin of coins) {
-    const { script, fields } = derivation(
-      descriptor,
-      network,
-      coin.chain,
-      coin.index,
-    );
+    const { script, fields } = derivation(descriptor, network, coin.chain, coin.index);
     if (hex.encode(script) !== coin.script) {
-      throw new Error(
-        `Coin ${outpoint(coin)} doesn't belong to this wallet at ${coin.chain}/${coin.index}`,
-      );
+      throw new Error(`Coin ${outpoint(coin)} doesn't belong to this wallet at ${coin.chain}/${coin.index}`);
     }
     tx.addInput({
       txid: coin.txid,
@@ -169,26 +154,17 @@ export function buildPsbt(request: PsbtRequest): BuiltPsbt {
     });
   }
 
-  const outputs: Parameters<Transaction["addOutput"]>[0][] = recipients.map(
-    (recipient) => {
-      let script: Uint8Array;
-      try {
-        script = OutScript.encode(Address(params).decode(recipient.address));
-      } catch {
-        throw new Error(
-          `${recipient.address} isn't a valid ${network} address`,
-        );
-      }
-      return { script, amount: BigInt(recipient.value) };
-    },
-  );
+  const outputs: Parameters<Transaction["addOutput"]>[0][] = recipients.map((recipient) => {
+    let script: Uint8Array;
+    try {
+      script = OutScript.encode(Address(params).decode(recipient.address));
+    } catch {
+      throw new Error(`${recipient.address} isn't a valid ${network} address`);
+    }
+    return { script, amount: BigInt(recipient.value) };
+  });
   if (change) {
-    const { script, fields } = derivation(
-      descriptor,
-      network,
-      change.chain,
-      change.index,
-    );
+    const { script, fields } = derivation(descriptor, network, change.chain, change.index);
     // A fixed change position would tell a chain observer which output it is.
     outputs.splice(randomBelow(outputs.length + 1), 0, {
       script,
@@ -202,7 +178,7 @@ export function buildPsbt(request: PsbtRequest): BuiltPsbt {
     throw new Error("The outputs add up to more than the chosen coins hold");
   }
   const xpubs = globalXpubs(descriptor, network);
-  // Transaction keeps its global map private and offers no setter for it.
+  // biome-ignore lint/complexity/useLiteralKeys: Transaction keeps its global map private and offers no setter for it.
   if (xpubs.length) tx["global"].xpub = xpubs;
   return {
     psbt: tx.toPSBT(),
@@ -232,10 +208,7 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
  * transaction that was built, fully signed, and returns the raw transaction to
  * broadcast. Throws with the reason it was refused.
  */
-export function finaliseSigned(
-  built: Uint8Array,
-  returned: Uint8Array,
-): Uint8Array {
+export function finaliseSigned(built: Uint8Array, returned: Uint8Array): Uint8Array {
   const { ours, theirs } = matching(built, returned);
   return finalise(theirs, ours);
 }
@@ -257,7 +230,12 @@ export type Collected = {
  * built, adds its signatures to those collected so far (BIP174's combiner),
  * and finalises once every input has `needed`. Throws with the reason it was refused.
  */
-export function collectSigned(built: Uint8Array, collected: Uint8Array, returned: Uint8Array, needed: number): Collected {
+export function collectSigned(
+  built: Uint8Array,
+  collected: Uint8Array,
+  returned: Uint8Array,
+  needed: number,
+): Collected {
   const { ours, theirs } = matching(built, returned);
   if (theirs.isFinal) return { psbt: collected, signed: needed, needed, signers: [], raw: finalise(theirs, ours) };
   const all = parsePsbt(collected);
@@ -317,20 +295,14 @@ function matching(built: Uint8Array, returned: Uint8Array): { ours: Transaction;
       throw new Error(`Output ${i + 1} pays a different address from the one built`);
     }
     if (a.amount !== b.amount) {
-      throw new Error(
-        `Output ${i + 1} pays ${b.amount} sats, but the one built pays ${a.amount} sats`,
-      );
+      throw new Error(`Output ${i + 1} pays ${b.amount} sats, but the one built pays ${a.amount} sats`);
     }
   }
   if (theirs.fee !== ours.fee) {
-    throw new Error(
-      `The signer saw a fee of ${theirs.fee} sats, but the one built pays ${ours.fee} sats`,
-    );
+    throw new Error(`The signer saw a fee of ${theirs.fee} sats, but the one built pays ${ours.fee} sats`);
   }
   if (!equalBytes(theirs.unsignedTx, ours.unsignedTx)) {
-    throw new Error(
-      "The signed transaction differs from the one built in its version, lock time or sequence numbers",
-    );
+    throw new Error("The signed transaction differs from the one built in its version, lock time or sequence numbers");
   }
   try {
     theirs.combine(ours);
@@ -358,7 +330,9 @@ export function finaliseExternal(psbt: Uint8Array, coins: Coin[]): Uint8Array {
  */
 export function adoptExternal(psbt: Uint8Array, coins: Coin[], descriptor: Descriptor, network: Network): Uint8Array {
   const tx = parsePsbt(psbt);
-  spent(tx, coins).forEach((coin, i) => tx.updateInput(i, derivation(descriptor, network, coin.chain, coin.index).fields, true));
+  spent(tx, coins).forEach((coin, i) =>
+    tx.updateInput(i, derivation(descriptor, network, coin.chain, coin.index).fields, true),
+  );
   return tx.toPSBT();
 }
 
@@ -459,8 +433,7 @@ const WITNESS_WEIGHT = { wpkh: 1 + 1 + 72 + 1 + 33, tr: 1 + 1 + 64 };
 const INPUT_BYTES = 32 + 4 + 1 + 4;
 
 function estimateVsize(tx: Transaction): number {
-  let bytes =
-    4 + 4 + varIntLength(tx.inputsLength) + varIntLength(tx.outputsLength);
+  let bytes = 4 + 4 + varIntLength(tx.inputsLength) + varIntLength(tx.outputsLength);
   let witness = 2;
   for (let i = 0; i < tx.inputsLength; i++) {
     const { witnessUtxo, witnessScript } = tx.getInput(i);
@@ -482,11 +455,7 @@ function estimateVsize(tx: Transaction): number {
 }
 
 /** What a PSBT does, for the user to check before signing or broadcasting. */
-export function reviewPsbt(
-  psbt: Uint8Array,
-  descriptor: Descriptor,
-  network: Network,
-): PsbtReview {
+export function reviewPsbt(psbt: Uint8Array, descriptor: Descriptor, network: Network): PsbtReview {
   const tx = parsePsbt(psbt);
   const outputs: ReviewOutput[] = [];
   for (let i = 0; i < tx.outputsLength; i++) {
@@ -499,11 +468,7 @@ export function reviewPsbt(
       .flatMap((der) => descriptor.keys.map((key) => locate(key, network, der.fingerprint, der.path)))
       .find(
         (found) =>
-          found &&
-          equalBytes(
-            derivation(descriptor, network, found.chain, found.index).script,
-            output.script!,
-          ),
+          found && equalBytes(derivation(descriptor, network, found.chain, found.index).script, output.script!),
       );
     outputs.push({
       address: tx.getOutputAddress(i, NETWORKS[network]) ?? null,

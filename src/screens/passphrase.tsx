@@ -1,9 +1,10 @@
-import { useState, type ComponentProps } from "react";
+import { type ComponentProps, useState } from "react";
 import { inputClass } from "../ui/kit";
 
 export const MIN_LENGTH = 10;
 
-export const NO_PASSPHRASE = "No passphrase. Anyone using this browser can see your wallets: balances, history and future addresses.";
+export const NO_PASSPHRASE =
+  "No passphrase. Anyone using this browser can see your wallets: balances, history and future addresses.";
 
 /**
  * A rough guess at guessing cost, enough to steer people towards several
@@ -42,7 +43,11 @@ export function Strength({ score }: { score: ReturnType<typeof strength> }) {
   );
 }
 
-export function PassphraseInput({ value, onChange, ...rest }: Omit<ComponentProps<"input">, "onChange"> & { onChange: (value: string) => void }) {
+export function PassphraseInput({
+  value,
+  onChange,
+  ...rest
+}: Omit<ComponentProps<"input">, "onChange"> & { onChange: (value: string) => void }) {
   const [shown, setShown] = useState(false);
   return (
     <div className="relative">

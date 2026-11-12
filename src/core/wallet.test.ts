@@ -3,22 +3,15 @@ import { Transaction } from "@scure/btc-signer";
 import { p2wpkh } from "@scure/btc-signer/payment.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { WalletBackend } from "../backend/backend";
-import { fakeBackend, fakeEsplora, type FakeBackend } from "../backend/fake";
+import { type FakeBackend, fakeBackend, fakeEsplora } from "../backend/fake";
 import { createVault, destroyVault, type Vault } from "../vault/vault";
-import { descriptorFromExtendedKey, parseDescriptor } from "../wallet/descriptor";
 import { derivePublicKeys } from "../wallet/derive";
+import { descriptorFromExtendedKey, parseDescriptor } from "../wallet/descriptor";
 import { selectCoins } from "../wallet/select";
 import { BIP84_ZPUB, BIP86_XPUB } from "../wallet/vectors";
 import { parseBip329 } from "./bip329";
 import { openWallet, type WalletSession, type WalletSnapshot } from "./wallet";
-import {
-  createWallet,
-  deleteWallet,
-  getSettings,
-  listWallets,
-  renameWallet,
-  saveSettings,
-} from "./wallets";
+import { createWallet, deleteWallet, getSettings, listWallets, renameWallet, saveSettings } from "./wallets";
 
 const CHEAP = { m: 8, t: 1, p: 1 };
 const PARSE = {
@@ -31,8 +24,7 @@ const DESCRIPTOR = `wpkh([d34db33f/84h/0h/0h]${BIP84_ZPUB}/<0;1>/*)`;
 const ours = parseDescriptor(DESCRIPTOR, "mainnet");
 const others = descriptorFromExtendedKey(BIP86_XPUB, "mainnet", "wpkh");
 
-const mine = (chain: number, index: number) =>
-  p2wpkh(derivePublicKeys(ours, "mainnet", chain, index)[0]!).script;
+const mine = (chain: number, index: number) => p2wpkh(derivePublicKeys(ours, "mainnet", chain, index)[0]!).script;
 const theirs = (index: number) => p2wpkh(derivePublicKeys(others, "mainnet", 0, index)[0]!).script;
 
 function tx(inputs: [string, number][], outputs: [Uint8Array, number][]): Uint8Array {
@@ -49,13 +41,49 @@ const faucet = tx(
   Array.from({ length: 600 }, (): [Uint8Array, number] => [tap, 1_000_000]),
 );
 const FAUCET = id(faucet);
-const pay1 = tx([[id(faucet), 0]], [[mine(0, 0), 100_000], [theirs(1), 899_000]]);
-const pay2 = tx([[id(faucet), 1]], [[mine(0, 1), 50_000], [theirs(2), 949_000]]);
-const spend = tx([[id(pay1), 0]], [[theirs(3), 60_000], [mine(1, 0), 39_000]]);
-const foreignPay = tx([[id(faucet), 2]], [[mine(0, 2), 20_000], [theirs(4), 979_000]]);
-const ownChange = tx([[id(spend), 1]], [[theirs(5), 10_000], [mine(1, 1), 28_000]]);
+const pay1 = tx(
+  [[id(faucet), 0]],
+  [
+    [mine(0, 0), 100_000],
+    [theirs(1), 899_000],
+  ],
+);
+const pay2 = tx(
+  [[id(faucet), 1]],
+  [
+    [mine(0, 1), 50_000],
+    [theirs(2), 949_000],
+  ],
+);
+const spend = tx(
+  [[id(pay1), 0]],
+  [
+    [theirs(3), 60_000],
+    [mine(1, 0), 39_000],
+  ],
+);
+const foreignPay = tx(
+  [[id(faucet), 2]],
+  [
+    [mine(0, 2), 20_000],
+    [theirs(4), 979_000],
+  ],
+);
+const ownChange = tx(
+  [[id(spend), 1]],
+  [
+    [theirs(5), 10_000],
+    [mine(1, 1), 28_000],
+  ],
+);
 const foreignParent = tx([[id(faucet), 3]], [[theirs(6), 999_000]]);
-const child = tx([[id(foreignParent), 0]], [[mine(0, 3), 5_000], [theirs(7), 993_000]]);
+const child = tx(
+  [[id(foreignParent), 0]],
+  [
+    [mine(0, 3), 5_000],
+    [theirs(7), 993_000],
+  ],
+);
 
 /** Heights 100 to 103. */
 function chain(serve = (backend: FakeBackend) => backend): FakeBackend {
@@ -115,8 +143,7 @@ async function open(backend: WalletBackend, id = walletId, now = () => 1234) {
 /** The 50,000 sat coin `pay2` paid to receive address 1. */
 const received = (s: WalletSnapshot) => s.coins.find((c) => c.txid === id(pay2))!;
 
-const coinsOf = (s: WalletSnapshot) =>
-  s.coins.map((c) => [`${c.chain}/${c.index}`, c.value, c.status]).sort();
+const coinsOf = (s: WalletSnapshot) => s.coins.map((c) => [`${c.chain}/${c.index}`, c.value, c.status]).sort();
 
 describe.each(SERVERS)("a wallet with a known history, served by %s", (_, serve) => {
   it("has exactly the expected coins, statuses and balance", async () => {
@@ -227,7 +254,13 @@ describe.each(SERVERS)("scanning, served by %s", (_, serve) => {
 
   it("measures a first sync of 500 transactions", async () => {
     const payments = Array.from({ length: 500 }, (_, i) =>
-      tx([[FAUCET, i]], [[mine(0, i), 1_000 + i], [theirs(1), 990_000]]),
+      tx(
+        [[FAUCET, i]],
+        [
+          [mine(0, i), 1_000 + i],
+          [theirs(1), 990_000],
+        ],
+      ),
     );
     const blocks = [[faucet], ...Array.from({ length: 50 }, (_, b) => payments.slice(b * 10, b * 10 + 10))];
     const { backend, calls } = counting(serve(fakeBackend({ startHeight: 100, blocks })));
@@ -253,9 +286,7 @@ describe("staying current", () => {
 
     backend.addToMempool(pay);
     await session.settled();
-    expect(session.getSnapshot().coins.find((c) => c.txid === id(pay))?.status).toBe(
-      "foreign-unconfirmed",
-    );
+    expect(session.getSnapshot().coins.find((c) => c.txid === id(pay))?.status).toBe("foreign-unconfirmed");
 
     backend.addBlock([pay]);
     await session.settled();
@@ -274,7 +305,9 @@ describe("staying current", () => {
     expect(session.getSnapshot().coins.find((c) => c.txid === id(pay))?.status).toBe("foreign-unconfirmed");
 
     backend.addBlock([pay]);
-    await vi.waitFor(() => expect(session.getSnapshot().transactions[0]).toMatchObject({ txid: id(pay), confirmations: 1 }));
+    await vi.waitFor(() =>
+      expect(session.getSnapshot().transactions[0]).toMatchObject({ txid: id(pay), confirmations: 1 }),
+    );
     backend.close();
   });
 
@@ -294,7 +327,13 @@ describe("staying current", () => {
 
   it("shows a just-broadcast transaction straight away", async () => {
     const session = await open(chain());
-    const outgoing = tx([[id(pay2), 0]], [[theirs(8), 30_000], [mine(1, 1), 19_000]]);
+    const outgoing = tx(
+      [[id(pay2), 0]],
+      [
+        [theirs(8), 30_000],
+        [mine(1, 1), 19_000],
+      ],
+    );
 
     const added = session.addTransaction(outgoing);
     expect(session.getSnapshot().transactions[0]).toMatchObject({
@@ -311,8 +350,20 @@ describe("staying current", () => {
   });
   it("drops the transaction a just-broadcast replacement conflicts with", async () => {
     const session = await open(chain());
-    const original = tx([[id(pay2), 0]], [[theirs(8), 30_000], [mine(1, 1), 19_000]]);
-    const replacement = tx([[id(pay2), 0]], [[theirs(8), 30_000], [mine(1, 1), 18_000]]);
+    const original = tx(
+      [[id(pay2), 0]],
+      [
+        [theirs(8), 30_000],
+        [mine(1, 1), 19_000],
+      ],
+    );
+    const replacement = tx(
+      [[id(pay2), 0]],
+      [
+        [theirs(8), 30_000],
+        [mine(1, 1), 18_000],
+      ],
+    );
 
     await session.addTransaction(original);
     await session.addTransaction(replacement);
@@ -417,7 +468,9 @@ describe("labels", () => {
     expect(await session.importLabels(BIP329_EXAMPLE)).toEqual({ imported: 7, skipped: 1 });
 
     const origin = "wpkh([d34db33f/84'/0'/0'])";
-    const expected = parseBip329(BIP329_EXAMPLE).records.slice(0, 7).map((r) => ({ ...r, origin }));
+    const expected = parseBip329(BIP329_EXAMPLE)
+      .records.slice(0, 7)
+      .map((r) => ({ ...r, origin }));
     expect(parseBip329(session.exportLabels()).records).toEqual(expected);
   });
 
@@ -432,7 +485,7 @@ describe("labels", () => {
 
     const twin = await createWallet(vault, { name: "Twin", descriptor: DESCRIPTOR, network: "mainnet" });
     const other = await open(chain(), twin.id);
-    expect(await other.importLabels(exported + "not json\n")).toEqual({ imported: 2, skipped: 1 });
+    expect(await other.importLabels(`${exported}not json\n`)).toEqual({ imported: 2, skipped: 1 });
     const s = other.getSnapshot();
     expect(s.transactions.find((t) => t.txid === id(pay2))?.label).toBe("Rent refund");
     expect(received(s).frozen).toBe(true);
@@ -443,14 +496,10 @@ describe("labels", () => {
 
 describe("wallet records", () => {
   it("creates, lists, renames and deletes wallets with everything they own", async () => {
-    const second = await createWallet(
-      vault,
-      { name: "Spending", descriptor: BIP84_ZPUB, network: "mainnet" },
-      () => 0,
+    const second = await createWallet(vault, { name: "Spending", descriptor: BIP84_ZPUB, network: "mainnet" }, () => 0);
+    await expect(createWallet(vault, { name: "Bad", descriptor: BIP86_XPUB, network: "mainnet" })).rejects.toThrow(
+      /script type/,
     );
-    await expect(
-      createWallet(vault, { name: "Bad", descriptor: BIP86_XPUB, network: "mainnet" }),
-    ).rejects.toThrow(/script type/);
     await renameWallet(vault, walletId, "Cold");
     expect((await listWallets(vault)).map((w) => w.name)).toEqual(["Cold", "Spending"]);
 

@@ -1,12 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { normaliseExtendedKey } from "./extended-key";
-import {
-  asPrivate,
-  asVersion,
-  BIP84_ZPUB,
-  BIP86_XPUB,
-  VERSION,
-} from "./vectors";
+import { asPrivate, asVersion, BIP84_ZPUB, BIP86_XPUB, VERSION } from "./vectors";
 
 describe("normaliseExtendedKey", () => {
   it("reads the script type from a zpub and rewrites it as an xpub", () => {
@@ -38,26 +32,22 @@ describe("normaliseExtendedKey", () => {
   });
 
   it("rejects a mainnet key on a test network and the reverse", () => {
-    expect(() => normaliseExtendedKey(BIP84_ZPUB, "regtest")).toThrow(
-      /mainnet key/i,
-    );
-    expect(() =>
-      normaliseExtendedKey(asVersion(BIP84_ZPUB, VERSION.vpub), "mainnet"),
-    ).toThrow(/test network key/i);
+    expect(() => normaliseExtendedKey(BIP84_ZPUB, "regtest")).toThrow(/mainnet key/i);
+    expect(() => normaliseExtendedKey(asVersion(BIP84_ZPUB, VERSION.vpub), "mainnet")).toThrow(/test network key/i);
   });
 
   it("rejects wrapped SegWit keys as an unsupported script type", () => {
-    expect(() =>
-      normaliseExtendedKey(asVersion(BIP84_ZPUB, VERSION.ypub), "mainnet"),
-    ).toThrow(/wrapped segwit/i);
-    expect(() =>
-      normaliseExtendedKey(asVersion(BIP84_ZPUB, VERSION.upub), "signet"),
-    ).toThrow(/wrapped segwit/i);
+    expect(() => normaliseExtendedKey(asVersion(BIP84_ZPUB, VERSION.ypub), "mainnet")).toThrow(/wrapped segwit/i);
+    expect(() => normaliseExtendedKey(asVersion(BIP84_ZPUB, VERSION.upub), "signet")).toThrow(/wrapped segwit/i);
   });
 
   it("rejects wrapped multisig keys as an unsupported script type", () => {
-    expect(() => normaliseExtendedKey(asVersion(BIP84_ZPUB, VERSION.Ypub), "mainnet")).toThrow(/wrapped segwit multisig/i);
-    expect(() => normaliseExtendedKey(asVersion(BIP84_ZPUB, VERSION.Upub), "signet")).toThrow(/wrapped segwit multisig/i);
+    expect(() => normaliseExtendedKey(asVersion(BIP84_ZPUB, VERSION.Ypub), "mainnet")).toThrow(
+      /wrapped segwit multisig/i,
+    );
+    expect(() => normaliseExtendedKey(asVersion(BIP84_ZPUB, VERSION.Upub), "signet")).toThrow(
+      /wrapped segwit multisig/i,
+    );
   });
 
   it("reads a native multisig key as one wsh cosigner", () => {
@@ -66,26 +56,17 @@ describe("normaliseExtendedKey", () => {
   });
 
   it("refuses a private key", () => {
-    expect(() =>
-      normaliseExtendedKey(
-        asVersion(asPrivate(BIP84_ZPUB), VERSION.xprv),
-        "mainnet",
-      ),
-    ).toThrow(/private key/i);
+    expect(() => normaliseExtendedKey(asVersion(asPrivate(BIP84_ZPUB), VERSION.xprv), "mainnet")).toThrow(
+      /private key/i,
+    );
   });
 
   it("refuses private key bytes under any prefix, known or not", () => {
-    expect(() => normaliseExtendedKey(asPrivate(BIP84_ZPUB), "mainnet")).toThrow(
-      /private key/i,
-    );
-    expect(() =>
-      normaliseExtendedKey(asVersion(asPrivate(BIP84_ZPUB), 0x0dec0ded), "mainnet"),
-    ).toThrow(/private key/i);
+    expect(() => normaliseExtendedKey(asPrivate(BIP84_ZPUB), "mainnet")).toThrow(/private key/i);
+    expect(() => normaliseExtendedKey(asVersion(asPrivate(BIP84_ZPUB), 0x0dec0ded), "mainnet")).toThrow(/private key/i);
   });
 
   it("rejects something that is not an extended key at all", () => {
-    expect(() => normaliseExtendedKey("not a key", "mainnet")).toThrow(
-      /extended public key/i,
-    );
+    expect(() => normaliseExtendedKey("not a key", "mainnet")).toThrow(/extended public key/i);
   });
 });

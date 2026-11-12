@@ -1,17 +1,17 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
+import { useConnection } from "../app/connection";
 import { Heading, isIos } from "../app/layout";
 import { navigate } from "../app/route";
-import { useConnection } from "../app/connection";
 import { useVault } from "../app/vault";
+import { type WalletRecord, walletDescriptor } from "../core/wallets";
+import { descriptorsFromUr, descriptorUrDecoder } from "../transport/ur";
 import { Icon } from "../ui/icons";
 import { Button, Field, inputClass, Notice, Segmented } from "../ui/kit";
 import { QrScanner } from "../ui/QrScanner";
 import { Sheet } from "../ui/sheet";
 import { useToast } from "../ui/toast";
-import { walletDescriptor, type WalletRecord } from "../core/wallets";
 import { formatDescriptor, type ScriptType } from "../wallet/descriptor";
 import { normaliseExtendedKey } from "../wallet/extended-key";
-import { descriptorsFromUr, descriptorUrDecoder } from "../transport/ur";
 import type { Network } from "../wallet/network";
 
 type Reading = {
@@ -59,7 +59,17 @@ function DescriptorText({ children }: { children: string }) {
 }
 
 /** The descriptor with its copy and download buttons. */
-export function DescriptorBackup({ name, network, descriptor, onSaved }: { name: string; network: Network; descriptor: string; onSaved?: () => void }) {
+export function DescriptorBackup({
+  name,
+  network,
+  descriptor,
+  onSaved,
+}: {
+  name: string;
+  network: Network;
+  descriptor: string;
+  onSaved?: () => void;
+}) {
   const toast = useToast();
 
   const copy = async () => {
@@ -119,7 +129,9 @@ export function ImportWallet() {
   const reading = interpret(text, network, scriptType);
   const duplicate = wallets.find((w) => w.network === network && canonical(w) === reading.descriptor);
   const { multi } = reading;
-  const fallbackName = reading.fingerprint ?? (multi ? `${multi.threshold}-of-${multi.fingerprints.length} multisig` : `Wallet ${wallets.length + 1}`);
+  const fallbackName =
+    reading.fingerprint ??
+    (multi ? `${multi.threshold}-of-${multi.fingerprints.length} multisig` : `Wallet ${wallets.length + 1}`);
   const name = typedName.trim() || fallbackName;
 
   const next = (event: FormEvent) => {
@@ -165,7 +177,13 @@ export function ImportWallet() {
     setSaving(true);
     setSaveError(null);
     try {
-      await addWallet({ accountOf: accountOf || undefined, name, descriptor: text.trim(), network, scriptType: reading.needsType ? scriptType! : undefined });
+      await addWallet({
+        accountOf: accountOf || undefined,
+        name,
+        descriptor: text.trim(),
+        network,
+        scriptType: reading.needsType ? scriptType! : undefined,
+      });
       toast(`${name} added`);
       navigate("/home");
     } catch {
@@ -179,14 +197,19 @@ export function ImportWallet() {
     return (
       <div className="grid max-w-[720px] gap-6">
         <Heading title="Back up the descriptor">
-          This line is the only thing whose loss matters. Balances, history and labels can all be rebuilt from it; without
-          it, this browser is the only place that knows which addresses are yours.
+          This line is the only thing whose loss matters. Balances, history and labels can all be rebuilt from it;
+          without it, this browser is the only place that knows which addresses are yours.
         </Heading>
-        <DescriptorBackup name={name} network={network} descriptor={reading.descriptor!} onSaved={() => setSaved(true)} />
+        <DescriptorBackup
+          name={name}
+          network={network}
+          descriptor={reading.descriptor!}
+          onSaved={() => setSaved(true)}
+        />
         <div className="grid gap-2 text-ink-2 [&_p]:m-0 [&_p]:max-w-[62ch]">
           <p>
-            Keep it with your signer's backup, or anywhere you keep things for years. It holds no keys: someone who finds
-            it can see your balance and history, but can't spend.
+            Keep it with your signer's backup, or anywhere you keep things for years. It holds no keys: someone who
+            finds it can see your balance and history, but can't spend.
           </p>
           <p>
             Browsers delete site data when you clear history, reset the device or run low on space. When that happens,
@@ -194,8 +217,8 @@ export function ImportWallet() {
           </p>
           {multi && (
             <p>
-              Also scan it into each cosigner's signer. Until a signer holds it, it can't tell your change from a payment,
-              so a tampered page could send change to someone else's multisig.
+              Also scan it into each cosigner's signer. Until a signer holds it, it can't tell your change from a
+              payment, so a tampered page could send change to someone else's multisig.
             </p>
           )}
         </div>
@@ -215,13 +238,19 @@ export function ImportWallet() {
           <Button variant={saved ? "primary" : "default"} disabled={saving} onClick={finish}>
             {saved ? "Finish" : "Finish without a backup"}
           </Button>
-          <Button disabled={saving} onClick={() => setStep("key")}>Back</Button>
+          <Button disabled={saving} onClick={() => setStep("key")}>
+            Back
+          </Button>
         </div>
       </div>
     );
 
   return (
-    <form onSubmit={next} className="grid gap-x-12 gap-y-8 @min-[900px]:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" noValidate>
+    <form
+      onSubmit={next}
+      className="grid gap-x-12 gap-y-8 @min-[900px]:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
+      noValidate
+    >
       <div className="@min-[900px]:col-span-2">
         <Heading title={wallets.length ? "Add a wallet" : "Import your wallet"}>
           Paste an output descriptor or an extended public key from your signer or another wallet. No private keys: this
@@ -252,8 +281,8 @@ export function ImportWallet() {
         </Button>
         {reading.descriptor && server && server !== network && (
           <Notice tone="warn">
-            This is a {network === "mainnet" ? "mainnet" : "test network"} key, but your server is on {server}. The wallet
-            will look empty until you connect to a {network === "mainnet" ? "mainnet" : "test network"} server.
+            This is a {network === "mainnet" ? "mainnet" : "test network"} key, but your server is on {server}. The
+            wallet will look empty until you connect to a {network === "mainnet" ? "mainnet" : "test network"} server.
           </Notice>
         )}
         {reading.needsType && (
@@ -284,11 +313,15 @@ export function ImportWallet() {
               {multi && (
                 <div className="grid gap-1.5">
                   <p className="m-0 text-sm font-medium">
-                    {multi.threshold} of {multi.fingerprints.length} multisig: spending needs {multi.threshold} of these keys to sign.
+                    {multi.threshold} of {multi.fingerprints.length} multisig: spending needs {multi.threshold} of these
+                    keys to sign.
                   </p>
                   <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
                     {multi.fingerprints.map((f, i) => (
-                      <li key={i} className="rounded-control border border-rule bg-sunk px-2 py-1 font-mono text-[0.86em]">
+                      <li
+                        key={i}
+                        className="rounded-control border border-rule bg-sunk px-2 py-1 font-mono text-[0.86em]"
+                      >
                         {f ?? "no fingerprint"}
                       </li>
                     ))}
@@ -296,24 +329,51 @@ export function ImportWallet() {
                 </div>
               )}
               <p className="m-0 text-sm text-ink-2">
-                Check the script type and the key match what your signer shows. A wrong guess here gives an empty wallet,
-                not an error.
+                Check the script type and the key match what your signer shows. A wrong guess here gives an empty
+                wallet, not an error.
               </p>
             </>
           ) : (
-            <p className="m-0 text-sm text-ink-3">It appears here once the text above reads as a descriptor or a key.</p>
+            <p className="m-0 text-sm text-ink-3">
+              It appears here once the text above reads as a descriptor or a key.
+            </p>
           )}
         </section>
-        {!!wallets.length && <Field label="Wallet" hint="Import each account’s own descriptor from your signer. Coins stay separate.">
-          {(props) => <select {...props} className={inputClass} value={accountOf} onChange={(e) => setAccountOf(e.target.value)}>
-            <option value="">New wallet</option>
-            {wallets.filter((w, i) => w.network === network && (!w.group || wallets.findIndex((other) => other.group?.id === w.group!.id) === i)).map((w) =>
-              <option key={w.id} value={w.id}>{w.group?.name ?? w.name}</option>)}
-          </select>}
-        </Field>}
+        {!!wallets.length && (
+          <Field label="Wallet" hint="Import each account’s own descriptor from your signer. Coins stay separate.">
+            {(props) => (
+              <select
+                {...props}
+                className={inputClass}
+                value={accountOf}
+                onChange={(e) => setAccountOf(e.target.value)}
+              >
+                <option value="">New wallet</option>
+                {wallets
+                  .filter(
+                    (w, i) =>
+                      w.network === network &&
+                      (!w.group || wallets.findIndex((other) => other.group?.id === w.group!.id) === i),
+                  )
+                  .map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.group?.name ?? w.name}
+                    </option>
+                  ))}
+              </select>
+            )}
+          </Field>
+        )}
         <Field label={accountOf ? "Account name" : "Name"} hint={`Only you see it. Left empty, it's ${fallbackName}.`}>
           {(props) => (
-            <input {...props} className={inputClass} value={typedName} placeholder={fallbackName} onChange={(e) => setTypedName(e.target.value)} autoComplete="off" />
+            <input
+              {...props}
+              className={inputClass}
+              value={typedName}
+              placeholder={fallbackName}
+              onChange={(e) => setTypedName(e.target.value)}
+              autoComplete="off"
+            />
           )}
         </Field>
         <Button type="submit" variant="primary" wide disabled={!reading.descriptor || !!duplicate}>

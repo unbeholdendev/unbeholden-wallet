@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../App";
 import { RefusedError, scriptHash } from "../backend/backend";
 import type { FakeBackend } from "../backend/fake";
-import { demoBackend, DEMO_DESCRIPTOR, DEMO_FOREIGN, seedDemoVault } from "../backend/fixture";
+import { DEMO_DESCRIPTOR, DEMO_FOREIGN, demoBackend, seedDemoVault } from "../backend/fixture";
 import { destroyVault } from "../vault/vault";
 import { deriveAddress } from "../wallet/derive";
 import { parseDescriptor } from "../wallet/descriptor";
@@ -63,7 +63,11 @@ describe("looking an address up", () => {
     expect(location.hash).toBe(`#/address/${DEMO_FOREIGN.address}`);
     expect(list("History").getAllByRole("listitem")).toHaveLength(2);
     expect(list("History").getByText("Waiting for a block")).toBeTruthy();
-    expect(list("History").getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual([`#/tx/${DEMO_FOREIGN.pending}`, `#/tx/${DEMO_FOREIGN.confirmed}`]);
+    expect(
+      list("History")
+        .getAllByRole("link")
+        .map((a) => a.getAttribute("href")),
+    ).toEqual([`#/tx/${DEMO_FOREIGN.pending}`, `#/tx/${DEMO_FOREIGN.confirmed}`]);
     expect(list("Unspent outputs").getAllByRole("listitem")).toHaveLength(2);
     expect(list("Address").queryByText("Spending")).toBeNull();
     expect(transaction.mock.calls.filter(([, mode]) => mode === "readwrite")).toEqual([]);
@@ -98,44 +102,48 @@ describe("looking an address up", () => {
   it.each([
     ["the refresh", [0, 1]],
     ["the next page", [1, 0]],
-  ])("keeps every loaded amount when a new block's refresh and the next page cross, %s landing first", async (_, order) => {
-    const script = scriptOf(DEMO_FOREIGN.address);
-    const payments = Array.from({ length: 30 }, (_, i) => {
-      const t = new Tx({ allowUnknownInputs: true, allowUnknownOutputs: true, disableScriptCheck: true });
-      t.addInput({ txid: "55".repeat(32), index: i });
-      t.addOutput({ script, amount: BigInt(1_000 + i) });
-      return t;
-    });
-    const paymentIds = new Set(payments.map((t) => t.id));
-    const demo = demoBackend();
-    for (const t of payments) demo.addToMempool(t.unsignedTx);
-    const held: (() => void)[] = [];
-    let holding = false;
-    const user = await unlock(() => ({
-      ...demo,
-      transactions: async (txids: string[]) => {
-        if (holding && txids.some((id) => paymentIds.has(id))) await new Promise<void>((release) => held.push(release));
-        return demo.transactions(txids);
-      },
-    }));
-    await search(user, DEMO_FOREIGN.address);
-    expect(await screen.findByRole("heading", { name: "Address" })).toBeTruthy();
-    expect(list("History").getAllByText("Not loaded")).toHaveLength(7);
+  ])(
+    "keeps every loaded amount when a new block's refresh and the next page cross, %s landing first",
+    async (_, order) => {
+      const script = scriptOf(DEMO_FOREIGN.address);
+      const payments = Array.from({ length: 30 }, (_, i) => {
+        const t = new Tx({ allowUnknownInputs: true, allowUnknownOutputs: true, disableScriptCheck: true });
+        t.addInput({ txid: "55".repeat(32), index: i });
+        t.addOutput({ script, amount: BigInt(1_000 + i) });
+        return t;
+      });
+      const paymentIds = new Set(payments.map((t) => t.id));
+      const demo = demoBackend();
+      for (const t of payments) demo.addToMempool(t.unsignedTx);
+      const held: (() => void)[] = [];
+      let holding = false;
+      const user = await unlock(() => ({
+        ...demo,
+        transactions: async (txids: string[]) => {
+          if (holding && txids.some((id) => paymentIds.has(id)))
+            await new Promise<void>((release) => held.push(release));
+          return demo.transactions(txids);
+        },
+      }));
+      await search(user, DEMO_FOREIGN.address);
+      expect(await screen.findByRole("heading", { name: "Address" })).toBeTruthy();
+      expect(list("History").getAllByText("Not loaded")).toHaveLength(7);
 
-    holding = true;
-    demo.addBlock([]);
-    await waitFor(() => expect(held).toHaveLength(1));
-    await user.click(screen.getByRole("button", { name: "Load 7 more amounts" }));
-    await waitFor(() => expect(held).toHaveLength(2));
-    const [refresh, page] = [held[0]!, held[1]!];
-    holding = false;
-    for (const i of order) {
-      [refresh, page][i]!();
-      await new Promise((settle) => setTimeout(settle, 50));
-    }
-    await waitFor(() => expect(list("History").queryByText("Not loaded")).toBeNull());
-    expect(screen.queryByRole("button", { name: /more amounts/ })).toBeNull();
-  });
+      holding = true;
+      demo.addBlock([]);
+      await waitFor(() => expect(held).toHaveLength(1));
+      await user.click(screen.getByRole("button", { name: "Load 7 more amounts" }));
+      await waitFor(() => expect(held).toHaveLength(2));
+      const [refresh, page] = [held[0]!, held[1]!];
+      holding = false;
+      for (const i of order) {
+        [refresh, page][i]!();
+        await new Promise((settle) => setTimeout(settle, 50));
+      }
+      await waitFor(() => expect(list("History").queryByText("Not loaded")).toBeNull());
+      expect(screen.queryByRole("button", { name: /more amounts/ })).toBeNull();
+    },
+  );
 
   it("keeps another address's amounts when a page for the last one lands after it", async () => {
     const script = scriptOf(DEMO_FOREIGN.address);

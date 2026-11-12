@@ -2,9 +2,9 @@ import { hex } from "@scure/base";
 import { Address, OutScript, Transaction } from "@scure/btc-signer";
 import { sha256x2 } from "@scure/btc-signer/utils.js";
 import {
-  scriptHash,
   type BlockHeader,
   type HistoryEntry,
+  scriptHash,
   type Unsubscribe,
   type WalletBackend,
 } from "../backend/backend";
@@ -13,16 +13,16 @@ import type { Clock, Store } from "../vault/vault";
 import { outpoint } from "../wallet/coin";
 import { deriveAddress } from "../wallet/derive";
 import { NETWORKS } from "../wallet/network";
-import { bip329Origin, formatBip329, parseBip329, sameOrigin, type Bip329Record } from "./bip329";
+import { type Bip329Record, bip329Origin, formatBip329, parseBip329, sameOrigin } from "./bip329";
 import {
   blockTime,
+  type Cache,
   COINBASE,
   deriveView,
   emptyCache,
   lastUsed as lastUsedOn,
-  parseTx,
-  type Cache,
   type Parsed,
+  parseTx,
   type View,
   type ViewSource,
 } from "./view";
@@ -81,7 +81,6 @@ const PARSE = {
   disableScriptCheck: true,
 };
 
-
 export async function openWallet(
   vault: Store,
   id: string,
@@ -94,9 +93,7 @@ export async function openWallet(
   const chains = descriptor.keys[0]!.path.some(Array.isArray) ? 2 : 1;
   const origin = bip329Origin(descriptor);
 
-  let cache =
-    (await vault.get<Cache>(`cache/${id}/state`)) ??
-    emptyCache(Array.from({ length: chains }, () => []));
+  let cache = (await vault.get<Cache>(`cache/${id}/state`)) ?? emptyCache(Array.from({ length: chains }, () => []));
   let raw: Record<string, string> = (await vault.get(`cache/${id}/txs`)) ?? {};
   const labels: Record<string, string> = (await vault.get(`labels/${id}`)) ?? {};
   const frozen = new Set<string>((await vault.get<string[]>(`frozen/${id}`)) ?? []);
@@ -195,8 +192,7 @@ export async function openWallet(
     if (tip.height === stored.height + 1) {
       return hex.encode(tip.header.slice(4, 36)) === hex.encode(sha256x2(hex.decode(stored.header)));
     }
-    const [header] =
-      tip.height === stored.height ? [tip.header] : await backend!.blockHeaders([stored.height]);
+    const [header] = tip.height === stored.height ? [tip.header] : await backend!.blockHeaders([stored.height]);
     return hex.encode(header!) === stored.header;
   }
 
@@ -249,7 +245,8 @@ export async function openWallet(
     while (pending.length) {
       emit({ progress: { stage: "history", done, total: done + pending.length } });
       const histories = await backend!.history(pending);
-      if (histories.flat().some((e) => !/^[0-9a-f]{64}$/.test(e.txid))) throw new Error("The server sent a malformed txid");
+      if (histories.flat().some((e) => !/^[0-9a-f]{64}$/.test(e.txid)))
+        throw new Error("The server sent a malformed txid");
       pending.forEach((hash, i) => {
         if (histories[i]!.length) cache.histories[hash] = histories[i]!;
         else delete cache.histories[hash];
@@ -260,7 +257,10 @@ export async function openWallet(
 
     const entries = Object.values(cache.histories).flat();
     const txids = [...new Set(entries.map((e) => e.txid))];
-    await fetchTransactions(txids.filter((t) => !raw[t]), "transactions");
+    await fetchTransactions(
+      txids.filter((t) => !raw[t]),
+      "transactions",
+    );
     const prevouts = new Set(
       txids.flatMap((t) => parsed(t)!.inputs.map((i) => i.txid)).filter((t) => t !== COINBASE && !raw[t]),
     );

@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { parseHistory, priceAt, refreshed, stale, withSpot, type History } from "./prices";
+import { type History, parseHistory, priceAt, refreshed, stale, withSpot } from "./prices";
 
 const HOUR = 3600;
 const DAY = 86400;
@@ -17,14 +17,21 @@ const response = {
 };
 
 it("reads the currency's prices oldest first, skipping zero and missing ones", () => {
-  expect(parseHistory(response, "EUR")).toEqual([[1700000000, 32000], [1700010800, 33000]]);
+  expect(parseHistory(response, "EUR")).toEqual([
+    [1700000000, 32000],
+    [1700010800, 33000],
+  ]);
   expect(parseHistory(response, "GBP")).toEqual([]);
   expect(parseHistory({ prices: "nope" }, "EUR")).toEqual([]);
   expect(parseHistory(null, "EUR")).toEqual([]);
 });
 
 it("prices a block time at the latest point at or before it", () => {
-  const points: History["points"] = [[1000, 10], [1000 + DAY, 20], [1000 + DAY + HOUR, 30]];
+  const points: History["points"] = [
+    [1000, 10],
+    [1000 + DAY, 20],
+    [1000 + DAY + HOUR, 30],
+  ];
   expect(priceAt(points, 1000)).toEqual([1000, 10]);
   expect(priceAt(points, 1000 + DAY - 1)).toEqual([1000, 10]);
   expect(priceAt(points, 1000 + DAY + HOUR + 5)).toEqual([1000 + DAY + HOUR, 30]);
@@ -32,7 +39,10 @@ it("prices a block time at the latest point at or before it", () => {
 });
 
 it("has no price across a gap of more than 48 hours", () => {
-  const points: History["points"] = [[0, 10], [5 * DAY, 20]];
+  const points: History["points"] = [
+    [0, 10],
+    [5 * DAY, 20],
+  ];
   expect(priceAt(points, 2 * DAY)).toEqual([0, 10]);
   expect(priceAt(points, 2 * DAY + 1)).toBeNull();
   expect(priceAt(points, 7 * DAY + 1)).toBeNull();
@@ -47,11 +57,40 @@ it("goes stale after a day", () => {
 it("adds at most one current price an hour", () => {
   const history: History = { fetchedAt: 0, points: [[1000, 10]] };
   expect(withSpot(history, 11, 1000 + HOUR - 1)).toBeUndefined();
-  expect(withSpot(history, 11, 1000 + HOUR)).toEqual({ fetchedAt: 0, points: [[1000, 10], [1000 + HOUR, 11]] });
+  expect(withSpot(history, 11, 1000 + HOUR)).toEqual({
+    fetchedAt: 0,
+    points: [
+      [1000, 10],
+      [1000 + HOUR, 11],
+    ],
+  });
 });
 
 it("replaces the series on refresh but keeps current prices newer than it", () => {
-  const old: History = { fetchedAt: 0, points: [[1000, 10], [2000, 11], [9000, 12]] };
-  expect(refreshed(old, [[1000, 9], [5000, 13]], 50)).toEqual({ fetchedAt: 50, points: [[1000, 9], [5000, 13], [9000, 12]] });
+  const old: History = {
+    fetchedAt: 0,
+    points: [
+      [1000, 10],
+      [2000, 11],
+      [9000, 12],
+    ],
+  };
+  expect(
+    refreshed(
+      old,
+      [
+        [1000, 9],
+        [5000, 13],
+      ],
+      50,
+    ),
+  ).toEqual({
+    fetchedAt: 50,
+    points: [
+      [1000, 9],
+      [5000, 13],
+      [9000, 12],
+    ],
+  });
   expect(refreshed(undefined, [[1000, 9]], 50)).toEqual({ fetchedAt: 50, points: [[1000, 9]] });
 });

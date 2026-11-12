@@ -1,8 +1,8 @@
-import { useState, type FormEvent } from "react";
+import { type FormEvent, useState } from "react";
 import { Heading, Page } from "../app/layout";
 import { useVaultState } from "../app/vault";
-import { WrongPassphrase } from "../vault/vault";
 import { Button, Field, LinkButton } from "../ui/kit";
+import { WrongPassphrase } from "../vault/vault";
 import { DestroyVault } from "./DestroyVault";
 import { PassphraseInput } from "./passphrase";
 
@@ -36,14 +36,21 @@ export function Unlock() {
         <Heading title="Unlock your wallets">Enter the passphrase you set for this browser.</Heading>
         <Field label="Passphrase" error={error ?? undefined}>
           {(props) => (
-            <PassphraseInput {...props} autoComplete="current-password" value={passphrase} onChange={setPassphrase} autoFocus />
+            <PassphraseInput
+              {...props}
+              autoComplete="current-password"
+              value={passphrase}
+              onChange={setPassphrase}
+              autoFocus
+            />
           )}
         </Field>
         <Button type="submit" variant="primary" wide disabled={busy || !passphrase}>
           {busy ? "Unlocking" : "Unlock"}
         </Button>
         <p className="m-0 text-sm text-ink-3">
-          Forgotten it? Nobody can recover it. <LinkButton onClick={() => setForgot(true)}>Delete the vault and start again</LinkButton>
+          Forgotten it? Nobody can recover it.{" "}
+          <LinkButton onClick={() => setForgot(true)}>Delete the vault and start again</LinkButton>
         </p>
       </form>
       <DestroyVault open={forgot} onClose={() => setForgot(false)} />

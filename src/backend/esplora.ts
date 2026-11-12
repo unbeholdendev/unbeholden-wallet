@@ -1,5 +1,14 @@
 import { hex } from "@scure/base";
-import { BroadcastError, ConnectionError, NotFoundError, RefusedError, txidOf, type BlockHeader, type HistoryEntry, type Unspent } from "./backend";
+import {
+  type BlockHeader,
+  BroadcastError,
+  ConnectionError,
+  type HistoryEntry,
+  NotFoundError,
+  RefusedError,
+  txidOf,
+  type Unspent,
+} from "./backend";
 import type { ConnectionStatus, ElectrumBackend } from "./electrum";
 import { handshake } from "./handshake";
 
@@ -44,7 +53,11 @@ const esploraHash = (scriptHash: string) => hex.encode(hex.decode(scriptHash).re
  */
 export function esploraBackend(
   url: string,
-  { timeout = 10_000, poll = POLL_SECONDS * 1000, fetch = (input: string, init?: RequestInit) => globalThis.fetch(input, init) } = {},
+  {
+    timeout = 10_000,
+    poll = POLL_SECONDS * 1000,
+    fetch = (input: string, init?: RequestInit) => globalThis.fetch(input, init),
+  } = {},
 ): ElectrumBackend {
   const base = url.replace(/\/+$/, "");
   let status: ConnectionStatus = "disconnected";
@@ -83,7 +96,10 @@ export function esploraBackend(
     const hash = await get("/blocks/tip/hash", {}, wait);
     if (!/^[0-9a-f]{64}$/.test(hash)) throw new Error("Not a block hash");
     if (hash === tipHash) return;
-    const [block, header] = await Promise.all([get(`/block/${hash}`, {}, wait), get(`/block/${hash}/header`, {}, wait)]);
+    const [block, header] = await Promise.all([
+      get(`/block/${hash}`, {}, wait),
+      get(`/block/${hash}/header`, {}, wait),
+    ]);
     const first = !tip;
     tip = { height: (JSON.parse(block) as { height: number }).height, header: hex.decode(header) };
     tipHash = hash;
@@ -111,7 +127,10 @@ export function esploraBackend(
   async function diagnose(error: unknown): Promise<ConnectionError> {
     if (!(error instanceof Unreached)) return new ConnectionError("not-esplora");
     if ((error.cause as Error)?.name === "TimeoutError") return new ConnectionError("timeout");
-    const opaque = await fetch(`${base}/blocks/tip/hash`, { mode: "no-cors", signal: AbortSignal.timeout(timeout) }).then(
+    const opaque = await fetch(`${base}/blocks/tip/hash`, {
+      mode: "no-cors",
+      signal: AbortSignal.timeout(timeout),
+    }).then(
       () => true,
       () => false,
     );
@@ -148,7 +167,9 @@ export function esploraBackend(
       txs.push(...page);
     }
     if (txs.length < total) {
-      throw new Error(`The server sent ${txs.length} of an address's ${total} transactions. It doesn't page history the way Esplora does.`);
+      throw new Error(
+        `The server sent ${txs.length} of an address's ${total} transactions. It doesn't page history the way Esplora does.`,
+      );
     }
     return txs.reverse();
   }
@@ -193,7 +214,9 @@ export function esploraBackend(
     },
 
     blockHeaders: (heights) =>
-      Promise.all(heights.map(async (height) => hex.decode(await get(`/block/${await get(`/block-height/${height}`)}/header`)))),
+      Promise.all(
+        heights.map(async (height) => hex.decode(await get(`/block/${await get(`/block-height/${height}`)}/header`))),
+      ),
 
     async history(scriptHashes) {
       const lists = await Promise.all(scriptHashes.map(history));
@@ -202,7 +225,9 @@ export function esploraBackend(
       await Promise.all(
         [...new Set(parents)]
           .filter((txid) => !confirmed.has(txid))
-          .map(async (txid) => confirmed.set(txid, (JSON.parse(await get(`/tx/${txid}/status`)) as Tx["status"]).confirmed)),
+          .map(async (txid) =>
+            confirmed.set(txid, (JSON.parse(await get(`/tx/${txid}/status`)) as Tx["status"]).confirmed),
+          ),
       );
       return lists.map((txs) =>
         txs.map(
@@ -219,7 +244,10 @@ export function esploraBackend(
       Promise.all(
         scriptHashes.map(async (hash) => {
           const { chain_stats: chain, mempool_stats: mempool } = await scripthashGet<Stats>(hash);
-          return { confirmed: chain.funded_txo_sum - chain.spent_txo_sum, unconfirmed: mempool.funded_txo_sum - mempool.spent_txo_sum };
+          return {
+            confirmed: chain.funded_txo_sum - chain.spent_txo_sum,
+            unconfirmed: mempool.funded_txo_sum - mempool.spent_txo_sum,
+          };
         }),
       ),
 
@@ -227,7 +255,12 @@ export function esploraBackend(
       Promise.all(
         scriptHashes.map(async (hash) =>
           (await scripthashGet<Utxo[]>(hash, "/utxo")).map(
-            ({ txid, vout, value, status }): Unspent => ({ txid, vout, value, height: status.confirmed ? status.block_height! : null }),
+            ({ txid, vout, value, status }): Unspent => ({
+              txid,
+              vout,
+              value,
+              height: status.confirmed ? status.block_height! : null,
+            }),
           ),
         ),
       ),

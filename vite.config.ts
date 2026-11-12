@@ -1,28 +1,27 @@
-import react from "@vitejs/plugin-react";
-import tailwindcss from "@tailwindcss/vite";
-import basicSsl from "@vitejs/plugin-basic-ssl";
 import { execSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
+import tailwindcss from "@tailwindcss/vite";
+import basicSsl from "@vitejs/plugin-basic-ssl";
+import react from "@vitejs/plugin-react";
 import type { Plugin } from "vite";
 import { defineConfig } from "vitest/config";
 
-const version =
-  process.env.APP_VERSION ??
-  execSync("git describe --tags --always", { encoding: "utf8" }).trim();
+const version = process.env.APP_VERSION ?? execSync("git describe --tags --always", { encoding: "utf8" }).trim();
 
-const csp = (mode: string) => [
-  "default-src 'none'",
-  "script-src 'self'",
-  "style-src 'self'",
-  "img-src 'self' data: blob:",
-  "media-src blob:",
-  "font-src 'self'",
-  mode === "demo" ? "connect-src 'self'" : "connect-src 'self' ws: wss: http: https:",
-  "manifest-src 'self'",
-  "worker-src 'self'",
-  "base-uri 'none'",
-  "form-action 'none'",
-].join("; ");
+const csp = (mode: string) =>
+  [
+    "default-src 'none'",
+    "script-src 'self'",
+    "style-src 'self'",
+    "img-src 'self' data: blob:",
+    "media-src blob:",
+    "font-src 'self'",
+    mode === "demo" ? "connect-src 'self'" : "connect-src 'self' ws: wss: http: https:",
+    "manifest-src 'self'",
+    "worker-src 'self'",
+    "base-uri 'none'",
+    "form-action 'none'",
+  ].join("; ");
 
 function cspMeta(mode: string): Plugin {
   return {

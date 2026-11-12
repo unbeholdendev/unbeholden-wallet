@@ -1,4 +1,3 @@
-import { ExplorerLink } from "../ui/explorer";
 import { useState } from "react";
 import { navigate } from "../app/route";
 import { useSendDraft, useWallet, useWalletSession, useWalletSnapshot } from "../app/session";
@@ -6,10 +5,11 @@ import { useVault } from "../app/vault";
 import { nextChange } from "../core/view";
 import type { WalletCoin, WalletSnapshot, WalletTx } from "../core/wallet";
 import { Amount, btcParts, groupSats } from "../ui/amount";
+import { ExplorerLink } from "../ui/explorer";
 import { ageText, confText, shortId } from "../ui/format";
 import { Icon } from "../ui/icons";
 import { Button, Chip, Empty, linkClass, Panel } from "../ui/kit";
-import { SourceTag, sourcesOf, type Source } from "../ui/sources";
+import { type Source, SourceTag, sourcesOf } from "../ui/sources";
 import { outpoint } from "../wallet/coin";
 import { BUSY_RATE, feeTargets, MIN_FEE_RATE } from "../wallet/fees";
 import { spend, spendCost, type WalletKind } from "../wallet/select";
@@ -51,7 +51,17 @@ const sendable = (c: WalletCoin) => selectable(c) && c.status !== "foreign-uncon
 
 type Picking = { picked: Set<string>; toggle: (coin: WalletCoin) => void; can: (coin: WalletCoin) => boolean };
 
-function CoinRow({ coin, snapshot, picking, rate }: { coin: WalletCoin; snapshot: WalletSnapshot; picking: Picking; rate: number | null }) {
+function CoinRow({
+  coin,
+  snapshot,
+  picking,
+  rate,
+}: {
+  coin: WalletCoin;
+  snapshot: WalletSnapshot;
+  picking: Picking;
+  rate: number | null;
+}) {
   const session = useWalletSession();
   const tx = lookup(snapshot).tx.get(coin.txid);
   const confirmations = tx?.confirmations ?? 0;
@@ -75,16 +85,27 @@ function CoinRow({ coin, snapshot, picking, rate }: { coin: WalletCoin; snapshot
           onChange={() => picking.toggle(coin)}
           className="size-4 flex-none accent-carbon"
         />
-        <a href={`#/coin/${outpoint(coin)}`} className={`text-md font-medium no-underline hover:underline ${coin.frozen ? "opacity-60" : "text-ink"}`}>
+        <a
+          href={`#/coin/${outpoint(coin)}`}
+          className={`text-md font-medium no-underline hover:underline ${coin.frozen ? "opacity-60" : "text-ink"}`}
+        >
           <Amount sats={coin.value} />
         </a>
       </span>
       <span className="hidden text-right text-sm text-ink-2 @min-[720px]:block">{when}</span>
       <div className="col-span-2 row-start-2 grid min-w-0 gap-1 @min-[720px]:col-span-1 @min-[720px]:col-start-3 @min-[720px]:row-start-1">
-        <EditableLabel type="output" target={`${coin.txid}:${coin.vout}`} value={coin.label} placeholder="Label this coin" className="text-sm" />
+        <EditableLabel
+          type="output"
+          target={`${coin.txid}:${coin.vout}`}
+          value={coin.label}
+          placeholder="Label this coin"
+          className="text-sm"
+        />
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-3">
           <span className="@min-[720px]:hidden">{when}</span>
-          <ExplorerLink type="address" value={coin.address}><span className="font-mono">{shortId(coin.address, 10, 6)}</span></ExplorerLink>
+          <ExplorerLink type="address" value={coin.address}>
+            <span className="font-mono">{shortId(coin.address, 10, 6)}</span>
+          </ExplorerLink>
           {path && <span className="font-mono">{path}</span>}
           {cost !== null && <span>Costs {groupSats(cost)} sats to spend</span>}
         </span>
@@ -114,7 +135,17 @@ function CoinRow({ coin, snapshot, picking, rate }: { coin: WalletCoin; snapshot
   );
 }
 
-function Group({ source, snapshot, picking, rate }: { source: Source; snapshot: WalletSnapshot; picking: Picking; rate: number | null }) {
+function Group({
+  source,
+  snapshot,
+  picking,
+  rate,
+}: {
+  source: Source;
+  snapshot: WalletSnapshot;
+  picking: Picking;
+  rate: number | null;
+}) {
   return (
     <li className="border-t border-rule first:border-t-0">
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 bg-manila-2 px-4 py-2.5">
@@ -158,25 +189,34 @@ function Join({ snapshot, sources, rate }: { snapshot: WalletSnapshot; sources: 
   const busy = !!draft && (!!draft.built || draft.drafts.some((d) => d.address.trim()));
   const join = ({ source, coins }: (typeof plans)[number]) => {
     const to = nextChange(snapshot).address;
-    store(() => ({ ...blankDraft(), drafts: [{ key: 0, address: to, amount: "", max: true, label: `Joined coins from ${source.name}` }], fee: { preset: "sixBlocks" }, picked: coins.map(outpoint) }));
+    store(() => ({
+      ...blankDraft(),
+      drafts: [{ key: 0, address: to, amount: "", max: true, label: `Joined coins from ${source.name}` }],
+      fee: { preset: "sixBlocks" },
+      picked: coins.map(outpoint),
+    }));
     navigate("/send");
   };
   return (
     <Panel title="Fees are low: join small coins" className="@container">
       <p className="m-0 max-w-[64ch] text-ink-2">
-        Everything waiting in your node&rsquo;s mempool fits in the next six blocks, so {rateText(rate)} sat/vB should confirm within
-        about an hour. Joining a source&rsquo;s small coins into one now costs less than spending them one by one if fees rise to{" "}
-        {BUSY_RATE} sat/vB, as they have on busy days. That's an example, not a forecast. Coins are only joined within one source,
-        so nothing new is linked.
+        Everything waiting in your node&rsquo;s mempool fits in the next six blocks, so {rateText(rate)} sat/vB should
+        confirm within about an hour. Joining a source&rsquo;s small coins into one now costs less than spending them
+        one by one if fees rise to {BUSY_RATE} sat/vB, as they have on busy days. That's an example, not a forecast.
+        Coins are only joined within one source, so nothing new is linked.
       </p>
       <ul className="m-0 grid list-none gap-2 p-0">
         {plans.map((plan) => (
-          <li key={plan.source.id} className="grid gap-2 rounded-control bg-manila-2 px-3 py-2.5 @min-[560px]:grid-cols-[minmax(0,1fr)_auto] @min-[560px]:items-center">
+          <li
+            key={plan.source.id}
+            className="grid gap-2 rounded-control bg-manila-2 px-3 py-2.5 @min-[560px]:grid-cols-[minmax(0,1fr)_auto] @min-[560px]:items-center"
+          >
             <div className="grid min-w-0 justify-items-start gap-1">
               <SourceTag source={plan.source} large />
               <span className="text-sm text-ink-2">
-                {plan.coins.length} coins, <Amount sats={plan.coins.reduce((a, c) => a + c.value, 0)} />. Spent one by one at {BUSY_RATE} sat/vB:{" "}
-                {groupSats(plan.apart)} sats. Joined now: {groupSats(plan.fee)} sats, then {groupSats(plan.later)} sats to spend the one coin.{" "}
+                {plan.coins.length} coins, <Amount sats={plan.coins.reduce((a, c) => a + c.value, 0)} />. Spent one by
+                one at {BUSY_RATE} sat/vB: {groupSats(plan.apart)} sats. Joined now: {groupSats(plan.fee)} sats, then{" "}
+                {groupSats(plan.later)} sats to spend the one coin.{" "}
                 <b className="font-bold text-ink">Saves {groupSats(plan.saving)} sats.</b>
               </span>
             </div>
@@ -245,7 +285,8 @@ export function Coins() {
           </dl>
           {rate !== null && (
             <p className="m-0 px-4 pb-3 text-xs text-ink-3">
-              Costs to spend are at {rateText(rate)} sat/vB, {draft ? "the fee rate of your send in progress" : "the rate to confirm within 30 minutes"}.
+              Costs to spend are at {rateText(rate)} sat/vB,{" "}
+              {draft ? "the fee rate of your send in progress" : "the rate to confirm within 30 minutes"}.
             </p>
           )}
           <div className="hidden grid-cols-[140px_84px_minmax(0,1fr)_auto] gap-x-3 border-t border-rule px-4 py-2 text-xs font-bold tracking-[0.04em] text-ink-3 uppercase @min-[720px]:grid">
@@ -272,7 +313,10 @@ export function Coins() {
       {sending.length > 0 && (
         <div className="sticky bottom-[calc(64px+env(safe-area-inset-bottom))] z-[2] flex flex-wrap items-center justify-between gap-3 rounded-panel border border-rule-2 bg-sheet p-3 pl-4 shadow-float @min-[720px]/app:bottom-4">
           <span className="text-sm">
-            <b className="font-bold">{sending.length} coin{sending.length === 1 ? "" : "s"}</b>, <Amount sats={sum(sending)} />
+            <b className="font-bold">
+              {sending.length} coin{sending.length === 1 ? "" : "s"}
+            </b>
+            , <Amount sats={sum(sending)} />
           </span>
           <span className="flex gap-2">
             <Button size="sm" onClick={() => setPicked(new Set())}>

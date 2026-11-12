@@ -2,17 +2,17 @@ import { hex } from "@scure/base";
 import { Transaction } from "@scure/btc-signer";
 import { sha256x2 } from "@scure/btc-signer/utils.js";
 import {
+  type BlockHeader,
   BroadcastError,
   ConnectionError,
-  NotFoundError,
-  RefusedError,
-  scriptHash,
-  txidOf,
-  type BlockHeader,
   type ConnectionFailure,
   type FeeBucket,
   type HistoryEntry,
+  NotFoundError,
+  RefusedError,
   type ScriptBalance,
+  scriptHash,
+  txidOf,
   type Unspent,
   type Unsubscribe,
   type WalletBackend,
@@ -67,12 +67,7 @@ type Known = {
  * Field offsets and sizes:
  * https://developer.bitcoin.org/reference/block_chain.html
  */
-function buildHeader(
-  previous: Uint8Array,
-  txids: string[],
-  height: number,
-  nonce: number,
-): Uint8Array {
+function buildHeader(previous: Uint8Array, txids: string[], height: number, nonce: number): Uint8Array {
   const header = new Uint8Array(80);
   header.set(previous, 4);
   header.set(sha256x2(hex.decode(txids.join(""))), 36);
@@ -85,9 +80,7 @@ function buildHeader(
 }
 
 function digest(entries: HistoryEntry[] | undefined): string {
-  return (entries ?? [])
-    .map((entry) => `${entry.txid}:${entry.height}:${entry.unconfirmedParents}`)
-    .join("|");
+  return (entries ?? []).map((entry) => `${entry.txid}:${entry.height}:${entry.unconfirmedParents}`).join("|");
 }
 
 /** A `WalletBackend` serving a fixture, with the chain movable from a test. */
@@ -98,9 +91,10 @@ export function fakeBackend(fixture: Partial<Fixture> = {}): FakeBackend {
   const mempool = [...(fixture.mempool ?? [])];
 
   let nonce = 0;
-  let blocks: Block[] = (fixture.blocks?.length ? fixture.blocks : [[]]).map(
-    (transactions) => ({ transactions, nonce: nonce++ }),
-  );
+  let blocks: Block[] = (fixture.blocks?.length ? fixture.blocks : [[]]).map((transactions) => ({
+    transactions,
+    nonce: nonce++,
+  }));
 
   let connected = false;
   let headers: Uint8Array[] = [];
@@ -144,9 +138,7 @@ export function fakeBackend(fixture: Partial<Fixture> = {}): FakeBackend {
     headers = [];
     let previous = new Uint8Array(32);
     blocks.forEach((block, i) => {
-      const txids = block.transactions.map((raw) =>
-        register(raw, startHeight + i),
-      );
+      const txids = block.transactions.map((raw) => register(raw, startHeight + i));
       const header = buildHeader(previous, txids, startHeight + i, block.nonce);
       headers.push(header);
       previous = sha256x2(header);
@@ -341,7 +333,11 @@ export function fakeEsplora(fake: FakeBackend, poll?: number): FakeBackend {
       [...entries!].reverse().map(async ({ txid, height }) => {
         const tx = Transaction.fromRaw((await fake.transactions([txid]))[0]!, PARSE);
         const vin = Array.from({ length: tx.inputsLength }, (_, i) => ({ txid: hex.encode(tx.getInput(i).txid!) }));
-        return { txid, status: height === null ? { confirmed: false } : { confirmed: true, block_height: height }, vin };
+        return {
+          txid,
+          status: height === null ? { confirmed: false } : { confirmed: true, block_height: height },
+          vin,
+        };
       }),
     );
     return { mempool: json.filter((tx) => !tx.status.confirmed), chain: json.filter((tx) => tx.status.confirmed) };
@@ -369,12 +365,20 @@ export function fakeEsplora(fake: FakeBackend, poll?: number): FakeBackend {
       const { mempool, chain } = await history(match[1]!);
       const [{ confirmed, unconfirmed }] = (await fake.balances([electrumHash(match[1]!)])) as [ScriptBalance];
       const sums = (sum: number) => ({ funded_txo_sum: Math.max(sum, 0), spent_txo_sum: Math.max(-sum, 0) });
-      return reply({ chain_stats: { tx_count: chain.length, ...sums(confirmed) }, mempool_stats: { tx_count: mempool.length, ...sums(unconfirmed) } });
+      return reply({
+        chain_stats: { tx_count: chain.length, ...sums(confirmed) },
+        mempool_stats: { tx_count: mempool.length, ...sums(unconfirmed) },
+      });
     }
     if ((match = path.match(/^\/scripthash\/(\w+)\/utxo$/))) {
       const [outputs] = await fake.unspent([electrumHash(match[1]!)]);
       return reply(
-        outputs!.map(({ txid, vout, value, height }) => ({ txid, vout, value, status: height === null ? { confirmed: false } : { confirmed: true, block_height: height } })),
+        outputs!.map(({ txid, vout, value, height }) => ({
+          txid,
+          vout,
+          value,
+          status: height === null ? { confirmed: false } : { confirmed: true, block_height: height },
+        })),
       );
     }
     if ((match = path.match(/^\/scripthash\/(\w+)\/txs$/))) {
@@ -415,7 +419,10 @@ export function fakeEsplora(fake: FakeBackend, poll?: number): FakeBackend {
   return {
     ...esploraBackend(base, {
       poll,
-      fetch: (url, init) => serve(url.slice(base.length), init).catch((error) => (error instanceof RefusedError ? reply(error.message, 400) : Promise.reject(error))),
+      fetch: (url, init) =>
+        serve(url.slice(base.length), init).catch((error) =>
+          error instanceof RefusedError ? reply(error.message, 400) : Promise.reject(error),
+        ),
     }),
     addBlock: fake.addBlock,
     reorg: fake.reorg,

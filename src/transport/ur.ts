@@ -1,15 +1,8 @@
-import {
-  crc32,
-  FountainDecoder,
-  FountainEncoder,
-  uint32Bytes,
-  type FountainPart,
-  type Progress,
-} from "./fountain";
 import { hex } from "@scure/base";
 import { HDKey } from "@scure/bip32";
 import { HARDENED } from "../wallet/descriptor";
 import { BIP32_VERSIONS } from "../wallet/extended-key";
+import { crc32, FountainDecoder, FountainEncoder, type FountainPart, type Progress, uint32Bytes } from "./fountain";
 
 // https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2020-012-bytewords.md
 const BYTEWORDS = `
@@ -85,8 +78,7 @@ function cborHead(major: number, n: number): number[] {
   return [m | 26, ...uint32Bytes(n)];
 }
 
-const cborBytes = (data: Uint8Array) =>
-  Uint8Array.from([...cborHead(BYTES, data.length), ...data]);
+const cborBytes = (data: Uint8Array) => Uint8Array.from([...cborHead(BYTES, data.length), ...data]);
 
 class CborReader {
   private at = 0;
@@ -177,12 +169,7 @@ export class UrEncoder {
     firstSeqNum = 0,
     minFragmentLength = 10,
   ) {
-    this.fountain = new FountainEncoder(
-      ur.cbor,
-      maxFragmentLength,
-      firstSeqNum,
-      minFragmentLength,
-    );
+    this.fountain = new FountainEncoder(ur.cbor, maxFragmentLength, firstSeqNum, minFragmentLength);
   }
 
   /** How many parts carry the message once each. */
@@ -215,11 +202,7 @@ export class UrDecoder {
     const lower = text.trim().toLowerCase();
     if (!lower.startsWith("ur:")) return false;
     const [type = "", ...path] = lower.slice(3).split("/").filter(Boolean);
-    if (
-      !/^[a-z0-9-]+$/.test(type) ||
-      (this.types && !this.types.includes(type)) ||
-      (this.type && type !== this.type)
-    ) {
+    if (!/^[a-z0-9-]+$/.test(type) || (this.types && !this.types.includes(type)) || (this.type && type !== this.type)) {
       return false;
     }
     try {
@@ -359,7 +342,7 @@ function keyText(item: Cbor | undefined, master: number | undefined): string {
   const key = new HDKey({
     versions: BIP32_VERSIONS[testnet ? "signet" : "mainnet"],
     depth: origin?.depth ?? steps.length,
-    index: last ? parseInt(last) + (last.endsWith("'") ? HARDENED : 0) : 0,
+    index: last ? parseInt(last, 10) + (last.endsWith("'") ? HARDENED : 0) : 0,
     parentFingerprint: (field(item.value, 8) as number | undefined) ?? (steps.length === 1 ? fingerprint : 0),
     chainCode: field(item.value, 4) as Uint8Array | undefined,
     publicKey: data,

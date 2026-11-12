@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { address, BIP84, LARGE, MULTISIG, script, signPsbt } from "../../../scripts/regtest/fixture";
 import { App } from "../../App";
-import { fakeBackend, type FakeBackend, type Fixture } from "../../backend/fake";
+import { type FakeBackend, type Fixture, fakeBackend } from "../../backend/fake";
 import { createWallet } from "../../core/wallets";
 import { bbqrParts } from "../../transport/bbqr";
 import { psbtUrEncoder } from "../../transport/ur";
@@ -12,16 +12,25 @@ import { btcParts, groupSats } from "../../ui/amount";
 import { createVault, destroyVault } from "../../vault/vault";
 
 const camera = vi.hoisted(() => ({ frames: [] as string[] }));
-vi.mock("../../transport/qr", async (original) => ({ ...(await original<typeof import("../../transport/qr")>()), readQr: () => camera.frames.shift() ?? null }));
+vi.mock("../../transport/qr", async (original) => ({
+  ...(await original<typeof import("../../transport/qr")>()),
+  readQr: () => camera.frames.shift() ?? null,
+}));
 
 /** A camera that is live at once and sees whatever is pushed onto `camera.frames`, one frame per scan. */
 function fakeCamera() {
-  Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia: async () => ({ getTracks: () => [] }) } });
+  Object.defineProperty(navigator, "mediaDevices", {
+    configurable: true,
+    value: { getUserMedia: async () => ({ getTracks: () => [] }) },
+  });
   Object.defineProperty(HTMLMediaElement.prototype, "readyState", { configurable: true, get: () => 4 });
   Object.defineProperty(HTMLVideoElement.prototype, "videoWidth", { configurable: true, get: () => 640 });
   Object.defineProperty(HTMLVideoElement.prototype, "videoHeight", { configurable: true, get: () => 480 });
   vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
-  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({ drawImage() {}, getImageData: () => ({}) } as never);
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+    drawImage() {},
+    getImageData: () => ({}),
+  } as never);
 }
 
 const idle = () => {
@@ -35,7 +44,12 @@ vi.setConfig({ testTimeout: 30_000 });
 
 const CHEAP = { m: 8, t: 1, p: 1 };
 const PASSPHRASE = "correct horse battery staple";
-const PARSE = { allowUnknownInputs: true, allowUnknownOutputs: true, allowLegacyWitnessUtxo: true, disableScriptCheck: true };
+const PARSE = {
+  allowUnknownInputs: true,
+  allowUnknownOutputs: true,
+  allowLegacyWitnessUtxo: true,
+  disableScriptCheck: true,
+};
 const PAYEE = address(LARGE, 0, 0);
 // A P2WPKH example from BIP173. https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
 const MAINNET = "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4";
@@ -49,24 +63,71 @@ function tx(inputs: [string, number][], outputs: [Uint8Array, number][]): Uint8A
 }
 const id = (raw: Uint8Array) => Transaction.fromRaw(raw, PARSE).id;
 
-const faucet = tx([["00".repeat(32), 0xffffffff]], Array.from({ length: 6 }, (): [Uint8Array, number] => [theirs, 100_000_000]));
-const payA = tx([[id(faucet), 0]], [[script(BIP84, 0, 0), 500_000], [theirs, 99_499_000]]);
-const payB = tx([[id(faucet), 1]], [[script(BIP84, 0, 1), 300_000], [theirs, 99_699_000]]);
-const payC = tx([[id(faucet), 2]], [[script(BIP84, 0, 2), 200_000], [theirs, 99_799_000]]);
-const foreign = tx([[id(faucet), 3]], [[script(BIP84, 0, 3), 100_000], [theirs, 99_899_000]]);
+const faucet = tx(
+  [["00".repeat(32), 0xffffffff]],
+  Array.from({ length: 6 }, (): [Uint8Array, number] => [theirs, 100_000_000]),
+);
+const payA = tx(
+  [[id(faucet), 0]],
+  [
+    [script(BIP84, 0, 0), 500_000],
+    [theirs, 99_499_000],
+  ],
+);
+const payB = tx(
+  [[id(faucet), 1]],
+  [
+    [script(BIP84, 0, 1), 300_000],
+    [theirs, 99_699_000],
+  ],
+);
+const payC = tx(
+  [[id(faucet), 2]],
+  [
+    [script(BIP84, 0, 2), 200_000],
+    [theirs, 99_799_000],
+  ],
+);
+const foreign = tx(
+  [[id(faucet), 3]],
+  [
+    [script(BIP84, 0, 3), 100_000],
+    [theirs, 99_899_000],
+  ],
+);
 const parent = tx([[id(faucet), 4]], [[theirs, 99_999_000]]);
-const child = tx([[id(parent), 0]], [[script(BIP84, 0, 4), 150_000], [theirs, 99_848_000]]);
+const child = tx(
+  [[id(parent), 0]],
+  [
+    [script(BIP84, 0, 4), 150_000],
+    [theirs, 99_848_000],
+  ],
+);
 // 1 000 sats; unsigned, so 113 vB and 8.8 sat/vB to the wallet.
-const outgoing = tx([[id(payB), 0]], [[theirs, 200_000], [script(BIP84, 1, 0), 99_000]]);
+const outgoing = tx(
+  [[id(payB), 0]],
+  [
+    [theirs, 200_000],
+    [script(BIP84, 1, 0), 99_000],
+  ],
+);
 
 let fixture: Partial<Fixture>;
 let backends: FakeBackend[];
 
-async function start(hash: string, mempool: Uint8Array[] = [foreign, parent, child], descriptor = BIP84.text, settings = {}) {
+async function start(
+  hash: string,
+  mempool: Uint8Array[] = [foreign, parent, child],
+  descriptor = BIP84.text,
+  settings = {},
+) {
   const vault = await createVault(PASSPHRASE, CHEAP);
   await vault.put("settings", { server: "wss://node.example:50004", ...settings });
   const wallet = await createWallet(vault, { name: "Spending", descriptor, network: "regtest" });
-  await vault.put(`labels/${wallet.id}`, { [`output:${id(payA)}:0`]: "Kraken withdrawal", [`output:${id(payB)}:0`]: "Bisq trade" });
+  await vault.put(`labels/${wallet.id}`, {
+    [`output:${id(payA)}:0`]: "Kraken withdrawal",
+    [`output:${id(payB)}:0`]: "Bisq trade",
+  });
   await vault.put(`frozen/${wallet.id}`, [`${id(payC)}:0`]);
   await vault.put("book", [{ address: MAINNET, name: "Cold storage" }]);
   vault.lock();
@@ -93,7 +154,10 @@ const sats = (n: number) => new RegExp(`^${groupSats(n).replace(/\u202f/g, " ")}
 const coin = (name: RegExp) => screen.findByRole("checkbox", { name });
 const group = (name: RegExp) => screen.findByRole("group", { name });
 const custody = () => within(screen.getByRole("region", { name: "Custody log" }));
-const entries = () => custody().queryAllByRole("listitem").map((li) => li.textContent);
+const entries = () =>
+  custody()
+    .queryAllByRole("listitem")
+    .map((li) => li.textContent);
 const summary = () => within(screen.getByRole("region", { name: "Summary" }));
 
 async function payTo(user: ReturnType<typeof userEvent.setup>, to: string, btc: string) {
@@ -165,7 +229,9 @@ describe("the send screen", () => {
     await user.click(await coin(/Kraken withdrawal/));
     expect(summary().getByText("Coins in (1)")).toBeTruthy();
     expect(summary().getByText(sats(1_410))).toBeTruthy();
-    expect(entries()).toEqual([expect.stringMatching(/^01Kraken withdrawalNot marked as knowing who you are1 coin picked/)]);
+    expect(entries()).toEqual([
+      expect.stringMatching(/^01Kraken withdrawalNot marked as knowing who you are1 coin picked/),
+    ]);
     expect(map.getByText(/^No new links\. Every coin picked comes from Kraken withdrawal/)).toBeTruthy();
 
     await user.click(await coin(/Bisq trade/));
@@ -173,7 +239,9 @@ describe("the send screen", () => {
     expect(summary().getByText(sats(2_090))).toBeTruthy();
     const change = address(BIP84, 1, 0);
     expect(changeRow()).toContain(`${change.slice(0, 10)}…${change.slice(-6)} · m/84h/1h/0h/1/0`);
-    expect(map.getByText(/would most likely take the .* output for your change: it is not a round amount/)).toBeTruthy();
+    expect(
+      map.getByText(/would most likely take the .* output for your change: it is not a round amount/),
+    ).toBeTruthy();
     expect(entries()).toEqual([expect.stringMatching(/^01Bisq trade/), expect.stringMatching(/^02Kraken withdrawal/)]);
     expect(map.getByText("Joined in one transaction")).toBeTruthy();
     expect(map.getByText("Joins 2 sources").getAttribute("aria-live")).toBe("polite");
@@ -248,12 +316,18 @@ describe("the send screen", () => {
     await user.click(screen.getByRole("button", { name: "Clear" }));
     await user.click(await coin(/Kraken withdrawal/));
     await user.click(await coin(/Bisq trade/));
-    expect(custody().getByText(/neither do the sources that already know you, so some private coins have to be joined/)).toBeTruthy();
+    expect(
+      custody().getByText(/neither do the sources that already know you, so some private coins have to be joined/),
+    ).toBeTruthy();
 
     await user.click(within(await group(/Bisq trade/)).getByRole("switch", { name: "Knows who I am" }));
     await user.click(await coin(/Unconfirmed, from someone else/));
     expect(entries()).toHaveLength(3);
-    expect(await custody().findByText(/Use only coins from sources that already know who you are, Bisq trade and Kraken withdrawal, and .* stays private/)).toBeTruthy();
+    expect(
+      await custody().findByText(
+        /Use only coins from sources that already know who you are, Bisq trade and Kraken withdrawal, and .* stays private/,
+      ),
+    ).toBeTruthy();
     await user.click(custody().getByRole("button", { name: "Use only those coins" }));
     expect(entries()).toEqual([expect.stringMatching(/^01Bisq trade/), expect.stringMatching(/^02Kraken withdrawal/)]);
     expect((await coin(/Unconfirmed, from someone else/)).getAttribute("aria-checked")).toBe("false");
@@ -375,7 +449,9 @@ describe("the send screen", () => {
     expect(summary().getByText("Coins in (3)")).toBeTruthy();
     expect(summary().getByText("Change back to you").parentElement!.textContent).toBe("Change back to youNone");
     // Frozen 200 000, waiting on a parent 150 000.
-    expect(screen.getByText(/^Sending everything spendable/).textContent!.replace(/\s+/g, " ")).toMatch(/^Sending everything spendable\. Left out, 0\.00 350 000 ?BTC: 1 frozen, 1 waiting on an unconfirmed parent\.$/);
+    expect(screen.getByText(/^Sending everything spendable/).textContent!.replace(/\s+/g, " ")).toMatch(
+      /^Sending everything spendable\. Left out, 0\.00 350 000 ?BTC: 1 frozen, 1 waiting on an unconfirmed parent\.$/,
+    );
     expect(screen.getByRole("button", { name: "Review and sign" })).toHaveProperty("disabled", false);
   });
 
@@ -403,7 +479,9 @@ describe("signing and broadcasting", () => {
     expect(created).toBe("blob:psbt");
     psbt.updateOutput(0, { amount: psbt.getOutput(0).amount! - 1_000n });
     await upload(user, psbt.toPSBT());
-    expect(await screen.findByText(/This PSBT was refused: Output 1 pays \d+ sats, but the one built pays \d+ sats/)).toBeTruthy();
+    expect(
+      await screen.findByText(/This PSBT was refused: Output 1 pays \d+ sats, but the one built pays \d+ sats/),
+    ).toBeTruthy();
   });
 
   it("keeps scanning after a refusal, even the same refusal twice", async () => {
@@ -439,7 +517,11 @@ describe("signing and broadcasting", () => {
     finished.finalize();
     const parts = bbqrParts(finished.extract(), "T", 80);
     camera.frames.push(parts[1]!);
-    expect(await screen.findByText((_, el) => el?.tagName === "SPAN" && el.textContent === `1 of ${parts.length} parts captured`)).toBeTruthy();
+    expect(
+      await screen.findByText(
+        (_, el) => el?.tagName === "SPAN" && el.textContent === `1 of ${parts.length} parts captured`,
+      ),
+    ).toBeTruthy();
     camera.frames.push(...parts);
     expect(await screen.findByText("Signed and checked")).toBeTruthy();
   });
@@ -481,7 +563,9 @@ describe("signing and broadcasting", () => {
     const built = await builtPsbt(user);
     await user.click(screen.getByRole("button", { name: "Back to coins" }));
     await user.click(screen.getByRole("button", { name: "Discard this send" }));
-    expect(screen.getByRole("link", { name: "Broadcast a PSBT signed elsewhere" }).getAttribute("href")).toBe("#/broadcast");
+    expect(screen.getByRole("link", { name: "Broadcast a PSBT signed elsewhere" }).getAttribute("href")).toBe(
+      "#/broadcast",
+    );
     location.hash = "#/broadcast";
     await screen.findByRole("heading", { name: "Broadcast a signed transaction" });
 
@@ -489,7 +573,9 @@ describe("signing and broadcasting", () => {
     stranger.addInput({ txid: id(faucet), index: 5, witnessUtxo: { script: theirs, amount: 100_000_000n } });
     stranger.addOutput({ script: theirs, amount: 99_999_000n });
     await upload(user, stranger.toPSBT());
-    expect(await screen.findByText("This PSBT was refused: Input 1 isn't one of this wallet's unspent coins.")).toBeTruthy();
+    expect(
+      await screen.findByText("This PSBT was refused: Input 1 isn't one of this wallet's unspent coins."),
+    ).toBeTruthy();
 
     const bare = Transaction.fromPSBT(signPsbt(built, BIP84));
     for (let i = 0; i < bare.outputsLength; i++) bare.updateOutput(i, { bip32Derivation: undefined }, true);
@@ -499,13 +585,16 @@ describe("signing and broadcasting", () => {
     expect(screen.getByText(PAYEE)).toBeTruthy();
     expect(screen.getByText("Change back to you")).toBeTruthy();
     const { lead, rest } = btcParts(100_000 + Number(bare.fee));
-    expect(screen.getByText("Total leaving the wallet").parentElement!.textContent).toBe(`Total leaving the wallet${lead}${rest}BTC`);
+    expect(screen.getByText("Total leaving the wallet").parentElement!.textContent).toBe(
+      `Total leaving the wallet${lead}${rest}BTC`,
+    );
     await user.click(screen.getByRole("button", { name: "Broadcast through your server" }));
     expect(await screen.findByText(Transaction.fromPSBT(signed).id)).toBeTruthy();
   });
 
   it("shows the node's rejection word for word", async () => {
-    const reason = "insufficient fee, rejecting replacement 3f2a; new feerate 0.00001000 BTC/kvB <= old feerate 0.00002000 BTC/kvB";
+    const reason =
+      "insufficient fee, rejecting replacement 3f2a; new feerate 0.00001000 BTC/kvB <= old feerate 0.00002000 BTC/kvB";
     fixture.broadcastRejection = reason;
     const user = await start("#/send");
     await upload(user, signPsbt(await builtPsbt(user), BIP84));
@@ -525,7 +614,9 @@ describe("signing and broadcasting", () => {
     const recap = within(screen.getByRole("heading", { name: "This payment" }).closest("section")!);
     expect(recap.getByText("Sending").nextSibling!.textContent).toMatch(/^0\.00 100 000/);
     expect(recap.getByText(`${PAYEE.slice(0, 10)}…${PAYEE.slice(-8)}`)).toBeTruthy();
-    expect(recap.getAllByRole("listitem").map((li) => li.textContent)).toEqual([expect.stringMatching(/^01Kraken withdrawal.*1 coin picked/)]);
+    expect(recap.getAllByRole("listitem").map((li) => li.textContent)).toEqual([
+      expect.stringMatching(/^01Kraken withdrawal.*1 coin picked/),
+    ]);
     await user.click(screen.getByRole("button", { name: "Broadcast through your server" }));
     const txid = Transaction.fromPSBT(signed).id;
     expect(await screen.findByText(txid)).toBeTruthy();
@@ -564,7 +655,9 @@ describe("address book", () => {
     await user.click(await screen.findByRole("button", { name: "Broadcast through your server" }));
     const signed = Transaction.fromPSBT(psbt);
     expect(await screen.findByText(signed.id, {}, { timeout: 15_000 })).toBeTruthy();
-    const vout = Array.from({ length: signed.outputsLength }, (_, i) => signed.getOutput(i).script!).findIndex((s) => s.join() === script(LARGE, 0, 0).join());
+    const vout = Array.from({ length: signed.outputsLength }, (_, i) => signed.getOutput(i).script!).findIndex(
+      (s) => s.join() === script(LARGE, 0, 0).join(),
+    );
 
     location.hash = "#/home";
     expect(await screen.findByRole("link", { name: "Landlord" })).toBeTruthy();
@@ -573,7 +666,12 @@ describe("address book", () => {
     URL.createObjectURL = (b: Blob) => ((exported = b), "blob:labels");
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
     await user.click(await screen.findByRole("button", { name: "Export labels" }));
-    expect((await exported!.text()).trim().split("\n").map((l) => JSON.parse(l))).toContainEqual(expect.objectContaining({ type: "output", ref: `${signed.id}:${vout}`, label: "Landlord" }));
+    expect(
+      (await exported!.text())
+        .trim()
+        .split("\n")
+        .map((l) => JSON.parse(l)),
+    ).toContainEqual(expect.objectContaining({ type: "output", ref: `${signed.id}:${vout}`, label: "Landlord" }));
 
     await user.click(screen.getByRole("button", { name: "Rename Landlord" }));
     await user.clear(screen.getByLabelText("New name for Landlord"));
@@ -625,7 +723,14 @@ describe("fee bump", () => {
 
 describe("coin economics", () => {
   // Two small coins paid in one transaction, so one source.
-  const dribble = tx([[id(faucet), 5]], [[script(BIP84, 0, 5), 600], [script(BIP84, 0, 6), 9_000], [theirs, 99_990_000]]);
+  const dribble = tx(
+    [[id(faucet), 5]],
+    [
+      [script(BIP84, 0, 5), 600],
+      [script(BIP84, 0, 6), 9_000],
+      [theirs, 99_990_000],
+    ],
+  );
   beforeEach(() => fixture.blocks![1]!.push(dribble));
 
   it("says what each coin costs to spend and flags one worth less than that", async () => {
@@ -660,14 +765,27 @@ describe("coin economics", () => {
 describe("a 2-of-3 multisig wallet", () => {
   const c = MULTISIG.descriptor.keys[2]!.origin!.fingerprint;
   beforeEach(() => {
-    fixture.blocks = [[faucet], [tx([[id(faucet), 5]], [[script(MULTISIG, 0, 0), 400_000], [theirs, 99_599_000]])]];
+    fixture.blocks = [
+      [faucet],
+      [
+        tx(
+          [[id(faucet), 5]],
+          [
+            [script(MULTISIG, 0, 0), 400_000],
+            [theirs, 99_599_000],
+          ],
+        ),
+      ],
+    ];
   });
 
   it("asks to check a receive address on a cosigner device, giving each cosigner's path", async () => {
     await start("#/receive", [], MULTISIG.text);
     expect(await screen.findByText(/A 2-of-3 multisig address\. Check it on a cosigner device/)).toBeTruthy();
     const [a, b] = MULTISIG.descriptor.keys.map((k) => k.origin!.fingerprint);
-    expect(screen.getByText("Each cosigner's path").nextElementSibling!.textContent).toBe(`m/48h/1h/0h/2h/0/1 on ${a}, ${b}, ${c}`);
+    expect(screen.getByText("Each cosigner's path").nextElementSibling!.textContent).toBe(
+      `m/48h/1h/0h/2h/0/1 on ${a}, ${b}, ${c}`,
+    );
   });
 
   it("collects cosigners' signatures on a PSBT made elsewhere, saying whose, then broadcasts at two", async () => {
@@ -688,7 +806,9 @@ describe("a 2-of-3 multisig wallet", () => {
     const bare = Transaction.fromPSBT(signPsbt(built, MULTISIG.cosigners[2]!));
     bare.updateInput(0, { bip32Derivation: undefined, witnessScript: undefined }, true);
     await upload(user, bare.toPSBT());
-    expect(await screen.findByText(`1 of 2 signatures so far, from ${c}. Scan or load a PSBT another cosigner has signed.`)).toBeTruthy();
+    expect(
+      await screen.findByText(`1 of 2 signatures so far, from ${c}. Scan or load a PSBT another cosigner has signed.`),
+    ).toBeTruthy();
     await upload(user, signPsbt(built, MULTISIG.cosigners[0]!));
     expect(await screen.findByRole("heading", { name: "Check before you broadcast" })).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Broadcast through your server" }));
@@ -707,7 +827,11 @@ describe("a 2-of-3 multisig wallet", () => {
     const built = new Uint8Array(await blob!.arrayBuffer());
     await user.click(screen.getByRole("button", { name: "Signed it, scan it back" }));
     await upload(user, signPsbt(built, MULTISIG.cosigners[2]!));
-    expect(await screen.findByText(`1 of 2 signatures so far, from ${c}. Show this code to another cosigner, or scan a PSBT another cosigner has signed.`)).toBeTruthy();
+    expect(
+      await screen.findByText(
+        `1 of 2 signatures so far, from ${c}. Show this code to another cosigner, or scan a PSBT another cosigner has signed.`,
+      ),
+    ).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Lock" }));
     await user.type(await screen.findByLabelText("Passphrase"), PASSPHRASE);
     await user.click(screen.getByRole("button", { name: "Unlock" }));

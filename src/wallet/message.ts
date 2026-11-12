@@ -1,4 +1,4 @@
-import { secp256k1, schnorr } from "@noble/curves/secp256k1.js";
+import { schnorr, secp256k1 } from "@noble/curves/secp256k1.js";
 import { base64 } from "@scure/base";
 import { Address, OutScript, p2pkh, p2sh, p2wpkh } from "@scure/btc-signer/payment.js";
 import { RawWitness, Script, VarBytes } from "@scure/btc-signer/script.js";
@@ -48,7 +48,10 @@ export function armour(message: string, address: string, signature: string): str
 
 export function readSignature(text: string): { signature: string; message?: string; address?: string } {
   const normal = text.replace(/\r\n/g, "\n");
-  const block = /-----BEGIN BITCOIN SIGNED MESSAGE-----\n([\s\S]*?)\n-----BEGIN BITCOIN SIGNATURE-----\n([\s\S]*?)\n-----END BITCOIN SIGNATURE-----/.exec(normal);
+  const block =
+    /-----BEGIN BITCOIN SIGNED MESSAGE-----\n([\s\S]*?)\n-----BEGIN BITCOIN SIGNATURE-----\n([\s\S]*?)\n-----END BITCOIN SIGNATURE-----/.exec(
+      normal,
+    );
   if (block) {
     const lines = block[2]!.split("\n").filter((line) => line.trim());
     if (lines.length !== 2) throw new Error("Couldn't read this armoured signature.");
@@ -58,7 +61,12 @@ export function readSignature(text: string): { signature: string; message?: stri
   return { signature: normal.trim() };
 }
 
-export function verifyMessage(address: string, message: string, signature: string, network: Network): { valid: boolean; format: "legacy" | "BIP322" } {
+export function verifyMessage(
+  address: string,
+  message: string,
+  signature: string,
+  network: Network,
+): { valid: boolean; format: "legacy" | "BIP322" } {
   const params = NETWORKS[network];
   const output = Address(params).decode(address.trim());
   const script = OutScript.encode(output);
@@ -66,8 +74,11 @@ export function verifyMessage(address: string, message: string, signature: strin
   if (text.startsWith("ful") || text.startsWith("pof")) throw new Error("Full BIP322 signatures are not supported.");
   const simple = text.startsWith("smp");
   let bytes: Uint8Array;
-  try { bytes = base64.decode(simple ? text.slice(3) : text); }
-  catch { throw new Error("This isn't a signature. Paste base64 or an armoured message."); }
+  try {
+    bytes = base64.decode(simple ? text.slice(3) : text);
+  } catch {
+    throw new Error("This isn't a signature. Paste base64 or an armoured message.");
+  }
   if (!simple && bytes.length === 65 && bytes[0]! >= LEGACY_HEADER_MIN && bytes[0]! <= LEGACY_HEADER_MAX) {
     let valid = false;
     try {
@@ -75,24 +86,36 @@ export function verifyMessage(address: string, message: string, signature: strin
       const recovered = concatBytes(new Uint8Array([(bytes[0]! - LEGACY_HEADER_MIN) % 4]), bytes.slice(1));
       const hash = sha256(sha256(concatBytes(VarBytes.encode(utf8(LEGACY_PREFIX)), VarBytes.encode(utf8(message)))));
       const compressed = secp256k1.recoverPublicKey(recovered, hash, { prehash: false });
-      const pubkey = bytes[0]! < LEGACY_HEADER_MIN + 4 ? secp256k1.Point.fromBytes(compressed).toBytes(false) : compressed;
+      const pubkey =
+        bytes[0]! < LEGACY_HEADER_MIN + 4 ? secp256k1.Point.fromBytes(compressed).toBytes(false) : compressed;
       const candidates: { script: Uint8Array }[] = [p2pkh(pubkey, params)];
       if (pubkey.length === 33) candidates.push(p2wpkh(pubkey, params), p2sh(p2wpkh(pubkey, params), params));
       valid = candidates.some((p) => equalBytes(p.script, script));
-    } catch { valid = false; }
+    } catch {
+      valid = false;
+    }
     return { valid, format: "legacy" };
   }
-  if (output.type !== "wpkh" && output.type !== "tr") throw new Error("BIP322 verification supports only P2WPKH and taproot key-path signatures.");
+  if (output.type !== "wpkh" && output.type !== "tr")
+    throw new Error("BIP322 verification supports only P2WPKH and taproot key-path signatures.");
   let witness: Uint8Array[];
-  try { witness = RawWitness.decode(bytes); }
-  catch { throw new Error("This isn't a signature. Expected a BIP322 simple witness."); }
+  try {
+    witness = RawWitness.decode(bytes);
+  } catch {
+    throw new Error("This isn't a signature. Expected a BIP322 simple witness.");
+  }
   // https://github.com/bitcoin/bips/blob/master/bip-0322.mediawiki#full
   const tag = sha256(utf8("BIP0322-signed-message"));
   const messageHash = sha256(concatBytes(tag, tag, utf8(message)));
   const options = { version: 0, lockTime: 0, allowUnknownInputs: true, allowUnknownOutputs: true };
   const toSpend = new Transaction(options);
   toSpend.addOutput({ script, amount: 0n });
-  toSpend.addInput({ txid: new Uint8Array(32), index: 0xffffffff, sequence: 0, finalScriptSig: Script.encode([0, messageHash]) });
+  toSpend.addInput({
+    txid: new Uint8Array(32),
+    index: 0xffffffff,
+    sequence: 0,
+    finalScriptSig: Script.encode([0, messageHash]),
+  });
   const toSign = new Transaction(options);
   toSign.addInput({ txid: toSpend.id, index: 0, sequence: 0 });
   toSign.addOutput({ script: Script.encode(["RETURN"]), amount: 0n });
@@ -111,6 +134,8 @@ export function verifyMessage(address: string, message: string, signature: strin
         valid = schnorr.verify(sig.slice(0, 64), hash, output.pubkey);
       }
     }
-  } catch { valid = false; }
+  } catch {
+    valid = false;
+  }
   return { valid, format: "BIP322" };
 }

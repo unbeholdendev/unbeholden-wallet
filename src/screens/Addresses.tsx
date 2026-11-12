@@ -19,7 +19,9 @@ function Row({ info, next }: { info: AddressInfo; next: boolean }) {
       <span className="flex flex-wrap items-center gap-1.5 @min-[720px]:justify-end">
         {next && <Chip tone="carbon">Next to give out</Chip>}
         {info.reused && <Chip tone="bad">Reused, paid {info.txCount} times</Chip>}
-        {info.used ? !info.reused && <Chip>{info.txCount === 1 ? "1 transaction" : `${info.txCount} transactions`}</Chip> : !next && <Chip>Unused</Chip>}
+        {info.used
+          ? !info.reused && <Chip>{info.txCount === 1 ? "1 transaction" : `${info.txCount} transactions`}</Chip>
+          : !next && <Chip>Unused</Chip>}
       </span>
       <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm @min-[720px]:col-span-2 @min-[720px]:col-start-2">
         <span className="font-mono text-xs text-ink-3">{info.path}</span>
@@ -48,7 +50,11 @@ export function Addresses() {
     setScanning(true);
     const found = (await session?.scanDeeper(DEEPER)) ?? 0;
     setScanning(false);
-    toast(found ? `Found ${found === 1 ? "1 used address" : `${found} used addresses`} further on` : `Nothing in the next ${DEEPER} addresses on each chain`);
+    toast(
+      found
+        ? `Found ${found === 1 ? "1 used address" : `${found} used addresses`} further on`
+        : `Nothing in the next ${DEEPER} addresses on each chain`,
+    );
   };
 
   return (
@@ -78,7 +84,9 @@ export function Addresses() {
         </div>
         {reused > 0 && (
           <p className="m-0 border-t border-rule bg-bad-tint px-4 py-2.5 text-sm text-ink">
-            <b className="font-bold text-bad">{reused === 1 ? "One address was" : `${reused} addresses were`} paid more than once.</b>{" "}
+            <b className="font-bold text-bad">
+              {reused === 1 ? "One address was" : `${reused} addresses were`} paid more than once.
+            </b>{" "}
             Anyone can see those payments went to the same person. Give out a fresh address each time.
           </p>
         )}
@@ -87,7 +95,9 @@ export function Addresses() {
             <Row key={info.address} info={info} next={info.address === snapshot.nextReceive.address} />
           ))}
         </ul>
-        {!list.length && <p className="m-0 border-t border-rule px-4 py-6 text-ink-3">No {show} addresses on this chain yet.</p>}
+        {!list.length && (
+          <p className="m-0 border-t border-rule px-4 py-6 text-ink-3">No {show} addresses on this chain yet.</p>
+        )}
         {all.length > end && (
           <p className="m-0 border-t border-rule px-4 py-3 text-sm text-ink-3">
             {all.length - end} more unused addresses after these.{" "}
@@ -102,7 +112,12 @@ export function Addresses() {
           along, for example to a service that generates its own, coins paid to them stay hidden until you scan further.
         </p>
         <p className="m-0 text-sm text-ink-2">It checks {DEEPER} more addresses on each chain with your server.</p>
-        <Button className="justify-self-start" icon="scan" disabled={scanning || connection.phase !== "connected"} onClick={scan}>
+        <Button
+          className="justify-self-start"
+          icon="scan"
+          disabled={scanning || connection.phase !== "connected"}
+          onClick={scan}
+        >
           {scanning ? "Scanning" : "Scan further"}
         </Button>
       </section>

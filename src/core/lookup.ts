@@ -1,9 +1,16 @@
 import { hex } from "@scure/base";
 import { Address, OutScript, RawTx } from "@scure/btc-signer";
 import { sha256x2 } from "@scure/btc-signer/utils.js";
-import { NotFoundError, scriptHash, txidOf, type ScriptBalance, type Unspent, type WalletBackend } from "../backend/backend";
+import {
+  NotFoundError,
+  type ScriptBalance,
+  scriptHash,
+  txidOf,
+  type Unspent,
+  type WalletBackend,
+} from "../backend/backend";
 import { NETWORKS, type Network } from "../wallet/network";
-import { blockTime, COINBASE, parseTx, type Parsed } from "./view";
+import { blockTime, COINBASE, type Parsed, parseTx } from "./view";
 
 export type LookedUpTx = {
   txid: string;
@@ -64,11 +71,17 @@ export async function decodeTransaction(backend: WalletBackend, raw: Uint8Array,
   // One missing transaction fails the whole batch, so only then is each asked for alone.
   const parentRaws: (Uint8Array | null)[] = await backend
     .transactions(parentIds)
-    .catch((error) => (missing(error), Promise.all(parentIds.map((id) => backend.transactions([id]).then(([bytes]) => bytes!, missing)))));
+    .catch(
+      (error) => (
+        missing(error),
+        Promise.all(parentIds.map((id) => backend.transactions([id]).then(([bytes]) => bytes!, missing)))
+      ),
+    );
   const parents = new Map(
     parentRaws.flatMap((bytes, i) => {
       if (!bytes) return [];
-      if (txidOf(bytes) !== parentIds[i]) throw new Error("The server sent a different transaction than the one asked for");
+      if (txidOf(bytes) !== parentIds[i])
+        throw new Error("The server sent a different transaction than the one asked for");
       return [[parentIds[i]!, parseTx(parentIds[i]!, bytes)] as const];
     }),
   );
@@ -87,7 +100,9 @@ export async function decodeTransaction(backend: WalletBackend, raw: Uint8Array,
   const outputs = tx.outputs.map((o, vout) => ({ vout, value: o.value, address: addressOf(o.script) }));
   return {
     txid,
-    fee: inputs.every((i) => i.value !== null) ? sum(inputs.map((i) => i.value!)) - sum(outputs.map((o) => o.value)) : null,
+    fee: inputs.every((i) => i.value !== null)
+      ? sum(inputs.map((i) => i.value!)) - sum(outputs.map((o) => o.value))
+      : null,
     vsize: tx.vsize,
     rbf: RawTx.decode(raw).inputs.some((i) => i.sequence < FINAL),
     inputs,
@@ -101,10 +116,18 @@ export async function decodeTransaction(backend: WalletBackend, raw: Uint8Array,
  * and nothing subscribed to.
  * @throws {RefusedError} with the server's reason when it will not serve the address.
  */
-export async function lookupAddress(backend: WalletBackend, address: string, network: Network): Promise<LookedUpAddress> {
+export async function lookupAddress(
+  backend: WalletBackend,
+  address: string,
+  network: Network,
+): Promise<LookedUpAddress> {
   const script = OutScript.encode(Address(NETWORKS[network]).decode(address));
   const hash = scriptHash(script);
-  const [[balance], [history], [unspent]] = await Promise.all([backend.balances([hash]), backend.history([hash]), backend.unspent([hash])]);
+  const [[balance], [history], [unspent]] = await Promise.all([
+    backend.balances([hash]),
+    backend.history([hash]),
+    backend.unspent([hash]),
+  ]);
   const heights = [...new Set(history!.flatMap((entry) => (entry.height === null ? [] : [entry.height])))];
   const headers = await backend.blockHeaders(heights);
   const times = new Map(heights.map((height, i) => [height, blockTime(headers[i]!)]));
@@ -124,13 +147,20 @@ export async function lookupAddress(backend: WalletBackend, address: string, net
  * spent from it. Only a transaction in the address's history can have paid an
  * input it spends, so those are the only parents fetched.
  */
-export async function addressAmounts(backend: WalletBackend, found: LookedUpAddress, txids: string[]): Promise<Map<string, number>> {
+export async function addressAmounts(
+  backend: WalletBackend,
+  found: LookedUpAddress,
+  txids: string[],
+): Promise<Map<string, number>> {
   const txs = await fetchParsed(backend, txids);
   const inHistory = new Set(found.history.map((entry) => entry.txid));
   const fetched = new Set(txids);
-  const parentIds = [...new Set(txs.flatMap((tx) => tx.inputs.map((input) => input.txid)))].filter((id) => inHistory.has(id) && !fetched.has(id));
+  const parentIds = [...new Set(txs.flatMap((tx) => tx.inputs.map((input) => input.txid)))].filter(
+    (id) => inHistory.has(id) && !fetched.has(id),
+  );
   const parents = new Map([...txs, ...(await fetchParsed(backend, parentIds))].map((tx) => [tx.txid, tx]));
-  const paid = (outputs: { script: string; value: number }[]) => sum(outputs.filter((o) => o.script === found.script).map((o) => o.value));
+  const paid = (outputs: { script: string; value: number }[]) =>
+    sum(outputs.filter((o) => o.script === found.script).map((o) => o.value));
   return new Map(
     txs.map((tx) => {
       const spent = tx.inputs.flatMap((input) => {
@@ -147,7 +177,11 @@ export async function addressAmounts(backend: WalletBackend, found: LookedUpAddr
  * one batch for the transactions its inputs spend. Nothing is kept.
  * @returns null when the server has no such transaction.
  */
-export async function lookupTransaction(backend: WalletBackend, txid: string, network: Network): Promise<LookedUpTx | null> {
+export async function lookupTransaction(
+  backend: WalletBackend,
+  txid: string,
+  network: Network,
+): Promise<LookedUpTx | null> {
   let raw: Uint8Array;
   try {
     [raw] = (await backend.transactions([txid])) as [Uint8Array];
@@ -156,7 +190,10 @@ export async function lookupTransaction(backend: WalletBackend, txid: string, ne
     throw error;
   }
   if (txidOf(raw) !== txid) throw new Error("The server sent a different transaction than the one asked for");
-  const [tx, [height]] = await Promise.all([decodeTransaction(backend, raw, network), backend.transactionHeights([raw])]);
+  const [tx, [height]] = await Promise.all([
+    decodeTransaction(backend, raw, network),
+    backend.transactionHeights([raw]),
+  ]);
   return { ...tx, height: height ?? null };
 }
 
@@ -180,5 +217,10 @@ export async function lookupBlock(backend: WalletBackend, height: number): Promi
   const [header] = (await backend.blockHeaders([height])) as [Uint8Array];
   // Bits field of the block header: https://developer.bitcoin.org/reference/block_chain.html
   const bits = new DataView(header.buffer, header.byteOffset).getUint32(72, true);
-  return { height, hash: hex.encode(sha256x2(header).reverse()), time: blockTime(header), difficulty: difficulty(bits) };
+  return {
+    height,
+    hash: hex.encode(sha256x2(header).reverse()),
+    time: blockTime(header),
+    difficulty: difficulty(bits),
+  };
 }

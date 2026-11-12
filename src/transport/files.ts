@@ -14,9 +14,7 @@ function decodeText(text: string): Uint8Array {
   }
   const compact = trimmed.replace(/\s+/g, "");
   try {
-    return /^[0-9a-f]+$/i.test(compact)
-      ? hex.decode(compact.toLowerCase())
-      : base64.decode(compact);
+    return /^[0-9a-f]+$/i.test(compact) ? hex.decode(compact.toLowerCase()) : base64.decode(compact);
   } catch {
     return new Uint8Array();
   }
@@ -30,9 +28,7 @@ export function readPsbt(input: Uint8Array | string): Uint8Array {
   const psbt =
     typeof input !== "string" && hasMagic(input)
       ? input
-      : decodeText(
-          typeof input === "string" ? input : new TextDecoder().decode(input),
-        );
+      : decodeText(typeof input === "string" ? input : new TextDecoder().decode(input));
   if (!hasMagic(psbt)) throw new Error("This isn't a PSBT");
   parsePsbt(psbt);
   return psbt;

@@ -1,7 +1,7 @@
-import { expect, test, type Page } from "@playwright/test";
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { expect, type Page, test } from "@playwright/test";
 import { Transaction } from "@scure/btc-signer";
 import { BIP84, buildFixture, ELECTRUM_WS, mine, rpc, signPsbt } from "../scripts/regtest/fixture";
 import { qrMatrix } from "../src/transport/qr";
@@ -27,7 +27,8 @@ function y4m(frames: (boolean[][] | null)[]): Buffer {
       matrix.forEach((row, y) =>
         row.forEach((dark, x) => {
           if (!dark) return;
-          for (let dy = 0; dy < scale; dy++) luma.fill(16, (y0 + y * scale + dy) * W + x0 + x * scale, (y0 + y * scale + dy) * W + x0 + (x + 1) * scale);
+          for (let dy = 0; dy < scale; dy++)
+            luma.fill(16, (y0 + y * scale + dy) * W + x0 + x * scale, (y0 + y * scale + dy) * W + x0 + (x + 1) * scale);
         }),
       );
     }
@@ -42,7 +43,11 @@ writeFileSync(VIDEO, y4m([null]));
 test.use({
   permissions: ["camera", "clipboard-read", "clipboard-write"],
   launchOptions: {
-    args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", `--use-file-for-fake-video-capture=${VIDEO}`],
+    args: [
+      "--use-fake-device-for-media-stream",
+      "--use-fake-ui-for-media-stream",
+      `--use-file-for-fake-video-capture=${VIDEO}`,
+    ],
   },
 });
 
@@ -69,7 +74,10 @@ async function shoot(page: Page, name: string) {
 }
 
 async function savePsbt(page: Page): Promise<Uint8Array> {
-  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Save PSBT file" }).click()]);
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Save PSBT file" }).click(),
+  ]);
   return new Uint8Array(readFileSync(await download.path()));
 }
 
@@ -94,11 +102,18 @@ test("send, sign from a file, broadcast, then bump and sign the replacement thro
   await expect(page).toHaveURL(/#\/home$/);
 
   await go(page, "#/send");
-  await expect(page.getByRole("checkbox", { name: /Unconfirmed, from someone else/ }).first()).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByRole("checkbox", { name: /Waits on an unconfirmed parent/ }).first()).toHaveAttribute("aria-disabled", "true");
+  await expect(page.getByRole("checkbox", { name: /Unconfirmed, from someone else/ }).first()).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.getByRole("checkbox", { name: /Waits on an unconfirmed parent/ }).first()).toHaveAttribute(
+    "aria-disabled",
+    "true",
+  );
   await page.getByRole("textbox", { name: "Address" }).fill(await rpc("getnewaddress"));
   await page.getByLabel("Amount, BTC").fill("0.6");
-  await expect(page.getByRole("region", { name: "Summary" }).getByRole("button", { name: "Review and sign" })).toBeEnabled();
+  await expect(
+    page.getByRole("region", { name: "Summary" }).getByRole("button", { name: "Review and sign" }),
+  ).toBeEnabled();
   await expect(page.getByText("Regtest bench added")).toBeHidden({ timeout: 6_000 });
   await shoot(page, "send");
 
@@ -108,7 +123,9 @@ test("send, sign from a file, broadcast, then bump and sign the replacement thro
   const signed = signPsbt(await savePsbt(page), BIP84);
   await page.getByRole("button", { name: "Signed it, scan it back" }).click();
   await page.getByText("No camera? Load the signed file or paste it").click();
-  await page.getByLabel("Load signed file").setInputFiles({ name: "signed.psbt", mimeType: "application/octet-stream", buffer: Buffer.from(signed) });
+  await page
+    .getByLabel("Load signed file")
+    .setInputFiles({ name: "signed.psbt", mimeType: "application/octet-stream", buffer: Buffer.from(signed) });
   await expect(page.getByRole("heading", { name: "Signed and checked" })).toBeVisible();
   await shoot(page, "sign-verified");
 
@@ -116,7 +133,9 @@ test("send, sign from a file, broadcast, then bump and sign the replacement thro
   await page.getByRole("button", { name: "Broadcast through your server" }).click();
   await expect(page).toHaveURL(new RegExp(`#/tx/${txid}$`), { timeout: 1_000 });
   await go(page, "#/send");
-  await expect(page.getByRole("checkbox", { name: /Your change, unconfirmed/ }).first()).toBeVisible({ timeout: 1_000 });
+  await expect(page.getByRole("checkbox", { name: /Your change, unconfirmed/ }).first()).toBeVisible({
+    timeout: 1_000,
+  });
   expect(await rpc("getmempoolentry", txid)).toBeTruthy();
 
   await go(page, `#/bump/${txid}`);

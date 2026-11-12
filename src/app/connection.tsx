@@ -1,9 +1,9 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { ConnectionError, type ConnectionFailure, type WalletBackend } from "../backend/backend";
-import type { ConnectionStatus as Live, ElectrumBackend } from "../backend/electrum";
+import type { ElectrumBackend, ConnectionStatus as Live } from "../backend/electrum";
 import { LOOPBACK } from "../backend/handshake";
-import { genesisNetwork, type Network } from "../wallet/network";
 import { log } from "../log";
+import { genesisNetwork, type Network } from "../wallet/network";
 
 export type Failure = ConnectionFailure | "invalid-url" | "bridge";
 
@@ -44,7 +44,8 @@ export function precheck(url: string): Failure | null {
     return "invalid-url";
   }
   if (!["ws:", "wss:", "http:", "https:"].includes(parsed.protocol)) return "invalid-url";
-  if (["ws:", "http:"].includes(parsed.protocol) && location.protocol === "https:" && !LOOPBACK.test(parsed.hostname)) return "mixed-content";
+  if (["ws:", "http:"].includes(parsed.protocol) && location.protocol === "https:" && !LOOPBACK.test(parsed.hostname))
+    return "mixed-content";
   return null;
 }
 
@@ -93,7 +94,12 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
         next.close();
         if (stale()) return false;
         // This page loaded over the same host, so its certificate is trusted; only the bridge's own link can fail.
-        const failure = /^wss?:/.test(url) && new URL(url).host === location.host ? "bridge" : error instanceof ConnectionError ? error.failure : null;
+        const failure =
+          /^wss?:/.test(url) && new URL(url).host === location.host
+            ? "bridge"
+            : error instanceof ConnectionError
+              ? error.failure
+              : null;
         const message = String((error as Error)?.message ?? error);
         log("connect failed", { failure, message });
         setConnection({ phase: "failed", url, failure, message });
@@ -114,8 +120,14 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
         log("connection", { phase });
         update({ phase });
       });
-      next.blockHeaders([0]).then(([genesis]) => update({ network: genesisNetwork(genesis!) }), () => {});
-      next.chainTip().then(({ height }) => update({ tip: height }), () => {});
+      next.blockHeaders([0]).then(
+        ([genesis]) => update({ network: genesisNetwork(genesis!) }),
+        () => {},
+      );
+      next.chainTip().then(
+        ({ height }) => update({ tip: height }),
+        () => {},
+      );
       next.subscribeHeaders(({ height }) => update({ tip: height })).catch(() => {});
       return true;
     },
@@ -125,6 +137,8 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
   useEffect(() => disconnect, [disconnect]);
 
   return (
-    <ConnectionContext.Provider value={{ connection, backend, connect, disconnect }}>{children}</ConnectionContext.Provider>
+    <ConnectionContext.Provider value={{ connection, backend, connect, disconnect }}>
+      {children}
+    </ConnectionContext.Provider>
   );
 }

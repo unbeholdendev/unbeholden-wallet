@@ -1,11 +1,11 @@
 import { hex } from "@scure/base";
 import { Transaction } from "@scure/btc-signer";
-import { parseDescriptor } from "../wallet/descriptor";
-import { derivePayment } from "../wallet/derive";
-import { BIP84_ZPUB, BIP86_XPUB } from "../wallet/vectors";
 import { openWallet } from "../core/wallet";
 import { createWallet, saveSettings } from "../core/wallets";
 import { createVault, type KdfParams } from "../vault/vault";
+import { derivePayment } from "../wallet/derive";
+import { parseDescriptor } from "../wallet/descriptor";
+import { BIP84_ZPUB, BIP86_XPUB } from "../wallet/vectors";
 import { fakeBackend } from "./fake";
 
 /**
@@ -40,23 +40,56 @@ const DAYS = 90;
 const START = DEMO_TIP - DAYS * 144;
 const daysAgo = (d: number) => DEMO_TIP - d * 144;
 
-const faucet = tx([["00".repeat(32), 0xffffffff]], Array.from({ length: 10 }, (_, i): [Uint8Array, number] => [theirs(i), 50_000_000]));
+const faucet = tx(
+  [["00".repeat(32), 0xffffffff]],
+  Array.from({ length: 10 }, (_, i): [Uint8Array, number] => [theirs(i), 50_000_000]),
+);
 const pay = (vout: number, to: Uint8Array, value: number, change: number) =>
-  tx([[id(faucet), vout]], [[to, value], [theirs(20 + vout), 50_000_000 - value - change]]);
+  tx(
+    [[id(faucet), vout]],
+    [
+      [to, value],
+      [theirs(20 + vout), 50_000_000 - value - change],
+    ],
+  );
 
 const kraken = pay(0, mine(0, 0), 15_418_220, 1_780);
 const bisq = pay(1, mine(0, 1), 5_842_113, 2_210);
 const dust = pay(2, mine(0, 4), 21_400, 1_100);
 const ocean = pay(3, mine(0, 3), 6_000_000, 1_650);
 const payrollAug = pay(4, mine(0, 2), 2_500_000, 1_320);
-const hardware = tx([[id(kraken), 0]], [[theirs(30), 830_000], [mine(1, 0), 14_586_100]]);
+const hardware = tx(
+  [[id(kraken), 0]],
+  [
+    [theirs(30), 830_000],
+    [mine(1, 0), 14_586_100],
+  ],
+);
 const payrollSep = pay(5, mine(0, 2), 2_500_000, 1_320);
 const tom = pay(6, mine(0, 5), 650_000, 990);
-const rent = tx([[id(payrollAug), 0]], [[theirs(31), 1_450_000], [mine(1, 1), 1_048_560]]);
+const rent = tx(
+  [[id(payrollAug), 0]],
+  [
+    [theirs(31), 1_450_000],
+    [mine(1, 1), 1_048_560],
+  ],
+);
 const meridian = pay(7, mine(0, 6), 300_000, 1_400);
 
-const strangerPaid = tx([[id(faucet), 8]], [[theirs(40), 12_000_000], [theirs(41), 37_998_600]]);
-const strangerPending = tx([[id(meridian), 1]], [[theirs(40), 40_000_000], [theirs(42), 9_697_100]]);
+const strangerPaid = tx(
+  [[id(faucet), 8]],
+  [
+    [theirs(40), 12_000_000],
+    [theirs(41), 37_998_600],
+  ],
+);
+const strangerPending = tx(
+  [[id(meridian), 1]],
+  [
+    [theirs(40), 40_000_000],
+    [theirs(42), 9_697_100],
+  ],
+);
 
 /** Transactions and an address the demo wallet does not own, to look up. */
 export const DEMO_FOREIGN = {
@@ -136,5 +169,5 @@ export const DEMO_LABELS = [
   { type: "output", ref: `${DEMO_TXIDS.meridian}:0`, label: "Meridian Ltd invoice 118" },
   { type: "output", ref: `${DEMO_TXIDS.dust}:0`, label: "Dust, do not spend", spendable: false },
 ]
-  .map((r) => JSON.stringify(r) + "\n")
+  .map((r) => `${JSON.stringify(r)}\n`)
   .join("");

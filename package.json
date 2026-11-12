@@ -13,6 +13,8 @@
     "test:e2e": "playwright test --pass-with-no-tests",
     "test:integration": "bun --bun vitest run -c integration/vitest.config.ts",
     "typecheck": "tsc --noEmit && tsc --noEmit -p integration",
+    "lint": "biome check .",
+    "format": "biome check --write .",
     "regtest:up": "scripts/regtest/up.sh",
     "regtest:down": "scripts/regtest/down.sh",
     "regtest:fixture": "bun scripts/regtest/cli.ts fixture",
@@ -32,6 +34,7 @@
     "react-dom": "^19.3.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.6.7",
     "@playwright/test": "^1.63.0",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/dom": "^10.4.2",

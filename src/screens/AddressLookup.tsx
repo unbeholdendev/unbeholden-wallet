@@ -1,14 +1,14 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useConnection } from "../app/connection";
 import { useNetwork, useOwners } from "../app/session";
 import { RefusedError } from "../backend/backend";
-import { addressAmounts, AMOUNTS_PAGE, lookupAddress, type LookedUpAddress } from "../core/lookup";
+import { AMOUNTS_PAGE, addressAmounts, type LookedUpAddress, lookupAddress } from "../core/lookup";
 import { Amount, groupSats } from "../ui/amount";
 import { dateText, shortId } from "../ui/format";
 import { Button, Chip, linkClass } from "../ui/kit";
-import { checkAddress } from "./send/Recipients";
 import { Missing } from "./Lookup";
 import { CopyButton, GroupedAddress } from "./parts";
+import { checkAddress } from "./send/Recipients";
 
 type Found = { address: string } & ({ found: LookedUpAddress } | { refused: string } | { error: string });
 
@@ -26,7 +26,19 @@ function List({ title, count, children }: { title: string; count: number; childr
   );
 }
 
-function Row({ txid, vout, height, time, children }: { txid: string; vout?: number; height: number | null; time?: number | null; children: ReactNode }) {
+function Row({
+  txid,
+  vout,
+  height,
+  time,
+  children,
+}: {
+  txid: string;
+  vout?: number;
+  height: number | null;
+  time?: number | null;
+  children: ReactNode;
+}) {
   return (
     <li className="flex items-baseline justify-between gap-3 border-t border-rule px-4 py-3">
       <div className="grid min-w-0 gap-0.5">
@@ -53,7 +65,10 @@ export function AddressLookup({ address: text }: { address: string | undefined }
   const checked = checkAddress(text ?? "", network);
   const address = "address" in checked ? checked.address : null;
   const [state, setState] = useState<Found | null>(null);
-  const [amounts, setAmounts] = useState<{ address: string | null; byTxid: Map<string, number> }>({ address: null, byTxid: new Map() });
+  const [amounts, setAmounts] = useState<{ address: string | null; byTxid: Map<string, number> }>({
+    address: null,
+    byTxid: new Map(),
+  });
   const [more, setMore] = useState<{ loading: boolean; error: string | null }>({ loading: false, error: null });
   const shown = useRef(AMOUNTS_PAGE);
   const showing = useRef(address);
@@ -66,20 +81,34 @@ export function AddressLookup({ address: text }: { address: string | undefined }
 
   // A transaction's amount for an address never changes, so a refresh and a page that cross can both merge.
   const merge = (forAddress: string, page: Map<string, number>) =>
-    setAmounts((now) => ({ address: forAddress, byTxid: new Map([...(now.address === forAddress ? now.byTxid : []), ...page]) }));
+    setAmounts((now) => ({
+      address: forAddress,
+      byTxid: new Map([...(now.address === forAddress ? now.byTxid : []), ...page]),
+    }));
 
   useEffect(() => {
     if (!live || !address) return;
     let cancelled = false;
     lookupAddress(live, address, network)
-      .then(async (found) => ({ found, page: await addressAmounts(live, found, found.history.slice(0, shown.current).map((entry) => entry.txid)) }))
+      .then(async (found) => ({
+        found,
+        page: await addressAmounts(
+          live,
+          found,
+          found.history.slice(0, shown.current).map((entry) => entry.txid),
+        ),
+      }))
       .then(
         ({ found, page }) => {
           if (cancelled) return;
           merge(address, page);
           setState({ address, found });
         },
-        (error) => cancelled || setState(error instanceof RefusedError ? { address, refused: error.message } : { address, error: message(error) }),
+        (error) =>
+          cancelled ||
+          setState(
+            error instanceof RefusedError ? { address, refused: error.message } : { address, error: message(error) },
+          ),
       );
     return () => void (cancelled = true);
   }, [live, address, network, tip]);
@@ -97,7 +126,11 @@ export function AddressLookup({ address: text }: { address: string | undefined }
     ) : (
       <Missing title="Not connected" id={address}>
         <p className="m-0">
-          Looking an address up needs the server. <a href="#/connect" className={linkClass}>Connect to it</a>.
+          Looking an address up needs the server.{" "}
+          <a href="#/connect" className={linkClass}>
+            Connect to it
+          </a>
+          .
         </p>
       </Missing>
     );
@@ -117,7 +150,10 @@ export function AddressLookup({ address: text }: { address: string | undefined }
   const { found } = current;
   const loaded = amounts.address === address ? amounts.byTxid : new Map<string, number>();
   const owner = owners.get(address);
-  const next = found.history.filter((entry) => !loaded.has(entry.txid)).slice(0, AMOUNTS_PAGE).map((entry) => entry.txid);
+  const next = found.history
+    .filter((entry) => !loaded.has(entry.txid))
+    .slice(0, AMOUNTS_PAGE)
+    .map((entry) => entry.txid);
   const loadMore = () => {
     if (!live) return;
     setMore({ loading: true, error: null });
@@ -174,13 +210,19 @@ export function AddressLookup({ address: text }: { address: string | undefined }
                 const amount = loaded.get(txid);
                 return (
                   <Row key={txid} txid={txid} height={height} time={time}>
-                    {amount === undefined ? <span className="text-sm text-ink-3">Not loaded</span> : <Amount sats={amount} signed />}
+                    {amount === undefined ? (
+                      <span className="text-sm text-ink-3">Not loaded</span>
+                    ) : (
+                      <Amount sats={amount} signed />
+                    )}
                   </Row>
                 );
               })}
             </ul>
           ) : (
-            <p className="m-0 border-t border-rule px-4 py-6 text-ink-3">No transaction has paid or spent from this address.</p>
+            <p className="m-0 border-t border-rule px-4 py-6 text-ink-3">
+              No transaction has paid or spent from this address.
+            </p>
           )}
           {next.length > 0 && (
             <div className="grid justify-items-center gap-2 border-t border-rule px-4 py-3">

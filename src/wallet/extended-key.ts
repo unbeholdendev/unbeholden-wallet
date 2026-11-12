@@ -46,10 +46,7 @@ export type NormalisedKey = {
  * Rewrites a SLIP-132 extended public key as a plain `xpub` or `tpub`, and
  * reports the script type its prefix implies.
  */
-export function normaliseExtendedKey(
-  text: string,
-  network: Network,
-): NormalisedKey {
+export function normaliseExtendedKey(text: string, network: Network): NormalisedKey {
   let raw: Uint8Array;
   try {
     raw = base58check(sha256).decode(text);
@@ -67,14 +64,10 @@ export function normaliseExtendedKey(
   const version = VERSIONS.get(view.getUint32(0));
   if (!version) throw new Error("This isn't an extended public key");
   if (version.kind === "sh-wpkh") {
-    throw new Error(
-      "This is a wrapped SegWit key, a script type this wallet doesn't support",
-    );
+    throw new Error("This is a wrapped SegWit key, a script type this wallet doesn't support");
   }
   if (version.kind === "sh-wsh") {
-    throw new Error(
-      "This is a wrapped SegWit multisig key, a script type this wallet doesn't support",
-    );
+    throw new Error("This is a wrapped SegWit multisig key, a script type this wallet doesn't support");
   }
 
   const wanted: VersionClass = network === "mainnet" ? "mainnet" : "test";

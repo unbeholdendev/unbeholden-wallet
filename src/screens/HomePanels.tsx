@@ -10,7 +10,7 @@ import { linkClass, Panel } from "../ui/kit";
 import { SourceTag, sourcesOf } from "../ui/sources";
 import { BLOCK_VSIZE, BUSY_RATE, feeTargets } from "../wallet/fees";
 import { spend, spendCost } from "../wallet/select";
-import { received, type PaymentRequest } from "./Receive";
+import { type PaymentRequest, received } from "./Receive";
 import { eta, rateText, useFeeHistogram } from "./send/fees";
 
 /** The balance after each transaction, oldest first, as a step line under the balance. Hover or arrow keys read out each step. */
@@ -25,7 +25,10 @@ export function BalanceChart({ snapshot }: { snapshot: WalletSnapshot }) {
   const top = Math.max(...points.map((p) => p.balance), 1);
   const x = (at: number) => ((at - start) / Math.max(now - start, 1)) * 320;
   const y = (b: number) => 60 - (Math.max(b, 0) / top) * 56;
-  const line = `M0 ${y(points[0]!.balance)} ${points.slice(1).map((p) => `H${x(p.at)} V${y(p.balance)}`).join(" ")} H320`;
+  const line = `M0 ${y(points[0]!.balance)} ${points
+    .slice(1)
+    .map((p) => `H${x(p.at)} V${y(p.balance)}`)
+    .join(" ")} H320`;
   const last = points.length - 1;
   const point = shown === null ? null : points[Math.min(shown, last)]!;
   const keys: Record<string, (i: number) => number> = {
@@ -41,12 +44,18 @@ export function BalanceChart({ snapshot }: { snapshot: WalletSnapshot }) {
         preserveAspectRatio="none"
         className="h-14 w-full touch-pan-y"
         role="img"
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: the chart takes focus so arrow keys can scrub it.
         tabIndex={0}
         aria-label={`Balance over time, from ${dateText(start)} to now`}
         onPointerMove={(e) => {
           const box = e.currentTarget.getBoundingClientRect();
           const at = start + ((e.clientX - box.left) / box.width) * (now - start);
-          setShown(Math.max(points.findLastIndex((p) => p.at <= at), 0));
+          setShown(
+            Math.max(
+              points.findLastIndex((p) => p.at <= at),
+              0,
+            ),
+          );
         }}
         onPointerLeave={() => setShown(null)}
         onFocus={() => setShown(last)}
@@ -60,7 +69,16 @@ export function BalanceChart({ snapshot }: { snapshot: WalletSnapshot }) {
       >
         <path d={`${line} V60 H0 Z`} className="fill-carbon-tint" />
         <path d={line} vectorEffect="non-scaling-stroke" className="fill-none stroke-carbon stroke-[1.5]" />
-        {point && <line x1={x(point.at)} x2={x(point.at)} y1="0" y2="60" vectorEffect="non-scaling-stroke" className="stroke-ink-3" />}
+        {point && (
+          <line
+            x1={x(point.at)}
+            x2={x(point.at)}
+            y1="0"
+            y2="60"
+            vectorEffect="non-scaling-stroke"
+            className="stroke-ink-3"
+          />
+        )}
       </svg>
       <figcaption aria-live="polite" className="flex justify-between text-xs text-ink-3">
         {point ? (
@@ -84,7 +102,10 @@ export function Pending({ snapshot, waiting }: { snapshot: WalletSnapshot; waiti
   const { record } = useWallet();
   const [requests, setRequests] = useState<PaymentRequest[]>([]);
   useEffect(() => {
-    vault.get<PaymentRequest[]>(`requests/${record.id}`).then((saved) => setRequests(saved ?? []), () => {});
+    vault.get<PaymentRequest[]>(`requests/${record.id}`).then(
+      (saved) => setRequests(saved ?? []),
+      () => {},
+    );
   }, [vault, record.id]);
   const unconfirmed = snapshot.transactions.filter((t) => t.height === null);
   const incoming = unconfirmed.reduce((a, t) => a + Math.max(t.net, 0), 0);
@@ -94,21 +115,26 @@ export function Pending({ snapshot, waiting }: { snapshot: WalletSnapshot; waiti
     return !(confirmed + coming) || (r.sats !== null && confirmed + coming < r.sats);
   });
   if (!waiting && !unconfirmed.length && !open.length) return null;
-  const row = "flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t border-rule pt-3 text-sm first:border-0 first:pt-0";
+  const row =
+    "flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t border-rule pt-3 text-sm first:border-0 first:pt-0";
   return (
     <Panel title="Pending">
       <ul className="m-0 grid list-none gap-3 p-0">
         {waiting && (
           <li className={row}>
-            <span>{waiting === "broadcast" ? "A signed transaction is waiting to be broadcast." : "A transaction you built is waiting to be signed."}</span>
-            <a className={linkClass} href="#/send">Resume it</a>
+            <span>
+              {waiting === "broadcast"
+                ? "A signed transaction is waiting to be broadcast."
+                : "A transaction you built is waiting to be signed."}
+            </span>
+            <a className={linkClass} href="#/send">
+              Resume it
+            </a>
           </li>
         )}
         {unconfirmed.length > 0 && (
           <li className={row}>
-            <span>
-              {unconfirmed.length === 1 ? "1 payment" : `${unconfirmed.length} payments`} not yet confirmed
-            </span>
+            <span>{unconfirmed.length === 1 ? "1 payment" : `${unconfirmed.length} payments`} not yet confirmed</span>
             <span className="flex gap-3">
               {incoming > 0 && <Amount sats={incoming} signed />}
               {outgoing < 0 && <Amount sats={outgoing} />}
@@ -118,7 +144,9 @@ export function Pending({ snapshot, waiting }: { snapshot: WalletSnapshot; waiti
         {open.length > 0 && (
           <li className={row}>
             <span>{open.length === 1 ? "1 payment request" : `${open.length} payment requests`} not yet paid</span>
-            <a className={linkClass} href="#/receive">See them</a>
+            <a className={linkClass} href="#/receive">
+              See them
+            </a>
           </li>
         )}
       </ul>
@@ -137,7 +165,13 @@ export function Sources({ snapshot }: { snapshot: WalletSnapshot }) {
   const shown = sources.slice(0, 3);
   return (
     <Panel title="Where it came from" aside={sources.length === 1 ? "1 source" : `${sources.length} sources`}>
-      <svg viewBox="0 0 1000 14" preserveAspectRatio="none" className="h-3.5 w-full" role="img" aria-label={sources.map((s) => `${s.name}, ${Math.round((s.total / total) * 100)}%`).join("; ")}>
+      <svg
+        viewBox="0 0 1000 14"
+        preserveAspectRatio="none"
+        className="h-3.5 w-full"
+        role="img"
+        aria-label={sources.map((s) => `${s.name}, ${Math.round((s.total / total) * 100)}%`).join("; ")}
+      >
         {sources.map((s) => {
           const w = (s.total / total) * width;
           const rect = <rect key={s.id} x={at} width={Math.max(w, 2)} height="14" rx="2" className="fill-manila" />;
@@ -199,7 +233,9 @@ export function Stats({ snapshot }: { snapshot: WalletSnapshot }) {
   const when = new Map(snapshot.transactions.map((t) => [t.txid, txWhen(t)]));
   const { coins } = snapshot;
   const oldest = Math.min(...coins.flatMap((c) => when.get(c.txid) ?? []));
-  const sweep = coins.length ? spend(coins, { recipients: [{ script: coins[0]!.script, value: "max" }], feeRate: BUSY_RATE, ...kind }).fee : 0;
+  const sweep = coins.length
+    ? spend(coins, { recipients: [{ script: coins[0]!.script, value: "max" }], feeRate: BUSY_RATE, ...kind }).fee
+    : 0;
   const uneconomic = coins.filter((c) => spendCost(kind, BUSY_RATE) >= c.value).length;
   return (
     <Panel title="Statistics">
@@ -223,7 +259,9 @@ export function Stats({ snapshot }: { snapshot: WalletSnapshot }) {
         {uneconomic > 0 && (
           <>
             <dt className="text-ink-2">Uneconomic at {BUSY_RATE} sat/vB</dt>
-            <dd className="m-0 text-right tabular-nums">{uneconomic === 1 ? "1 coin" : `${groupSats(uneconomic)} coins`}</dd>
+            <dd className="m-0 text-right tabular-nums">
+              {uneconomic === 1 ? "1 coin" : `${groupSats(uneconomic)} coins`}
+            </dd>
           </>
         )}
         {oldest !== Infinity && (
@@ -261,7 +299,13 @@ export function CoinAge({ snapshot }: { snapshot: WalletSnapshot }) {
   let at = 0;
   return (
     <Panel title="Coin age">
-      <svg viewBox="0 0 1000 14" preserveAspectRatio="none" className="h-3.5 w-full" role="img" aria-label={shown.map((a) => `${a.name}, ${Math.round((a.sats / total) * 100)}%`).join("; ")}>
+      <svg
+        viewBox="0 0 1000 14"
+        preserveAspectRatio="none"
+        className="h-3.5 w-full"
+        role="img"
+        aria-label={shown.map((a) => `${a.name}, ${Math.round((a.sats / total) * 100)}%`).join("; ")}
+      >
         {shown.map((a) => {
           const w = (a.sats / total) * 1000;
           const rect = <rect key={a.name} x={at} width={w} height="14" className={a.fill} />;

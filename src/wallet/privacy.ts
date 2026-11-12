@@ -1,4 +1,4 @@
-import { outpoint, type Coin } from "./coin";
+import { type Coin, outpoint } from "./coin";
 import type { Payment, Spend } from "./select";
 
 /** A transaction in the wallet's history, as much of it as linking needs. */
@@ -16,10 +16,7 @@ export type HistoryTx = {
  *
  * @returns outpoint to group id, for every output paying one of `ownScripts`.
  */
-export function linkCoins(
-  history: HistoryTx[],
-  ownScripts: Set<string>,
-): Map<string, string> {
+export function linkCoins(history: HistoryTx[], ownScripts: Set<string>): Map<string, string> {
   const parent = new Map<string, string>();
   const find = (x: string): string => {
     const p = parent.get(x);
@@ -56,10 +53,7 @@ export function linkCoins(
 }
 
 export type PrivacyWarning = {
-  kind:
-    | "links-sources"
-    | "kyc"
-    | "address-reuse";
+  kind: "links-sources" | "kyc" | "address-reuse";
   message: string;
 };
 
@@ -77,8 +71,7 @@ export type SourceInfo = {
   kyc?: (coin: Coin) => boolean;
 };
 
-const btc = (sats: number) =>
-  `${(sats / 1e8).toFixed(8).replace(/\.?0+$/, "")} BTC`;
+const btc = (sats: number) => `${(sats / 1e8).toFixed(8).replace(/\.?0+$/, "")} BTC`;
 
 const list = (names: string[]) =>
   names.length > 4

@@ -1,12 +1,8 @@
 import { hex } from "@scure/base";
 import { HDKey } from "@scure/bip32";
 import { Transaction } from "@scure/btc-signer";
-import {
-  formatDescriptor,
-  type Descriptor,
-  type ScriptType,
-} from "../../src/wallet/descriptor";
 import { deriveAddress, derivePayment, derivePublicKeys } from "../../src/wallet/derive";
+import { type Descriptor, formatDescriptor, type ScriptType } from "../../src/wallet/descriptor";
 import { BIP32_VERSIONS } from "../../src/wallet/extended-key";
 import { NETWORKS } from "../../src/wallet/network";
 
@@ -25,9 +21,7 @@ export async function rpcBatch(calls: Call[]): Promise<any[]> {
   const response = await fetch(`${BITCOIND_RPC}/wallet/miner`, {
     method: "POST",
     headers: { authorization: AUTH },
-    body: JSON.stringify(
-      calls.map(([method, ...params], id) => ({ jsonrpc: "2.0", id, method, params })),
-    ),
+    body: JSON.stringify(calls.map(([method, ...params], id) => ({ jsonrpc: "2.0", id, method, params }))),
   });
   const replies = (await response.json()) as { result: unknown; error: { message: string } | null }[];
   return replies.map(({ result, error }) => {
@@ -41,10 +35,7 @@ export async function rpc(method: string, ...params: unknown[]): Promise<any> {
 }
 
 // Private keys exist only here, in fixture code.
-const master = HDKey.fromMasterSeed(
-  hex.decode("000102030405060708090a0b0c0d0e0f"),
-  BIP32_VERSIONS.regtest,
-);
+const master = HDKey.fromMasterSeed(hex.decode("000102030405060708090a0b0c0d0e0f"), BIP32_VERSIONS.regtest);
 
 export type TestWallet = {
   descriptor: Descriptor;
@@ -58,7 +49,13 @@ function testWallet(scriptType: ScriptType, purpose: number, account: number): T
   const node = master.derive(`m/${purpose}'/1'/${account}'`);
   const descriptor: Descriptor = {
     scriptType,
-    keys: [{ origin: { fingerprint: master.fingerprint.toString(16).padStart(8, "0"), path }, key: node.publicExtendedKey, path: [[0, 1], "*"] }],
+    keys: [
+      {
+        origin: { fingerprint: master.fingerprint.toString(16).padStart(8, "0"), path },
+        key: node.publicExtendedKey,
+        path: [[0, 1], "*"],
+      },
+    ],
   };
   return { descriptor, text: formatDescriptor(descriptor), account: node };
 }
@@ -191,14 +188,10 @@ export async function buildFixture(): Promise<Fixture> {
   const parent = await rpc("sendtoaddress", other, 5);
   const parentTx = await rpc("getrawtransaction", parent, true);
   const vout = parentTx.vout.find((out: any) => out.scriptPubKey.address === other).n;
-  const { txid: unconfirmedParents } = await rpc(
-    "send",
-    [{ [address(BIP84, 0, 3)]: 0.25 }],
-    null,
-    "unset",
-    null,
-    { inputs: [{ txid: parent, vout }], add_inputs: false },
-  );
+  const { txid: unconfirmedParents } = await rpc("send", [{ [address(BIP84, 0, 3)]: 0.25 }], null, "unset", null, {
+    inputs: [{ txid: parent, vout }],
+    add_inputs: false,
+  });
 
   return {
     txids: [fundA, fundB, fundC, confirmedSpend, unconfirmedChange, unconfirmedIncoming, unconfirmedParents],

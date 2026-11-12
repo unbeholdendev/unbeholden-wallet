@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from "react";
-import { Heading, Page } from "../app/layout";
+import { type FormEvent, useState } from "react";
 import { useConnection } from "../app/connection";
+import { Heading, Page } from "../app/layout";
 import { useWallet, useWalletSnapshot } from "../app/session";
 import { useVault } from "../app/vault";
 import { Amount } from "../ui/amount";
@@ -21,7 +21,9 @@ function Found() {
   return (
     <section aria-label="Balance" className="grid gap-1 rounded-panel border border-rule bg-sheet px-4 pt-5 pb-4">
       <span className="text-sm text-ink-2">{record.name}, confirmed balance</span>
-      <span className="text-2xl font-medium tracking-[-0.01em]">{snapshot ? <Amount sats={snapshot.balance.confirmed} unit /> : "Counting"}</span>
+      <span className="text-2xl font-medium tracking-[-0.01em]">
+        {snapshot ? <Amount sats={snapshot.balance.confirmed} unit /> : "Counting"}
+      </span>
       <span role="status" className="text-sm text-ink-3">
         {status}
       </span>
@@ -78,21 +80,44 @@ export function CreateVault() {
             <Notice tone="warn">{NO_PASSPHRASE}</Notice>
           ) : (
             <>
-              <Field label="Passphrase" hint={<Strength score={score} />} error={tried && tooShort ? "Use at least 10 characters." : undefined}>
+              <Field
+                label="Passphrase"
+                hint={<Strength score={score} />}
+                error={tried && tooShort ? "Use at least 10 characters." : undefined}
+              >
                 {(props) => (
-                  <PassphraseInput {...props} autoComplete="new-password" value={passphrase} onChange={setPassphrase} autoFocus />
+                  <PassphraseInput
+                    {...props}
+                    autoComplete="new-password"
+                    value={passphrase}
+                    onChange={setPassphrase}
+                    autoFocus
+                  />
                 )}
               </Field>
               <Field label="Type it again" error={tried && mismatch ? "The two passphrases are different." : undefined}>
                 {(props) => (
-                  <input {...props} type="password" autoComplete="new-password" className={inputClass} value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+                  <input
+                    {...props}
+                    type="password"
+                    autoComplete="new-password"
+                    className={inputClass}
+                    value={confirm}
+                    onChange={(e) => setConfirm(e.target.value)}
+                  />
                 )}
               </Field>
             </>
           )}
           {error && <p className="m-0 text-sm text-bad">{error}</p>}
           <Button type="submit" variant="primary" wide disabled={busy}>
-            {none ? (busy ? "Saving" : "Keep without a passphrase") : busy ? "Encrypting, this takes a few seconds" : "Protect this wallet"}
+            {none
+              ? busy
+                ? "Saving"
+                : "Keep without a passphrase"
+              : busy
+                ? "Encrypting, this takes a few seconds"
+                : "Protect this wallet"}
           </Button>
         </form>
         <section className="grid content-start gap-3 rounded-panel border border-rule bg-sheet p-4 text-ink-2">

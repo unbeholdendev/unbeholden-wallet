@@ -23,22 +23,16 @@ export type FeeTargets = { nextBlock: number; threeBlocks: number; sixBlocks: nu
  * paying from its rate up to the previous bucket's.
  * https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#mempool-get-fee-histogram
  */
-const upperRate = (histogram: FeeBucket[], i: number) =>
-  histogram[Math.max(i - 1, 0)]!.feeRate;
+const upperRate = (histogram: FeeBucket[], i: number) => histogram[Math.max(i - 1, 0)]!.feeRate;
 
 /** For a chart: per bucket, the vsize paying at least its rate. */
-export function mempoolDepth(
-  histogram: FeeBucket[],
-): { feeRate: number; depth: number }[] {
+export function mempoolDepth(histogram: FeeBucket[]): { feeRate: number; depth: number }[] {
   let depth = 0;
   return histogram.map(({ feeRate, vsize }) => ({ feeRate, depth: (depth += vsize) }));
 }
 
 /** How much of the mempool would sit ahead of a transaction paying `feeRate`. */
-export function mempoolPosition(
-  histogram: FeeBucket[],
-  feeRate: number,
-): { vsizeAhead: number; blocks: number } {
+export function mempoolPosition(histogram: FeeBucket[], feeRate: number): { vsizeAhead: number; blocks: number } {
   // A bucket straddling the rate counts as wholly ahead, so this errs late.
   const vsizeAhead = histogram
     .filter((_, i) => upperRate(histogram, i) > feeRate)
@@ -65,7 +59,7 @@ export function effectiveFeeRate(txid: string, mempool: (txid: string) => Mempoo
   const queue = [...own.parents];
   let fee = own.fee;
   let vsize = own.vsize;
-  for (let id; (id = queue.pop()) !== undefined; ) {
+  for (let id: string | undefined; (id = queue.pop()) !== undefined; ) {
     if (seen.has(id)) continue;
     seen.add(id);
     const tx = mempool(id);

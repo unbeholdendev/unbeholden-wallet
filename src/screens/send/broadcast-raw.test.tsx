@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../../App";
 import { BroadcastError, txidOf } from "../../backend/backend";
 import type { FakeBackend } from "../../backend/fake";
-import { demoBackend, DEMO_UNSENT, seedDemoVault } from "../../backend/fixture";
+import { DEMO_UNSENT, demoBackend, seedDemoVault } from "../../backend/fixture";
 import { saveSettings } from "../../core/wallets";
 import { createVault, destroyVault } from "../../vault/vault";
 
@@ -23,7 +23,7 @@ const TXID = txidOf(hex.decode(DEMO_UNSENT));
 function otherRaw() {
   const tx = new Transaction({ allowUnknownInputs: true, allowUnknownOutputs: true, disableScriptCheck: true });
   tx.addInput({ txid: "ab".repeat(32), index: 0 });
-  tx.addOutput({ script: hex.decode("0014" + "22".repeat(20)), amount: 10_000n });
+  tx.addOutput({ script: hex.decode(`0014${"22".repeat(20)}`), amount: 10_000n });
   return hex.encode(tx.unsignedTx);
 }
 
@@ -79,16 +79,24 @@ describe("broadcasting a raw transaction", () => {
   it("shows the node's reason for refusing it, word for word", async () => {
     const reason = "bad-txns-inputs-missingorspent";
     await seedDemoVault(PASSPHRASE, CHEAP, SERVER);
-    const user = await unlock(() => ({ ...demoBackend(), broadcast: async () => Promise.reject(new BroadcastError(reason)) }));
+    const user = await unlock(() => ({
+      ...demoBackend(),
+      broadcast: async () => Promise.reject(new BroadcastError(reason)),
+    }));
     await search(user, DEMO_UNSENT);
     await user.click(await screen.findByRole("button", { name: "Broadcast through your server" }));
-    expect((await screen.findByRole("alert")).textContent).toBe(`Your node refused this transaction. Its reason:${reason}`);
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      `Your node refused this transaction. Its reason:${reason}`,
+    );
     expect(location.hash).toBe(`#/broadcast/${DEMO_UNSENT}`);
   });
 
   it("forgets a refusal when another transaction is opened", async () => {
     await seedDemoVault(PASSPHRASE, CHEAP, SERVER);
-    const user = await unlock(() => ({ ...demoBackend(), broadcast: async () => Promise.reject(new BroadcastError("bad-txns-inputs-missingorspent")) }));
+    const user = await unlock(() => ({
+      ...demoBackend(),
+      broadcast: async () => Promise.reject(new BroadcastError("bad-txns-inputs-missingorspent")),
+    }));
     await search(user, DEMO_UNSENT);
     await user.click(await screen.findByRole("button", { name: "Broadcast through your server" }));
     await screen.findByRole("alert");
@@ -140,7 +148,10 @@ describe("broadcasting a raw transaction", () => {
     const user = await unlock(demoBackend);
     location.hash = "#/broadcast";
     await screen.findByRole("heading", { name: "Broadcast a signed transaction" });
-    await user.upload(screen.getByLabelText("Load signed file"), new File([bytes as Uint8Array<ArrayBuffer>], "signed.txn"));
+    await user.upload(
+      screen.getByLabelText("Load signed file"),
+      new File([bytes as Uint8Array<ArrayBuffer>], "signed.txn"),
+    );
     expect(await screen.findByRole("heading", { name: "Broadcast a transaction" })).toBeTruthy();
     expect(screen.getByText("2 500 sats")).toBeTruthy();
   });

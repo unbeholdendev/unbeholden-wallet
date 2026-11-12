@@ -2,7 +2,7 @@ import { hex } from "@scure/base";
 import { Transaction } from "@scure/btc-signer";
 import { sha256 } from "@scure/btc-signer/utils.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ConnectionError, scriptHash } from "./backend";
+import { type ConnectionError, scriptHash } from "./backend";
 import { esploraBackend } from "./esplora";
 import { fakeBackend, fakeEsplora } from "./fake";
 

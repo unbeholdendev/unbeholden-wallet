@@ -1,9 +1,21 @@
 import { hex } from "@scure/base";
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import {
+  createContext,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { openWallet, type WalletSession, type WalletSnapshot } from "../core/wallet";
 import { walletDescriptor } from "../core/wallets";
-import type { SendDraft } from "../screens/send/Send";
 import { log } from "../log";
+import type { SendDraft } from "../screens/send/Send";
 import type { Store } from "../vault/vault";
 import type { Network } from "../wallet/network";
 import { walletKind } from "../wallet/select";
@@ -17,7 +29,11 @@ const SkipContext = createContext(new Map<string, string>());
 const FailedContext = createContext<{ message: string; retry(): void } | null>(null);
 
 type Saved = Omit<SendDraft, "built"> & {
-  built: Omit<NonNullable<SendDraft["built"]>, "psbt" | "signed" | "partial"> & { psbt: string; signed?: string; partial?: string };
+  built: Omit<NonNullable<SendDraft["built"]>, "psbt" | "signed" | "partial"> & {
+    psbt: string;
+    signed?: string;
+    partial?: string;
+  };
 };
 
 /** Keeps a send with a built PSBT in the vault, so it outlasts a lock or a reload, and forgets one without. */
@@ -95,7 +111,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         .then(() => (current() ? openWallet(vault, id, null) : null))
         .then(
           (session) => {
-            if (session && !current()) return session.close(), null;
+            if (session && !current()) return (session.close(), null);
             if (session) {
               session.use(liveNow.current);
               setSessions((all) => new Map(all).set(id, session));
@@ -208,7 +224,8 @@ function useSnapshots(): WalletSnapshot[] {
   );
   return useSyncExternalStore(subscribe, () => {
     const now = [...sessions.values()].map((session) => session.getSnapshot());
-    if (now.length !== last.current.length || now.some((snapshot, i) => snapshot !== last.current[i])) last.current = now;
+    if (now.length !== last.current.length || now.some((snapshot, i) => snapshot !== last.current[i]))
+      last.current = now;
     return last.current;
   });
 }
@@ -222,7 +239,9 @@ export function useOwners(): Map<string, string> {
     return new Map(
       snapshots.flatMap((snapshot) => {
         const name = names.get(snapshot.id);
-        return name === undefined ? [] : [...snapshot.addresses.receive, ...snapshot.addresses.change].map((a) => [a.address, name] as const);
+        return name === undefined
+          ? []
+          : [...snapshot.addresses.receive, ...snapshot.addresses.change].map((a) => [a.address, name] as const);
       }),
     );
   }, [snapshots, wallets]);
@@ -232,5 +251,9 @@ export function useOwners(): Map<string, string> {
 export function useNetwork(): Network {
   const { wallets, walletId } = useVault();
   const { connection } = useConnection();
-  return wallets.find((w) => w.id === walletId)?.network ?? (connection.phase !== "idle" && connection.phase !== "failed" ? connection.network : null) ?? "mainnet";
+  return (
+    wallets.find((w) => w.id === walletId)?.network ??
+    (connection.phase !== "idle" && connection.phase !== "failed" ? connection.network : null) ??
+    "mainnet"
+  );
 }

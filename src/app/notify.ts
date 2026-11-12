@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
-import type { WalletSession } from "../core/wallet";
 import { isOutgoing } from "../core/view";
+import type { WalletSession } from "../core/wallet";
 import { useConnection } from "./connection";
 import { useWalletSessions } from "./session";
 import { useVault } from "./vault";
@@ -17,7 +17,12 @@ async function show(title: string, tag: string) {
 /** Calls `paid` with each payment into the session's wallet, and with its first confirmation. */
 function watch(session: WalletSession, connected: () => boolean, paid: (txid: string, confirmed: boolean) => void) {
   const incoming = () =>
-    new Map(session.getSnapshot().transactions.filter((tx) => !isOutgoing(tx)).map((tx) => [tx.txid, tx.height !== null]));
+    new Map(
+      session
+        .getSnapshot()
+        .transactions.filter((tx) => !isOutgoing(tx))
+        .map((tx) => [tx.txid, tx.height !== null]),
+    );
   let known = incoming();
   // What the first sync finds arrived while the app was closed, so it is taken in silently.
   let synced = false;
@@ -42,7 +47,12 @@ function watch(session: WalletSession, connected: () => boolean, paid: (txid: st
 export function usePaymentNotifications() {
   const { settings, wallets, walletId } = useVault();
   const now = useRef({ notify: false, connected: false, wallets, walletId });
-  now.current = { notify: !!settings.notify, connected: useConnection().connection.phase === "connected", wallets, walletId };
+  now.current = {
+    notify: !!settings.notify,
+    connected: useConnection().connection.phase === "connected",
+    wallets,
+    walletId,
+  };
   const sessions = useWalletSessions();
   const watching = useRef(new Map<WalletSession, () => void>());
   useEffect(() => {
@@ -51,11 +61,15 @@ export function usePaymentNotifications() {
     for (const [session, stop] of watching.current) if (!open.has(session)) stop(), watching.current.delete(session);
     for (const [id, session] of sessions) {
       if (watching.current.has(session)) continue;
-      const stop = watch(session, () => now.current.connected, (txid, confirmed) => {
-        if (!now.current.notify) return;
-        const name = id === now.current.walletId ? null : now.current.wallets.find((w) => w.id === id)?.name;
-        void show(`A payment ${confirmed ? "confirmed" : "arrived"}${name ? ` in ${name}` : ""}`, txid);
-      });
+      const stop = watch(
+        session,
+        () => now.current.connected,
+        (txid, confirmed) => {
+          if (!now.current.notify) return;
+          const name = id === now.current.walletId ? null : now.current.wallets.find((w) => w.id === id)?.name;
+          void show(`A payment ${confirmed ? "confirmed" : "arrived"}${name ? ` in ${name}` : ""}`, txid);
+        },
+      );
       watching.current.set(session, stop);
     }
   }, [sessions]);

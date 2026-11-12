@@ -61,7 +61,9 @@ export class BbqrDecoder {
     const bytes = base32nopad.decode(text);
     if (encoding === "2") return bytes;
     // Mode Z is raw deflate with a 1 KiB window, which any inflater reads.
-    const stream = new Response(bytes as Uint8Array<ArrayBuffer>).body!.pipeThrough(new DecompressionStream("deflate-raw"));
+    const stream = new Response(bytes as Uint8Array<ArrayBuffer>).body!.pipeThrough(
+      new DecompressionStream("deflate-raw"),
+    );
     return new Uint8Array(await new Response(stream).arrayBuffer());
   }
 }

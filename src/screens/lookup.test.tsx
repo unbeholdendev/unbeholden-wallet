@@ -5,9 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../App";
 import { scriptHash } from "../backend/backend";
 import type { FakeBackend } from "../backend/fake";
-import { demoBackend, DEMO_DESCRIPTOR, DEMO_FOREIGN, seedDemoVault } from "../backend/fixture";
-import { createVault, destroyVault } from "../vault/vault";
+import { DEMO_DESCRIPTOR, DEMO_FOREIGN, demoBackend, seedDemoVault } from "../backend/fixture";
 import { saveSettings } from "../core/wallets";
+import { createVault, destroyVault } from "../vault/vault";
 import { deriveAddress } from "../wallet/derive";
 import { parseDescriptor } from "../wallet/descriptor";
 import { NETWORKS } from "../wallet/network";
@@ -57,13 +57,20 @@ describe("searching", () => {
     const pay = new Tx({ allowUnknownInputs: true, allowUnknownOutputs: true, disableScriptCheck: true });
     pay.addInput({ txid: DEMO_FOREIGN.confirmed, index: 1, sequence: 0xfffffffd });
     pay.addOutput({ script: OutScript.encode(Address(NETWORKS.mainnet).decode(paid)), amount: 30_000_000n });
-    pay.addOutput({ script: OutScript.encode(Address(NETWORKS.mainnet).decode(DEMO_FOREIGN.address)), amount: 7_997_000n });
+    pay.addOutput({
+      script: OutScript.encode(Address(NETWORKS.mainnet).decode(DEMO_FOREIGN.address)),
+      amount: 7_997_000n,
+    });
     const hidden = scriptHash(OutScript.encode(Address(NETWORKS.mainnet).decode(paid)));
     // A server that has the payment but has not yet listed it in the wallet's history.
     const user = await unlock(() => {
       const demo = demoBackend();
       demo.addToMempool(pay.unsignedTx);
-      return { ...demo, history: async (hashes: string[]) => (await demo.history(hashes)).map((h, i) => (hashes[i] === hidden ? [] : h)) };
+      return {
+        ...demo,
+        history: async (hashes: string[]) =>
+          (await demo.history(hashes)).map((h, i) => (hashes[i] === hidden ? [] : h)),
+      };
     });
     await screen.findByText(/Up to date at block 153.500/, undefined, { timeout: 15_000 });
 
@@ -87,7 +94,9 @@ describe("searching", () => {
     await screen.findByText(/Up to date at block 153.500/, undefined, { timeout: 15_000 });
 
     await search(user, "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx");
-    expect(screen.getByRole("alert").textContent).toBe("This is a testnet or signet address, but this wallet is on mainnet.");
+    expect(screen.getByRole("alert").textContent).toBe(
+      "This is a testnet or signet address, but this wallet is on mainnet.",
+    );
     await search(user, "not a thing");
     expect(screen.getByRole("alert").textContent).toMatch(/^Search takes a transaction ID/);
 

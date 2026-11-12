@@ -2,27 +2,22 @@ import { hex } from "@scure/base";
 import { sha256 } from "@scure/btc-signer/utils.js";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
-  BroadcastError,
-  scriptHash,
-  type BlockHeader,
-  type HistoryEntry,
-} from "../src/backend/backend";
-import { electrumBackend, type ElectrumBackend } from "../src/backend/electrum";
-import {
   address,
   BIP84,
   BIP86,
   buildFixture,
   coin,
   ELECTRUM_WS,
+  type Fixture,
   mine,
   reorg,
   rpc,
   script,
   sign,
-  type Fixture,
   type TestWallet,
 } from "../scripts/regtest/fixture";
+import { type BlockHeader, BroadcastError, type HistoryEntry, scriptHash } from "../src/backend/backend";
+import { type ElectrumBackend, electrumBackend } from "../src/backend/electrum";
 
 // Field offsets: https://developer.bitcoin.org/reference/block_chain.html
 function blockHash(header: Uint8Array): string {
@@ -45,9 +40,7 @@ const ADDRESSES: [TestWallet, number, number][] = [
   [BIP86, 0, 1],
   [BIP86, 1, 0],
 ];
-const HASHES = ADDRESSES.map(([wallet, chain, index]) =>
-  scriptHash(script(wallet, chain, index)),
-);
+const HASHES = ADDRESSES.map(([wallet, chain, index]) => scriptHash(script(wallet, chain, index)));
 
 const byPosition = (a: HistoryEntry, b: HistoryEntry) =>
   (a.height ?? Infinity) - (b.height ?? Infinity) || a.txid.localeCompare(b.txid);
@@ -57,15 +50,10 @@ async function bitcoindHistory(txids: string[]): Promise<HistoryEntry[][]> {
   const histories = new Map<string, HistoryEntry[]>(HASHES.map((hash) => [hash, []]));
   for (const txid of txids) {
     const tx = await rpc("getrawtransaction", txid, true);
-    const height = tx.blockhash
-      ? (await rpc("getblockheader", tx.blockhash)).height
-      : null;
-    const unconfirmedParents =
-      height === null && (await rpc("getmempoolentry", txid)).depends.length > 0;
+    const height = tx.blockhash ? (await rpc("getblockheader", tx.blockhash)).height : null;
+    const unconfirmedParents = height === null && (await rpc("getmempoolentry", txid)).depends.length > 0;
     const spent = await Promise.all(
-      tx.vin.map(async (input: any) =>
-        (await rpc("getrawtransaction", input.txid, true)).vout[input.vout],
-      ),
+      tx.vin.map(async (input: any) => (await rpc("getrawtransaction", input.txid, true)).vout[input.vout]),
     );
     const scripts = [...tx.vout, ...spent].map((out: any) => out.scriptPubKey.hex);
     const touched = new Set(scripts.map((s: string) => scriptHash(hex.decode(s))));
@@ -82,9 +70,12 @@ async function electrumHistory(backend: ElectrumBackend) {
 
 async function caughtUp(backend: ElectrumBackend, txids: string[]) {
   const expected = await bitcoindHistory(txids);
-  await vi.waitFor(async () => {
-    expect(await electrumHistory(backend)).toEqual(expected);
-  }, { timeout: 10_000, interval: 200 });
+  await vi.waitFor(
+    async () => {
+      expect(await electrumHistory(backend)).toEqual(expected);
+    },
+    { timeout: 10_000, interval: 200 },
+  );
 }
 
 let fixture: Fixture;
@@ -104,8 +95,7 @@ describe("the fixture's wallet", () => {
     const histories = await electrumHistory(backend);
     expect(histories).toEqual(await bitcoindHistory(fixture.txids));
 
-    const entry = (txid: string) =>
-      histories.flat().find((e) => e.txid === txid);
+    const entry = (txid: string) => histories.flat().find((e) => e.txid === txid);
     expect(entry(fixture.confirmedSpend)?.height).toBeGreaterThan(0);
     expect(entry(fixture.unconfirmedChange)).toMatchObject({ height: null, unconfirmedParents: false });
     expect(entry(fixture.unconfirmedIncoming)).toMatchObject({ height: null, unconfirmedParents: false });
@@ -114,9 +104,7 @@ describe("the fixture's wallet", () => {
 
   it("has the transactions bitcoind has", async () => {
     const raws = await backend.transactions(fixture.txids);
-    const expected = await Promise.all(
-      fixture.txids.map((txid) => rpc("getrawtransaction", txid)),
-    );
+    const expected = await Promise.all(fixture.txids.map((txid) => rpc("getrawtransaction", txid)));
     expect(raws.map((raw) => hex.encode(raw))).toEqual(expected);
   });
 
@@ -153,9 +141,8 @@ describe("subscriptions", () => {
   it("hear a payment arrive in the mempool, and confirm", async () => {
     const watched = scriptHash(script(BIP84, 0, 4));
     const heard: string[] = [];
-    const unsubscribe = await backend.subscribeScriptHashes(
-      [watched, scriptHash(script(BIP86, 0, 1))],
-      (hash) => heard.push(hash),
+    const unsubscribe = await backend.subscribeScriptHashes([watched, scriptHash(script(BIP86, 0, 1))], (hash) =>
+      heard.push(hash),
     );
     const txid = await rpc("sendtoaddress", address(BIP84, 0, 4), 0.01);
     fixture.txids.push(txid);
@@ -201,9 +188,7 @@ describe("broadcasting", () => {
       [{ address: address(BIP86, 0, 1), amount: 100_000_000n - 2_000n }],
     );
     const error = await backend.broadcast(doubleSpend.extract()).catch((e: unknown) => e);
-    const reason = await rpc("sendrawtransaction", doubleSpend.hex).catch(
-      (e: Error) => e.message,
-    );
+    const reason = await rpc("sendrawtransaction", doubleSpend.hex).catch((e: Error) => e.message);
     expect(error).toBeInstanceOf(BroadcastError);
     expect(reason).toMatch(/missingorspent/);
     expect((error as BroadcastError).message).toContain(reason);

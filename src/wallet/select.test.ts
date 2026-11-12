@@ -1,16 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { outpoint, type Coin, type CoinStatus } from "./coin";
-import { selectCoins, spend, type Payment } from "./select";
+import { type Coin, type CoinStatus, outpoint } from "./coin";
+import { type Payment, selectCoins, spend } from "./select";
 
-const wpkh = (n: number) => "0014" + n.toString(16).padStart(40, "0");
-const tr = (n: number) => "5120" + n.toString(16).padStart(64, "0");
+const wpkh = (n: number) => `0014${n.toString(16).padStart(40, "0")}`;
+const tr = (n: number) => `5120${n.toString(16).padStart(64, "0")}`;
 
 let next = 0;
-function coin(
-  value: number,
-  more: Partial<Coin> = {},
-  status: CoinStatus = "confirmed",
-): Coin {
+function coin(value: number, more: Partial<Coin> = {}, status: CoinStatus = "confirmed"): Coin {
   next++;
   return {
     txid: next.toString(16).padStart(64, "0"),
@@ -78,8 +74,12 @@ describe("spend", () => {
     // signatures 2 × (1 + 72), script length 1 and script 3 + 3 × 34 = 105,
     // so 418; payment (8 + 1 + 22) × 4 = 124; change (8 + 1 + 34) × 4 = 172.
     // 756 WU is 189 vB, 1890 sats at 10 sat/vB.
-    const wsh = "0020" + "00".repeat(32);
-    const result = spend([coin(100_000, { script: wsh })], { ...pay(50_000), scriptType: "wsh", multisig: { threshold: 2, keys: 3 } });
+    const wsh = `0020${"00".repeat(32)}`;
+    const result = spend([coin(100_000, { script: wsh })], {
+      ...pay(50_000),
+      scriptType: "wsh",
+      multisig: { threshold: 2, keys: 3 },
+    });
     expect(result).toMatchObject({ vsize: 189, fee: 1890, change: 48_110, problem: null });
   });
 
@@ -87,7 +87,11 @@ describe("spend", () => {
     // Script 3 + 15 × 34 = 513 bytes, after 0xfd and two length bytes. Witness
     // 1 + 1 + 8 × 73 + 3 + 513 = 1102, input 1266; with 42 and a 124 WU
     // payment, 1432 WU is 358 vB.
-    const result = spend([coin(100_000)], { ...pay("max", 1), scriptType: "wsh", multisig: { threshold: 8, keys: 15 } });
+    const result = spend([coin(100_000)], {
+      ...pay("max", 1),
+      scriptType: "wsh",
+      multisig: { threshold: 8, keys: 15 },
+    });
     expect(result).toMatchObject({ vsize: 358, fee: 358 });
   });
 
@@ -130,9 +134,7 @@ describe("selectCoins", () => {
     const first = selectCoins(coins, pay(250_000), "seed", oneSource(coins));
     expect(first.change).toBeGreaterThan(0);
     expect(first.problem).toBeNull();
-    expect(selectCoins([...coins].reverse(), pay(250_000), "seed", oneSource(coins)).coins).toEqual(
-      first.coins,
-    );
+    expect(selectCoins([...coins].reverse(), pay(250_000), "seed", oneSource(coins)).coins).toEqual(first.coins);
     const draws = new Set(
       ["a", "b", "c", "d", "e", "f"].map((seed) =>
         values(selectCoins(coins, pay(250_000), seed, oneSource(coins)).coins).join(),

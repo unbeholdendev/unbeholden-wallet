@@ -10,6 +10,7 @@ Spec: `docs/spec-v1.md`.
 
 `bun run dev`, `bun run build`, `bun run typecheck`, `bun run test` (Vitest),
 `bun run test:e2e` (Playwright).
+`bun run lint` (Biome: format, imports, lint); `bun run format` applies its safe fixes.
 
 `bun run dev` serves https and must run on real Node; Vite on Bun crashes
 serving https.

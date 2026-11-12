@@ -1,15 +1,23 @@
-import { TxFiat } from "../app/fiat";
-import { ExplorerLink } from "../ui/explorer";
 import type { ReactNode } from "react";
+import { TxFiat } from "../app/fiat";
 import { navigate } from "../app/route";
 import { useOwners, useWalletSnapshot } from "../app/session";
-import { feeRate, isOutgoing, txWhen, type AddressInfo, type TxInput, type TxOutput, type WalletTx } from "../core/view";
 import type { FeeBucket } from "../backend/backend";
+import {
+  type AddressInfo,
+  feeRate,
+  isOutgoing,
+  type TxInput,
+  type TxOutput,
+  txWhen,
+  type WalletTx,
+} from "../core/view";
 import { Amount, groupSats } from "../ui/amount";
+import { ExplorerLink } from "../ui/explorer";
 import { confText, dateText, satsText, shortId, timeText, txFallback } from "../ui/format";
 import { Icon } from "../ui/icons";
 import { Button, Chip, linkClass } from "../ui/kit";
-import { effectiveFeeRate, mempoolPosition, type MempoolTx } from "../wallet/fees";
+import { effectiveFeeRate, type MempoolTx, mempoolPosition } from "../wallet/fees";
 import { Lookup } from "./Lookup";
 import { CopyButton, EditableLabel, GroupedAddress, Opening } from "./parts";
 import { eta, mvb, rateText, useFeeHistogram } from "./send/fees";
@@ -32,12 +40,30 @@ function Mine({ info }: { info: AddressInfo }) {
   );
 }
 
-function Endpoint({ value, address, mine, children }: { value: number | null; address: string | null; mine: AddressInfo | null; children?: ReactNode }) {
+function Endpoint({
+  value,
+  address,
+  mine,
+  children,
+}: {
+  value: number | null;
+  address: string | null;
+  mine: AddressInfo | null;
+  children?: ReactNode;
+}) {
   return (
-    <li className={`grid gap-1 border-t border-rule px-4 py-3 ${mine ? "bg-[color-mix(in_srgb,var(--ok-tint)_35%,var(--sheet))]" : ""}`}>
+    <li
+      className={`grid gap-1 border-t border-rule px-4 py-3 ${mine ? "bg-[color-mix(in_srgb,var(--ok-tint)_35%,var(--sheet))]" : ""}`}
+    >
       <div className="flex items-baseline justify-between gap-3">
-        {address ? <GroupedAddress address={address} className="text-[0.86em] text-ink-2" /> : <span className="text-sm text-ink-3">Script with no address</span>}
-        <span className="text-md">{value === null ? <span className="text-sm text-ink-3">Amount unknown</span> : <Amount sats={value} />}</span>
+        {address ? (
+          <GroupedAddress address={address} className="text-[0.86em] text-ink-2" />
+        ) : (
+          <span className="text-sm text-ink-3">Script with no address</span>
+        )}
+        <span className="text-md">
+          {value === null ? <span className="text-sm text-ink-3">Amount unknown</span> : <Amount sats={value} />}
+        </span>
       </div>
       {mine && <Mine info={mine} />}
       {children}
@@ -88,13 +114,23 @@ function Facts({ tx, transactions }: { tx: WalletTx; transactions: WalletTx[] })
   const histogram = useFeeHistogram();
   const pending = tx.height === null;
   const rows: [string, ReactNode][] = [
-    ["Status", tx.confirmations ? `${confText(tx.confirmations)}${tx.confirmations >= 6 ? `, ${groupSats(tx.confirmations)} blocks deep` : ""}` : "Waiting for a block"],
+    [
+      "Status",
+      tx.confirmations
+        ? `${confText(tx.confirmations)}${tx.confirmations >= 6 ? `, ${groupSats(tx.confirmations)} blocks deep` : ""}`
+        : "Waiting for a block",
+    ],
     ["Block", tx.height === null ? "None yet" : groupSats(tx.height)],
-    [tx.time === null ? "First seen" : "Block time", when === null ? "Unknown" : `${dateText(when)}, ${timeText(when)}`],
+    [
+      tx.time === null ? "First seen" : "Block time",
+      when === null ? "Unknown" : `${dateText(when)}, ${timeText(when)}`,
+    ],
     ["Fee", tx.fee === null ? "Unknown, an input's amount isn't known" : satsText(tx.fee)],
     ["Size", `${groupSats(tx.vsize)} vB`],
     ["Fee rate", rate === null ? "Unknown" : `${rate} sat/vB`],
-    ...(pending && tx.fee !== null ? mempoolRows(histogram, tx.fee / tx.vsize, effectiveFeeRate(tx.txid, walletMempool(transactions))) : []),
+    ...(pending && tx.fee !== null
+      ? mempoolRows(histogram, tx.fee / tx.vsize, effectiveFeeRate(tx.txid, walletMempool(transactions)))
+      : []),
   ];
   return (
     <dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-2 text-sm">
@@ -124,9 +160,17 @@ export function Transaction({ txid }: { txid: string | undefined }) {
       <div className="grid items-start gap-6 @min-[900px]/app:grid-cols-[minmax(0,1fr)_360px]">
         <section className="grid gap-4 rounded-panel border border-rule bg-sheet p-4 @min-[900px]/app:col-start-2 @min-[900px]/app:row-start-1">
           <div className="grid gap-1">
-            <h1 className="m-0 text-lg font-bold">{tx.label ? <EditableLabel type="tx" target={tx.txid} value={tx.label} /> : txFallback(tx, owners)}</h1>
+            <h1 className="m-0 text-lg font-bold">
+              {tx.label ? <EditableLabel type="tx" target={tx.txid} value={tx.label} /> : txFallback(tx, owners)}
+            </h1>
             {!tx.label && (
-              <EditableLabel type="tx" target={tx.txid} value={null} placeholder="Label this transaction" className="justify-self-start text-sm">
+              <EditableLabel
+                type="tx"
+                target={tx.txid}
+                value={null}
+                placeholder="Label this transaction"
+                className="justify-self-start text-sm"
+              >
                 <span className="text-carbon underline decoration-1 underline-offset-3">Label this transaction</span>
               </EditableLabel>
             )}
@@ -189,7 +233,9 @@ export function Transaction({ txid }: { txid: string | undefined }) {
                     </a>
                   ) : (
                     <ExplorerLink type="tx" value={input.txid}>
-                      <span className="font-mono text-xs text-ink-3">From {shortId(input.txid)}:{input.vout}</span>
+                      <span className="font-mono text-xs text-ink-3">
+                        From {shortId(input.txid)}:{input.vout}
+                      </span>
                     </ExplorerLink>
                   )}
                 </Endpoint>
@@ -199,7 +245,13 @@ export function Transaction({ txid }: { txid: string | undefined }) {
           <Endpoints title="Outputs" count={tx.outputs.length}>
             {tx.outputs.map((output: TxOutput) => (
               <Endpoint key={output.vout} {...output}>
-                <EditableLabel type="output" target={`${tx.txid}:${output.vout}`} value={output.label} placeholder={output.mine ? "Label this coin" : "Label this payment"} className="text-sm" />
+                <EditableLabel
+                  type="output"
+                  target={`${tx.txid}:${output.vout}`}
+                  value={output.label}
+                  placeholder={output.mine ? "Label this coin" : "Label this payment"}
+                  className="text-sm"
+                />
               </Endpoint>
             ))}
           </Endpoints>

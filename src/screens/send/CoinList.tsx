@@ -1,3 +1,4 @@
+import { useWallet } from "../../app/session";
 import type { WalletCoin } from "../../core/wallet";
 import { Amount, btcParts, groupSats } from "../../ui/amount";
 import { Icon, type IconName } from "../../ui/icons";
@@ -5,9 +6,8 @@ import { Button, Chip } from "../../ui/kit";
 import type { Source } from "../../ui/sources";
 import { outpoint } from "../../wallet/coin";
 import { spendCost } from "../../wallet/select";
-import { useWallet } from "../../app/session";
-import { rateText } from "./fees";
 import { SourceTitle } from "../parts";
+import { rateText } from "./fees";
 
 /** Frozen coins and coins waiting on someone else's unconfirmed transaction cannot be chosen. */
 export const selectable = (c: WalletCoin) => !c.frozen && c.status !== "unconfirmed-parents";
@@ -29,14 +29,27 @@ function age(coin: WalletCoin, tip: number | null) {
 function status(coin: WalletCoin): { text: string; tone?: "ok" | "warn"; icon?: IconName } | null {
   if (coin.frozen) return { text: "Frozen", icon: "lock" };
   if (coin.status === "own-change") return { text: "Your change, unconfirmed", tone: "ok" };
-  if (coin.status === "foreign-unconfirmed") return { text: "Unconfirmed, from someone else", tone: "warn", icon: "warn" };
+  if (coin.status === "foreign-unconfirmed")
+    return { text: "Unconfirmed, from someone else", tone: "warn", icon: "warn" };
   if (coin.status === "unconfirmed-parents") return { text: "Waits on an unconfirmed parent, can't be spent yet" };
   return null;
 }
 
 const COLUMNS = "@min-[900px]:grid-cols-[22px_150px_92px_minmax(0,1fr)]";
 
-function CoinRow({ coin, tip, rate, on, onToggle }: { coin: WalletCoin; tip: number | null; rate: number; on: boolean; onToggle: () => void }) {
+function CoinRow({
+  coin,
+  tip,
+  rate,
+  on,
+  onToggle,
+}: {
+  coin: WalletCoin;
+  tip: number | null;
+  rate: number;
+  on: boolean;
+  onToggle: () => void;
+}) {
   const ok = selectable(coin);
   const s = status(coin);
   const { lead, rest } = btcParts(coin.value);
@@ -54,12 +67,18 @@ function CoinRow({ coin, tip, rate, on, onToggle }: { coin: WalletCoin; tip: num
         role="checkbox"
         aria-checked={on}
         aria-disabled={!ok}
-        aria-label={[`${lead}${rest} BTC`, coin.label ?? coin.address, when, s?.text, uneconomic].filter(Boolean).join(", ")}
+        aria-label={[`${lead}${rest} BTC`, coin.label ?? coin.address, when, s?.text, uneconomic]
+          .filter(Boolean)
+          .join(", ")}
         onClick={() => ok && onToggle()}
         className="mt-px grid size-5 place-items-center rounded-check border-[1.5px] border-check bg-sheet text-carbon-ink after:absolute after:inset-0 aria-checked:border-carbon aria-checked:bg-carbon aria-disabled:cursor-not-allowed aria-disabled:border-dashed aria-disabled:after:cursor-not-allowed"
       >
         {on && (
-          <svg viewBox="0 0 16 16" aria-hidden="true" className="size-3.5 fill-none stroke-current stroke-[2.4] [stroke-linecap:round] [stroke-linejoin:round]">
+          <svg
+            viewBox="0 0 16 16"
+            aria-hidden="true"
+            className="size-3.5 fill-none stroke-current stroke-[2.4] [stroke-linecap:round] [stroke-linejoin:round]"
+          >
             <path d="M3 8.5l3 3 7-7" />
           </svg>
         )}
@@ -69,10 +88,18 @@ function CoinRow({ coin, tip, rate, on, onToggle }: { coin: WalletCoin; tip: num
       </span>
       <span className="text-right text-sm whitespace-nowrap text-ink-2 @max-[899px]:hidden">{when}</span>
       <span className="col-start-2 col-end-4 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-ink-3 @min-[900px]:col-auto">
-        <span className={`min-w-0 ${coin.label ? "text-ink group-data-off:text-ink-3" : "truncate font-mono text-[0.86em]"}`}>{coin.label ?? coin.address}</span>
+        <span
+          className={`min-w-0 ${coin.label ? "text-ink group-data-off:text-ink-3" : "truncate font-mono text-[0.86em]"}`}
+        >
+          {coin.label ?? coin.address}
+        </span>
         <span className="whitespace-nowrap @min-[900px]:hidden">{when}</span>
         <span className="whitespace-nowrap">Costs {groupSats(cost)} sats to spend</span>
-        <a href={`#/coin/${outpoint(coin)}`} aria-label={`History of ${lead}${rest} BTC`} className="relative z-[1] text-carbon underline decoration-1 underline-offset-3">
+        <a
+          href={`#/coin/${outpoint(coin)}`}
+          aria-label={`History of ${lead}${rest} BTC`}
+          className="relative z-[1] text-carbon underline decoration-1 underline-offset-3"
+        >
           History
         </a>
         {s && (
@@ -117,7 +144,8 @@ export function CoinList({
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 p-4">
         <h2 className="mr-auto text-lg font-bold">Coins</h2>
         <span className="order-3 basis-full text-sm text-ink-2 @min-[900px]:order-none @min-[900px]:basis-auto">
-          {chosen.length} of {all.filter(selectable).length} selected &middot; <Amount sats={chosen.reduce((a, c) => a + c.value, 0)} />
+          {chosen.length} of {all.filter(selectable).length} selected &middot;{" "}
+          <Amount sats={chosen.reduce((a, c) => a + c.value, 0)} />
         </span>
         <Button size="sm" onClick={onPick} disabled={picking}>
           Pick for me
@@ -126,8 +154,15 @@ export function CoinList({
           Clear
         </Button>
       </div>
-      {!all.length && <p className="m-0 border-t border-rule px-4 py-6 text-ink-2">This wallet has no coins yet. Once a payment to it shows up, its coins appear here.</p>}
-      <div aria-hidden="true" className={`hidden gap-3 border-t border-rule px-4 py-2 text-xs font-bold tracking-[0.04em] text-ink-3 uppercase @min-[900px]:grid ${COLUMNS}`}>
+      {!all.length && (
+        <p className="m-0 border-t border-rule px-4 py-6 text-ink-2">
+          This wallet has no coins yet. Once a payment to it shows up, its coins appear here.
+        </p>
+      )}
+      <div
+        aria-hidden="true"
+        className={`hidden gap-3 border-t border-rule px-4 py-2 text-xs font-bold tracking-[0.04em] text-ink-3 uppercase @min-[900px]:grid ${COLUMNS}`}
+      >
         <span />
         <span className="text-right">Value</span>
         <span className="text-right">Age</span>
@@ -147,14 +182,25 @@ export function CoinList({
                 </span>
                 <Amount sats={source.total} />
                 {open.length > 1 && (
-                  <button type="button" onClick={() => onGroup(source)} className="text-xs font-medium text-carbon underline decoration-1 underline-offset-3">
+                  <button
+                    type="button"
+                    onClick={() => onGroup(source)}
+                    className="text-xs font-medium text-carbon underline decoration-1 underline-offset-3"
+                  >
                     {whole ? "Clear these" : "Select all"}
                   </button>
                 )}
               </div>
             </div>
             {source.coins.map((coin) => (
-              <CoinRow key={outpoint(coin)} coin={coin} tip={tip} rate={rate} on={selected.has(outpoint(coin))} onToggle={() => onToggle(coin)} />
+              <CoinRow
+                key={outpoint(coin)}
+                coin={coin}
+                tip={tip}
+                rate={rate}
+                on={selected.has(outpoint(coin))}
+                onToggle={() => onToggle(coin)}
+              />
             ))}
           </div>
         );

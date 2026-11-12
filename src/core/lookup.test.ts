@@ -1,11 +1,10 @@
 import { hex } from "@scure/base";
-import { Transaction } from "@scure/btc-signer";
+import { Address, OutScript, Transaction } from "@scure/btc-signer";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Address, OutScript } from "@scure/btc-signer";
 import { BroadcastError, NotFoundError, RefusedError, txidOf, type WalletBackend } from "../backend/backend";
 import { electrumBackend } from "../backend/electrum";
-import { fakeBackend, fakeEsplora, type FakeBackend } from "../backend/fake";
-import { demoBackend, DEMO_FOREIGN, DEMO_TXIDS, DEMO_UNSENT } from "../backend/fixture";
+import { type FakeBackend, fakeBackend, fakeEsplora } from "../backend/fake";
+import { DEMO_FOREIGN, DEMO_TXIDS, DEMO_UNSENT, demoBackend } from "../backend/fixture";
 import { NETWORKS } from "../wallet/network";
 import { addressAmounts, decodeTransaction, difficulty, lookupAddress, lookupBlock, lookupTransaction } from "./lookup";
 
@@ -45,7 +44,16 @@ function fakeElectrum(fake: FakeBackend): WalletBackend {
           requests.map(({ id, method, params }) =>
             answer(method, params).then(
               (result) => ({ id, result }),
-              (error: Error) => ({ id, error: { code: 2, message: error instanceof NotFoundError ? "No such mempool or blockchain transaction. Use gettransaction for wallet transactions." : error.message } }),
+              (error: Error) => ({
+                id,
+                error: {
+                  code: 2,
+                  message:
+                    error instanceof NotFoundError
+                      ? "No such mempool or blockchain transaction. Use gettransaction for wallet transactions."
+                      : error.message,
+                },
+              }),
             ),
           ),
         );
@@ -111,13 +119,18 @@ describe.each(servers)("looking a transaction up on %s", (_, server) => {
   it("finds the block of one that pays only data, and sees it does not signal replaceability", async () => {
     const parent = new Transaction(PARSE);
     parent.addInput({ txid: "11".repeat(32), index: 0 });
-    parent.addOutput({ script: hex.decode("0014" + "22".repeat(20)), amount: 10_000n });
+    parent.addOutput({ script: hex.decode(`0014${"22".repeat(20)}`), amount: 10_000n });
     const burn = new Transaction(PARSE);
     burn.addInput({ txid: parent.id, index: 0, sequence: 0xffffffff });
     // OP_RETURN followed by one pushed byte: https://en.bitcoin.it/wiki/Script#Constants
     burn.addOutput({ script: hex.decode("6a0100"), amount: 0n });
     const fake = fakeBackend({ startHeight: 7, blocks: [[parent.unsignedTx], [burn.unsignedTx]] });
-    expect(await lookup(burn.id, fake)).toMatchObject({ height: 8, rbf: false, fee: 10_000, outputs: [{ address: null }] });
+    expect(await lookup(burn.id, fake)).toMatchObject({
+      height: 8,
+      rbf: false,
+      fee: 10_000,
+      outputs: [{ address: null }],
+    });
   });
 });
 
@@ -156,7 +169,7 @@ describe.each(servers)("looking an address up on %s", (_, server) => {
   });
 
   it("fills in amounts a page at a time, fetching a spent coin's transaction from outside the page", async () => {
-    const script = hex.decode("0014" + "33".repeat(20));
+    const script = hex.decode(`0014${"33".repeat(20)}`);
     const address = Address(NETWORKS.mainnet).encode(OutScript.decode(script));
     const payments = Array.from({ length: 30 }, (_, i) => {
       const t = new Transaction(PARSE);
@@ -166,22 +179,34 @@ describe.each(servers)("looking an address up on %s", (_, server) => {
     });
     const spend = new Transaction(PARSE);
     spend.addInput({ txid: payments[0]!.id, index: 0 });
-    spend.addOutput({ script: hex.decode("0014" + "44".repeat(20)), amount: 900n });
+    spend.addOutput({ script: hex.decode(`0014${"44".repeat(20)}`), amount: 900n });
     const fake = fakeBackend({ startHeight: 1, blocks: [...payments.map((p) => [p.unsignedTx]), [spend.unsignedTx]] });
 
     const [found, first, second] = await withBackend(fake, async (backend) => {
       const found = await lookupAddress(backend, address, "mainnet");
       const txids = found.history.map((entry) => entry.txid);
-      return [found, await addressAmounts(backend, found, txids.slice(0, 25)), await addressAmounts(backend, found, txids.slice(25, 50))] as const;
+      return [
+        found,
+        await addressAmounts(backend, found, txids.slice(0, 25)),
+        await addressAmounts(backend, found, txids.slice(25, 50)),
+      ] as const;
     });
     expect(found.history).toHaveLength(31);
     expect(found.history[0]).toMatchObject({ txid: spend.id, height: 31 });
-    expect(found.balance).toEqual({ confirmed: payments.slice(1).reduce((total, p) => total + Number(p.getOutput(0).amount), 0), unconfirmed: 0 });
+    expect(found.balance).toEqual({
+      confirmed: payments.slice(1).reduce((total, p) => total + Number(p.getOutput(0).amount), 0),
+      unconfirmed: 0,
+    });
     expect(found.unspent).toHaveLength(29);
     expect(first.size).toBe(25);
     expect(first.get(spend.id)).toBe(-1_000);
     expect(first.get(payments[29]!.id)).toBe(1_029);
-    expect([...second.keys()]).toEqual(payments.slice(0, 6).map((p) => p.id).reverse());
+    expect([...second.keys()]).toEqual(
+      payments
+        .slice(0, 6)
+        .map((p) => p.id)
+        .reverse(),
+    );
     expect(second.get(payments[0]!.id)).toBe(1_000);
   });
 
@@ -219,8 +244,11 @@ describe.each(servers)("broadcasting a raw transaction through %s", (_, server) 
     const backend = await connected(demoBackend());
     const orphan = new Transaction(PARSE);
     orphan.addInput({ txid: "ab".repeat(32), index: 0 });
-    orphan.addOutput({ script: hex.decode("0014" + "22".repeat(20)), amount: 10_000n });
-    expect(await decodeTransaction(backend, orphan.unsignedTx, "mainnet")).toMatchObject({ fee: null, inputs: [{ value: null, address: null }] });
+    orphan.addOutput({ script: hex.decode(`0014${"22".repeat(20)}`), amount: 10_000n });
+    expect(await decodeTransaction(backend, orphan.unsignedTx, "mainnet")).toMatchObject({
+      fee: null,
+      inputs: [{ value: null, address: null }],
+    });
     backend.close();
   });
 
@@ -229,10 +257,13 @@ describe.each(servers)("broadcasting a raw transaction through %s", (_, server) 
     const mixed = new Transaction(PARSE);
     mixed.addInput({ txid: DEMO_FOREIGN.confirmed, index: 1 });
     mixed.addInput({ txid: "ab".repeat(32), index: 0 });
-    mixed.addOutput({ script: hex.decode("0014" + "22".repeat(20)), amount: 10_000n });
+    mixed.addOutput({ script: hex.decode(`0014${"22".repeat(20)}`), amount: 10_000n });
     expect(await decodeTransaction(backend, mixed.unsignedTx, "mainnet")).toMatchObject({
       fee: null,
-      inputs: [{ value: 37_998_600, address: expect.stringMatching(/^bc1q/) }, { value: null, address: null }],
+      inputs: [
+        { value: 37_998_600, address: expect.stringMatching(/^bc1q/) },
+        { value: null, address: null },
+      ],
     });
     backend.close();
   });

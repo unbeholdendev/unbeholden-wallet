@@ -1,10 +1,10 @@
 import { hex } from "@scure/base";
 import { Address, OutScript } from "@scure/btc-signer";
-import type { WalletCoin, WalletTx } from "./wallet";
 import type { Coin } from "../wallet/coin";
 import { NETWORKS, type Network } from "../wallet/network";
 import type { ChangeOutput, Recipient } from "../wallet/psbt";
-import { CHANGE_SCRIPT_BYTES, dust, spend, type Spend, type WalletKind } from "../wallet/select";
+import { CHANGE_SCRIPT_BYTES, dust, type Spend, spend, type WalletKind } from "../wallet/select";
+import type { WalletCoin, WalletTx } from "./wallet";
 
 export type BumpProblem =
   | { kind: "confirmed" }
@@ -102,9 +102,7 @@ export function planBump(
     Math.ceil(((oldFee + result.vsize) / result.vsize) * 10) / 10,
     Math.floor(oldFeeRate * 10) / 10 + 0.1,
   );
-  const spent = tx.outputs.some(
-    (o) => o.mine && !coins.some((c) => c.txid === tx.txid && c.vout === o.vout),
-  );
+  const spent = tx.outputs.some((o) => o.mine && !coins.some((c) => c.txid === tx.txid && c.vout === o.vout));
   const problem: BumpProblem | null =
     tx.height !== null
       ? { kind: "confirmed" }
@@ -114,13 +112,13 @@ export function planBump(
           ? { kind: "has-children" }
           : payments.some((o) => !o.address)
             ? { kind: "unsupported-output" }
-          : feeRate < minFeeRate || result.fee < oldFee + result.vsize
-            ? { kind: "below-minimum", minFeeRate }
-          : result.problem?.kind === "insufficient"
-            ? { kind: "insufficient", missing: result.problem.missing }
-            : cancel && !result.change
-              ? { kind: "nothing-left" }
-              : null;
+            : feeRate < minFeeRate || result.fee < oldFee + result.vsize
+              ? { kind: "below-minimum", minFeeRate }
+              : result.problem?.kind === "insufficient"
+                ? { kind: "insufficient", missing: result.problem.missing }
+                : cancel && !result.change
+                  ? { kind: "nothing-left" }
+                  : null;
 
   return {
     oldFee,
@@ -130,9 +128,7 @@ export function planBump(
     spend: result,
     coins: chosen,
     recipients: payments.flatMap((o) => (o.address ? [{ address: o.address, value: o.value! }] : [])),
-    change: result.change
-      ? { chain: changeAt.chain, index: changeAt.index, value: result.change }
-      : null,
+    change: result.change ? { chain: changeAt.chain, index: changeAt.index, value: result.change } : null,
     problem,
   };
 }

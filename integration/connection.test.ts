@@ -1,18 +1,11 @@
-import { chromium } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { connect, createServer, type Server, type Socket } from "node:net";
+import { chromium } from "@playwright/test";
 import { build } from "vite";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { address, BIP84, ELECTRUM_WS, ELECTRUM_WSS, rpc, script } from "../scripts/regtest/fixture";
 import { ConnectionError, scriptHash } from "../src/backend/backend";
-import { electrumBackend, type ConnectionStatus } from "../src/backend/electrum";
-import {
-  address,
-  BIP84,
-  ELECTRUM_WS,
-  ELECTRUM_WSS,
-  rpc,
-  script,
-} from "../scripts/regtest/fixture";
+import { type ConnectionStatus, electrumBackend } from "../src/backend/electrum";
 
 const servers: Server[] = [];
 afterEach(() => {
@@ -52,7 +45,9 @@ describe("a failed connection", () => {
     const port = await listen((socket) => {
       socket.once("data", (data) => {
         const key = /sec-websocket-key: (.+)\r\n/i.exec(String(data))![1];
-        const accept = createHash("sha1").update(key + guid).digest("base64");
+        const accept = createHash("sha1")
+          .update(key + guid)
+          .digest("base64");
         socket.write(
           "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\n" +
             `Connection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`,
@@ -82,14 +77,21 @@ describe("a failed connection", () => {
     try {
       const page = await browser.newPage();
       await page.addScriptTag({ content: output[0]!.code });
-      const failures = await page.evaluate(async (urls) => {
-        const { electrumBackend } = (window as any).electrum;
-        const found = [];
-        for (const url of urls) {
-          found.push(await electrumBackend(url).connect().catch((e: any) => e.failure));
-        }
-        return found;
-      }, [ELECTRUM_WSS, `ws://127.0.0.1:${closed}`]);
+      const failures = await page.evaluate(
+        async (urls) => {
+          const { electrumBackend } = (window as any).electrum;
+          const found = [];
+          for (const url of urls) {
+            found.push(
+              await electrumBackend(url)
+                .connect()
+                .catch((e: any) => e.failure),
+            );
+          }
+          return found;
+        },
+        [ELECTRUM_WSS, `ws://127.0.0.1:${closed}`],
+      );
       expect(failures).toEqual(["certificate-rejected", "refused"]);
     } finally {
       await browser.close();

@@ -86,9 +86,7 @@ export interface WalletBackend {
   close(): void;
 
   chainTip(): Promise<BlockHeader>;
-  subscribeHeaders(
-    listener: (tip: BlockHeader) => void,
-  ): Promise<Unsubscribe>;
+  subscribeHeaders(listener: (tip: BlockHeader) => void): Promise<Unsubscribe>;
 
   /** One 80-byte header per height, in the order asked for. */
   blockHeaders(heights: number[]): Promise<Uint8Array[]>;
@@ -110,10 +108,7 @@ export interface WalletBackend {
   /** The height of the block holding each raw transaction, null for one in the mempool or unknown, in the order asked for. */
   transactionHeights(raws: Uint8Array[]): Promise<(number | null)[]>;
   /** Calls back with the scripthash whose history changed. */
-  subscribeScriptHashes(
-    scriptHashes: string[],
-    listener: (scriptHash: string) => void,
-  ): Promise<Unsubscribe>;
+  subscribeScriptHashes(scriptHashes: string[], listener: (scriptHash: string) => void): Promise<Unsubscribe>;
 
   feeHistogram(): Promise<FeeBucket[]>;
   /**

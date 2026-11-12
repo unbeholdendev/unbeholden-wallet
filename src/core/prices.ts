@@ -16,7 +16,9 @@ export function parseHistory(body: unknown, currency: string): Point[] {
     .flatMap((price): Point[] => {
       const time = price?.time;
       const value = price?.[currency];
-      return Number.isInteger(time) && typeof value === "number" && Number.isFinite(value) && value > 0 ? [[time, value]] : [];
+      return Number.isInteger(time) && typeof value === "number" && Number.isFinite(value) && value > 0
+        ? [[time, value]]
+        : [];
     })
     .sort((a, b) => a[0] - b[0]);
 }

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { APP_VERSION } from "../pwa/register";
 import { Icon, Mark } from "../ui/icons";
 import { linkClass } from "../ui/kit";
@@ -87,7 +87,12 @@ export function InstallPrompt() {
           wallets. An app on the Home Screen is kept. Tap Share, then Add to Home Screen.
         </p>
       </div>
-      <button type="button" onClick={dismiss} aria-label="Dismiss" className="-m-1 grid size-8 flex-none place-items-center rounded-control hover:bg-[color-mix(in_srgb,var(--warn)_12%,transparent)]">
+      <button
+        type="button"
+        onClick={dismiss}
+        aria-label="Dismiss"
+        className="-m-1 grid size-8 flex-none place-items-center rounded-control hover:bg-[color-mix(in_srgb,var(--warn)_12%,transparent)]"
+      >
         <Icon name="close" />
       </button>
     </aside>

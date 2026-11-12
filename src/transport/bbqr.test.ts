@@ -1,7 +1,7 @@
 import { base64 } from "@scure/base";
 import { describe, expect, it } from "vitest";
 import { VALID } from "../wallet/bip174-vectors";
-import { bbqrParts, BbqrDecoder } from "./bbqr";
+import { BbqrDecoder, bbqrParts } from "./bbqr";
 // A real Coldcard scan, Z encoded, as published with the spec:
 // https://github.com/coinkite/BBQr/blob/master/test_data/real-scan.txt
 import realScan from "./bbqr-real-scan.txt?raw";

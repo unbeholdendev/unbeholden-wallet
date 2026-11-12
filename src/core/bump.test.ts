@@ -35,14 +35,35 @@ function walletTx(inputValue: number, change: number, fee = 282): WalletTx {
     inputs: [{ txid: "bb".repeat(32), vout: 0, value: inputValue, address: own.address, mine: own }],
     outputs: [
       { vout: 0, script: script(PAYEE), value: 50_000, address: PAYEE, mine: null, label: null, kyc: false },
-      { vout: 1, script: script(back.address), value: change, address: back.address, mine: back, label: null, kyc: false },
+      {
+        vout: 1,
+        script: script(back.address),
+        value: change,
+        address: back.address,
+        mine: back,
+        label: null,
+        kyc: false,
+      },
     ],
     label: null,
   };
 }
 
 function coin(txid: string, vout: number, value: number, at: AddressInfo, status: WalletCoin["status"]): WalletCoin {
-  return { txid, vout, value, script: script(at.address), address: at.address, chain: at.chain, index: at.index, height: status === "confirmed" ? 100 : null, status, frozen: false, label: null, kyc: false };
+  return {
+    txid,
+    vout,
+    value,
+    script: script(at.address),
+    address: at.address,
+    chain: at.chain,
+    index: at.index,
+    height: status === "confirmed" ? 100 : null,
+    status,
+    frozen: false,
+    label: null,
+    kyc: false,
+  };
 }
 
 describe("fee bump", () => {
@@ -146,7 +167,9 @@ describe("child pays for parent", () => {
       ...walletTx(0, 0),
       net: 50_000,
       fee,
-      inputs: [{ txid: "bb".repeat(32), vout: 0, value: fee === null ? null : 60_000 + fee, address: PAYEE, mine: null }],
+      inputs: [
+        { txid: "bb".repeat(32), vout: 0, value: fee === null ? null : 60_000 + fee, address: PAYEE, mine: null },
+      ],
       outputs: [
         { vout: 0, script: script(to.address), value: 50_000, address: to.address, mine: to, label: null, kyc: false },
         { vout: 1, script: script(PAYEE), value: 10_000, address: PAYEE, mine: null, label: null, kyc: false },

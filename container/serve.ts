@@ -1,13 +1,17 @@
-import type { ServerWebSocket, Socket } from "bun";
 import { isIP } from "node:net";
 import { normalize } from "node:path";
+import type { ServerWebSocket, Socket } from "bun";
 
 const root = process.env.ROOT ?? "dist";
 const hostname = process.env.HOST ?? "0.0.0.0";
 const port = Number(process.env.PORT ?? 8080);
 const electrum = process.env.ELECTRUM?.match(/^(?:(tcp|ssl):\/\/)?(.+):(\d+)$/);
-if (process.env.ELECTRUM && !electrum) throw new Error("ELECTRUM must be host:port, tcp://host:port or ssl://host:port");
-const allowedHosts = new Set(["localhost", ...(process.env.ALLOWED_HOSTS ?? "").split(",").map((name) => name.trim().toLowerCase())]);
+if (process.env.ELECTRUM && !electrum)
+  throw new Error("ELECTRUM must be host:port, tcp://host:port or ssl://host:port");
+const allowedHosts = new Set([
+  "localhost",
+  ...(process.env.ALLOWED_HOSTS ?? "").split(",").map((name) => name.trim().toLowerCase()),
+]);
 
 const headers = {
   "Content-Security-Policy": "frame-ancestors 'none'",
@@ -15,12 +19,14 @@ const headers = {
   "Referrer-Policy": "no-referrer",
 };
 
-const log = (event: string, detail: object = {}) => console.log(JSON.stringify({ at: new Date().toISOString(), event, ...detail }));
+const log = (event: string, detail: object = {}) =>
+  console.log(JSON.stringify({ at: new Date().toISOString(), event, ...detail }));
 
 type Link = { tcp: Socket; ws: { current?: ServerWebSocket<Link> } };
 
 async function bridge(req: Request, server: Bun.Server<Link>) {
-  if (req.headers.get("upgrade")?.toLowerCase() !== "websocket") return new Response("WebSocket only", { status: 426, headers });
+  if (req.headers.get("upgrade")?.toLowerCase() !== "websocket")
+    return new Response("WebSocket only", { status: 426, headers });
   const ws: Link["ws"] = {};
   const decoder = new TextDecoder();
   let rest = "";

@@ -1,6 +1,6 @@
 import { hex, utf8 } from "@scure/base";
 import { sha256 } from "@scure/btc-signer/utils.js";
-import { outpoint, type Coin } from "./coin";
+import { type Coin, outpoint } from "./coin";
 import type { Descriptor, ScriptType } from "./descriptor";
 
 /** An output to pay. `"max"` takes whatever is left after fees and the other recipients. */
@@ -63,12 +63,10 @@ const CHANGE_LOWER = 50_000;
 // 67 vB input to spend a witness output and 148 vB for anything else.
 // https://github.com/bitcoin/bitcoin/blob/master/src/policy/policy.cpp
 // https://github.com/bitcoin/bitcoin/blob/master/src/policy/policy.h
-export const dust = (scriptBytes: number, witness: boolean) =>
-  (8 + 1 + scriptBytes + (witness ? 67 : 148)) * 3;
+export const dust = (scriptBytes: number, witness: boolean) => (8 + 1 + scriptBytes + (witness ? 67 : 148)) * 3;
 
 const isWitness = (script: string) =>
-  /^(00|5[1-9a-f]|60)/.test(script) &&
-  parseInt(script.slice(2, 4), 16) === script.length / 2 - 2;
+  /^(00|5[1-9a-f]|60)/.test(script) && parseInt(script.slice(2, 4), 16) === script.length / 2 - 2;
 
 const outputWeight = (scriptBytes: number) => (8 + 1 + scriptBytes) * 4;
 
@@ -88,8 +86,7 @@ function inputWeight({ scriptType, multisig }: WalletKind): number {
 }
 
 /** Sats to spend one of the wallet's coins as one input at `feeRate`, before the rest of the transaction. */
-export const spendCost = (kind: WalletKind, feeRate: number) =>
-  Math.ceil((inputWeight(kind) / 4) * feeRate);
+export const spendCost = (kind: WalletKind, feeRate: number) => Math.ceil((inputWeight(kind) / 4) * feeRate);
 
 const countWeight = (count: number) => (count > 252 ? 8 : 0);
 
@@ -121,10 +118,7 @@ export function spend(coins: Coin[], payment: Payment): Spend {
     amounts[maxAt] = Math.max(available - fixed - fee, 0);
   } else {
     const withChange = available - fixed - feeOf(outputs + 1);
-    const minChange = Math.max(
-      dust(changeBytes, true),
-      spendCost(payment, feeRate) + 1,
-    );
+    const minChange = Math.max(dust(changeBytes, true), spendCost(payment, feeRate) + 1);
     if (withChange >= minChange) {
       change = withChange;
       outputs += 1;
@@ -135,9 +129,7 @@ export function spend(coins: Coin[], payment: Payment): Spend {
   }
 
   const missing = fixed + fee - available;
-  const dustAt = recipients.findIndex(
-    (r, i) => amounts[i]! < dust(r.script.length / 2, isWitness(r.script)),
-  );
+  const dustAt = recipients.findIndex((r, i) => amounts[i]! < dust(r.script.length / 2, isWitness(r.script)));
   const problem: SpendProblem | null =
     coins.length === 0
       ? { kind: "no-coins" }
@@ -161,11 +153,7 @@ export function spend(coins: Coin[], payment: Payment): Spend {
 type Candidate = { coin: Coin; effective: number };
 
 /** Core's branch and bound: a changeless set within `window` above `target`. */
-function branchAndBound(
-  pool: Candidate[],
-  target: number,
-  window: number,
-): Coin[] | null {
+function branchAndBound(pool: Candidate[], target: number, window: number): Coin[] | null {
   const sorted = [...pool].sort((a, b) => b.effective - a.effective);
   const lookahead: number[] = [];
   let total = 0;
@@ -207,7 +195,7 @@ function branchAndBound(
       shift = true;
     }
     while (shift) {
-      if (selection.length === 0) return best && best.map((i) => sorted[i]!.coin);
+      if (selection.length === 0) return best ? best.map((i) => sorted[i]!.coin) : null;
       next = selection.at(-1)! + 1;
       deselect();
       shift = false;
@@ -221,18 +209,12 @@ function branchAndBound(
       }
     }
   }
-  return best && best.map((i) => sorted[i]!.coin);
+  return best ? best.map((i) => sorted[i]!.coin) : null;
 }
 
 /** Coins in a seeded random order until they cover the target. */
-function singleRandomDraw(
-  pool: Candidate[],
-  target: number,
-  changeFee: number,
-  seed: string,
-): Coin[] | null {
-  const key = (c: Candidate) =>
-    hex.encode(sha256(utf8.decode(`${seed}:${outpoint(c.coin)}`)));
+function singleRandomDraw(pool: Candidate[], target: number, changeFee: number, seed: string): Coin[] | null {
+  const key = (c: Candidate) => hex.encode(sha256(utf8.decode(`${seed}:${outpoint(c.coin)}`)));
   const order = pool
     .map((c) => ({ c, key: key(c) }))
     .sort((a, b) => (a.key < b.key ? -1 : 1))
@@ -277,17 +259,18 @@ export function selectCoins(
       effective: coin.value - (inputWeight(payment) / 4) * feeRate,
     }))
     .filter((c) => c.effective > 0);
-  if (recipients.some((r) => r.value === "max")) return spend(pool.map((c) => c.coin), payment);
+  if (recipients.some((r) => r.value === "max"))
+    return spend(
+      pool.map((c) => c.coin),
+      payment,
+    );
 
   const changeOutput = outputWeight(CHANGE_SCRIPT_BYTES[scriptType]) / 4;
   const changeFee = changeOutput * feeRate;
   const costOfChange = changeFee + (inputWeight(payment) / 4) * feeRate;
-  const rest =
-    OVERHEAD_WEIGHT / 4 +
-    sum(recipients.map((r) => outputWeight(r.script.length / 2) / 4));
+  const rest = OVERHEAD_WEIGHT / 4 + sum(recipients.map((r) => outputWeight(r.script.length / 2) / 4));
   // The extra vbyte and sat cover rounding the size and the fee up.
-  const target =
-    sum(recipients.map((r) => r.value as number)) + (rest + 1) * feeRate + 1;
+  const target = sum(recipients.map((r) => r.value as number)) + (rest + 1) * feeRate + 1;
 
   const pick = (from: Candidate[]) =>
     spend(

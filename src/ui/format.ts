@@ -43,6 +43,7 @@ export function ageText(seconds: number) {
   return months < 24 ? `${months} months` : `${(months / 12).toFixed(1)} years`;
 }
 
-export const shortId = (s: string, head = 8, tail = 6) => (s.length > head + tail + 1 ? `${s.slice(0, head)}…${s.slice(-tail)}` : s);
+export const shortId = (s: string, head = 8, tail = 6) =>
+  s.length > head + tail + 1 ? `${s.slice(0, head)}…${s.slice(-tail)}` : s;
 
 export const satsText = (n: number) => `${groupSats(n)} sats`;

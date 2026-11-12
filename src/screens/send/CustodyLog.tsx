@@ -1,14 +1,22 @@
 import { useLayoutEffect, useRef } from "react";
 import { Amount } from "../../ui/amount";
 import { Icon } from "../../ui/icons";
-import { SourceTag, type Source } from "../../ui/sources";
+import { type Source, SourceTag } from "../../ui/sources";
 import { outpoint } from "../../wallet/coin";
 
 /**
  * Each source the picked coins come from, numbered, as a chain analyst would
  * note them, and whether spending them together joins them. `still` skips the motion.
  */
-export function CustodyLog({ sources, selected, still = false }: { sources: Source[]; selected: Set<string>; still?: boolean }) {
+export function CustodyLog({
+  sources,
+  selected,
+  still = false,
+}: {
+  sources: Source[];
+  selected: Set<string>;
+  still?: boolean;
+}) {
   const linked = sources.flatMap((source) => {
     const coins = source.coins.filter((c) => selected.has(outpoint(c)));
     return coins.length ? [{ source, coins }] : [];

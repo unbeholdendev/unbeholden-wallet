@@ -13,6 +13,7 @@ jobs:
           bun-version: 1.4.3
       - run: bun install --frozen-lockfile
       - run: bash scripts/wait-wallet-image.test.sh
+      - run: bunx biome ci .
       - run: bun run typecheck
       - run: bun run test
       - run: bun run build

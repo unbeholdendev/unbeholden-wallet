@@ -1,7 +1,7 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { useConnection } from "../app/connection";
 import { useNetwork, useOwners } from "../app/session";
-import { lookupTransaction, type DecodedTx, type LookedUpTx } from "../core/lookup";
+import { type DecodedTx, type LookedUpTx, lookupTransaction } from "../core/lookup";
 import { COINBASE, feeRate } from "../core/view";
 import { Amount, groupSats } from "../ui/amount";
 import { confText, satsText, shortId } from "../ui/format";
@@ -10,12 +10,30 @@ import { CopyButton, GroupedAddress } from "./parts";
 
 type Found = { txid: string } & ({ tx: LookedUpTx } | { tx: null } | { error: string });
 
-function Endpoint({ value, address, owner, children }: { value: number | null; address: string | null; owner: string | undefined; children?: ReactNode }) {
+function Endpoint({
+  value,
+  address,
+  owner,
+  children,
+}: {
+  value: number | null;
+  address: string | null;
+  owner: string | undefined;
+  children?: ReactNode;
+}) {
   return (
-    <li className={`grid gap-1 border-t border-rule px-4 py-3 ${owner ? "bg-[color-mix(in_srgb,var(--ok-tint)_35%,var(--sheet))]" : ""}`}>
+    <li
+      className={`grid gap-1 border-t border-rule px-4 py-3 ${owner ? "bg-[color-mix(in_srgb,var(--ok-tint)_35%,var(--sheet))]" : ""}`}
+    >
       <div className="flex items-baseline justify-between gap-3">
-        {address ? <GroupedAddress address={address} className="text-[0.86em] text-ink-2" /> : <span className="text-sm text-ink-3">Script with no address</span>}
-        <span className="text-md">{value === null ? <span className="text-sm text-ink-3">Amount unknown</span> : <Amount sats={value} />}</span>
+        {address ? (
+          <GroupedAddress address={address} className="text-[0.86em] text-ink-2" />
+        ) : (
+          <span className="text-sm text-ink-3">Script with no address</span>
+        )}
+        <span className="text-md">
+          {value === null ? <span className="text-sm text-ink-3">Amount unknown</span> : <Amount sats={value} />}
+        </span>
       </div>
       {owner !== undefined && (
         <span className="justify-self-start">
@@ -80,7 +98,11 @@ export function Lookup({ txid }: { txid: string | undefined }) {
     ) : (
       <Missing title="Not connected" id={txid}>
         <p className="m-0">
-          Looking a transaction up needs the server. <a href="#/connect" className={linkClass}>Connect to it</a>.
+          Looking a transaction up needs the server.{" "}
+          <a href="#/connect" className={linkClass}>
+            Connect to it
+          </a>
+          .
         </p>
       </Missing>
     );
@@ -94,7 +116,10 @@ export function Lookup({ txid }: { txid: string | undefined }) {
   if (!tx)
     return (
       <Missing title="No transaction with this ID" id={txid}>
-        <p className="m-0">The server has none in a block or its mempool. Blocks can't be looked up by their hash: search by height instead.</p>
+        <p className="m-0">
+          The server has none in a block or its mempool. Blocks can't be looked up by their hash: search by height
+          instead.
+        </p>
       </Missing>
     );
 
@@ -103,17 +128,44 @@ export function Lookup({ txid }: { txid: string | undefined }) {
     <TxDetails
       tx={tx}
       title="Transaction"
-      chip={tx.height === null ? <Chip tone="warn">Unconfirmed</Chip> : <Chip tone="ok">{confirmations ? confText(confirmations) : "Confirmed"}</Chip>}
+      chip={
+        tx.height === null ? (
+          <Chip tone="warn">Unconfirmed</Chip>
+        ) : (
+          <Chip tone="ok">{confirmations ? confText(confirmations) : "Confirmed"}</Chip>
+        )
+      }
       rows={[
         ["Status", tx.height === null ? "Waiting for a block" : confirmations ? confText(confirmations) : "In a block"],
-        ["Block", tx.height === null ? "None yet" : <a href={`#/block/${tx.height}`} className={linkClass}>{groupSats(tx.height)}</a>],
+        [
+          "Block",
+          tx.height === null ? (
+            "None yet"
+          ) : (
+            <a href={`#/block/${tx.height}`} className={linkClass}>
+              {groupSats(tx.height)}
+            </a>
+          ),
+        ],
       ]}
     />
   );
 }
 
 /** A transaction's inputs, outputs and fee, with `rows` and `children` for what is known of it beyond its bytes. */
-export function TxDetails({ tx, title, chip, rows, children }: { tx: DecodedTx; title: string; chip: ReactNode; rows: [string, ReactNode][]; children?: ReactNode }) {
+export function TxDetails({
+  tx,
+  title,
+  chip,
+  rows,
+  children,
+}: {
+  tx: DecodedTx;
+  title: string;
+  chip: ReactNode;
+  rows: [string, ReactNode][];
+  children?: ReactNode;
+}) {
   const owners = useOwners();
   const rate = feeRate(tx);
   const coinbase = tx.inputs[0]?.txid === COINBASE;
@@ -132,9 +184,7 @@ export function TxDetails({ tx, title, chip, rows, children }: { tx: DecodedTx; 
           <span className="text-2xl font-medium tracking-[-0.01em]">
             <Amount sats={tx.outputs.reduce((total, o) => total + o.value, 0)} unit />
           </span>
-          <div className="flex flex-wrap gap-1.5 pt-1">
-            {chip}
-          </div>
+          <div className="flex flex-wrap gap-1.5 pt-1">{chip}</div>
         </div>
         <dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-2 text-sm">
           {facts.map(([name, value]) => (
@@ -159,7 +209,12 @@ export function TxDetails({ tx, title, chip, rows, children }: { tx: DecodedTx; 
             <li className="border-t border-rule px-4 py-3 text-sm text-ink-2">New coins from mining</li>
           ) : (
             tx.inputs.map((input) => (
-              <Endpoint key={`${input.txid}:${input.vout}`} value={input.value} address={input.address} owner={input.address ? owners.get(input.address) : undefined}>
+              <Endpoint
+                key={`${input.txid}:${input.vout}`}
+                value={input.value}
+                address={input.address}
+                owner={input.address ? owners.get(input.address) : undefined}
+              >
                 <a href={`#/tx/${input.txid}`} className={`${linkClass} justify-self-start font-mono text-xs`}>
                   From {shortId(input.txid)}:{input.vout}
                 </a>
@@ -169,7 +224,12 @@ export function TxDetails({ tx, title, chip, rows, children }: { tx: DecodedTx; 
         </Endpoints>
         <Endpoints title="Outputs" count={tx.outputs.length}>
           {tx.outputs.map((output) => (
-            <Endpoint key={output.vout} value={output.value} address={output.address} owner={output.address ? owners.get(output.address) : undefined} />
+            <Endpoint
+              key={output.vout}
+              value={output.value}
+              address={output.address}
+              owner={output.address ? owners.get(output.address) : undefined}
+            />
           ))}
         </Endpoints>
       </div>

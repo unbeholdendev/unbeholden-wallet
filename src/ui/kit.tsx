@@ -1,12 +1,11 @@
-import { useId, type ComponentProps, type ReactNode } from "react";
+import { type ComponentProps, type ReactNode, useId } from "react";
 import { Icon, type IconName } from "./icons";
 
 const buttonBase =
   "inline-flex items-center justify-center gap-2 rounded-control border font-bold transition-colors disabled:cursor-not-allowed disabled:border-rule disabled:bg-rule disabled:text-ink-3";
 const variants = {
   default: "border-rule-2 bg-sheet text-ink hover:bg-sunk",
-  primary:
-    "border-carbon bg-carbon text-carbon-ink hover:border-carbon-hover hover:bg-carbon-hover",
+  primary: "border-carbon bg-carbon text-carbon-ink hover:border-carbon-hover hover:bg-carbon-hover",
   danger: "border-rule-2 bg-sheet text-bad hover:bg-bad-tint",
 };
 const sizes = { md: "min-h-11 px-4 py-2 text-base", sm: "min-h-8 px-2.5 py-1 text-sm" };
@@ -64,7 +63,11 @@ export function Field({ label, hint, error, ok, children }: FieldProps) {
           id={`${id}-note`}
           className={`flex items-start gap-1.5 text-sm ${error ? "text-bad" : ok ? "text-ok" : "text-ink-3"}`}
         >
-          {error ? <Icon name="warn" className="mt-px size-4" /> : ok ? <Icon name="check" className="mt-px size-4" /> : null}
+          {error ? (
+            <Icon name="warn" className="mt-px size-4" />
+          ) : ok ? (
+            <Icon name="check" className="mt-px size-4" />
+          ) : null}
           <span>{note}</span>
         </p>
       )}
@@ -72,7 +75,17 @@ export function Field({ label, hint, error, ok, children }: FieldProps) {
   );
 }
 
-export function Panel({ title, aside, children, className = "" }: { title?: ReactNode; aside?: ReactNode; children: ReactNode; className?: string }) {
+export function Panel({
+  title,
+  aside,
+  children,
+  className = "",
+}: {
+  title?: ReactNode;
+  aside?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <section className={`rounded-panel border border-rule bg-sheet ${className}`}>
       {title && (
@@ -97,7 +110,9 @@ const chips = {
 
 export function Chip({ tone = "neutral", children }: { tone?: keyof typeof chips; children: ReactNode }) {
   return (
-    <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-chip px-2 py-px text-xs font-bold ${chips[tone]}`}>
+    <span
+      className={`inline-flex items-center gap-1 whitespace-nowrap rounded-chip px-2 py-px text-xs font-bold ${chips[tone]}`}
+    >
       {children}
     </span>
   );
@@ -153,7 +168,10 @@ export function Empty({ title, children }: { title: string; children?: ReactNode
 export function Notice({ tone, children }: { tone: "warn" | "bad" | "ok"; children: ReactNode }) {
   const tones = { warn: "bg-warn-tint text-warn", bad: "bg-bad-tint text-bad", ok: "bg-ok-tint text-ok" };
   return (
-    <div role={tone === "bad" ? "alert" : "status"} className={`flex items-start gap-2 rounded-control px-3 py-2.5 text-sm ${tones[tone]}`}>
+    <div
+      role={tone === "bad" ? "alert" : "status"}
+      className={`flex items-start gap-2 rounded-control px-3 py-2.5 text-sm ${tones[tone]}`}
+    >
       <Icon name={tone === "ok" ? "check" : "warn"} className="mt-px size-[18px]" />
       <div>{children}</div>
     </div>

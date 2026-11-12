@@ -1,15 +1,25 @@
+import { hex } from "@scure/base";
 import { act, cleanup, configure, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 import type { ConnectionFailure } from "./backend/backend";
 import { fakeBackend } from "./backend/fake";
-import { hex } from "@scure/base";
 import { backupRecords, createWallet, listWallets, walletDescriptor } from "./core/wallets";
-import { createVault, destroyVault, memoryStore, openBackup, sealBackup, unlockVault, Vault, vaultExists, type KdfParams } from "./vault/vault";
+import { UrDecoder, UrEncoder } from "./transport/ur";
+import {
+  createVault,
+  destroyVault,
+  type KdfParams,
+  memoryStore,
+  openBackup,
+  sealBackup,
+  unlockVault,
+  Vault,
+  vaultExists,
+} from "./vault/vault";
 import { formatDescriptor } from "./wallet/descriptor";
 import { asVersion, BIP84_ZPUB, BIP86_XPUB, VERSION } from "./wallet/vectors";
-import { UrDecoder, UrEncoder } from "./transport/ur";
 
 const camera = vi.hoisted(() => ({ scan: null as ((text: string) => void) | null }));
 vi.mock("./ui/QrScanner", () => ({
@@ -20,9 +30,11 @@ vi.mock("./ui/QrScanner", () => ({
 }));
 
 // https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2020-010-output-desc.md
-const PKH_OUTPUT = "ur:crypto-output/taadmutaadeyoyaxhdclaoswaalbmwfpwekijndyfefzjtmdrtketphhktmngrlkwsfnospypsasrhhhjonnvwtsqzwljy";
+const PKH_OUTPUT =
+  "ur:crypto-output/taadmutaadeyoyaxhdclaoswaalbmwfpwekijndyfefzjtmdrtketphhktmngrlkwsfnospypsasrhhhjonnvwtsqzwljy";
 // https://github.com/BlockchainCommons/Research/blob/master/papers/bcr-2020-015-account.md
-const CRYPTO_ACCOUNT = "ur:crypto-account/oeadcyemrewytyaolttaadeetaadmutaaddloxaxhdclaxwmfmdeiamecsdsemgtvsjzcncygrkowtrontzschgezokstswkkscfmklrtauteyaahdcxiehfonurdppfyntapejpproypegrdawkgmaewejlsfdtsrfybdehcaflmtrlbdhpamtaaddyoeadlncsdwykaeykaeykaocyemrewytyaycynlytsnyltaadeetaadmhtaadmwtaaddloxaxhdclaostvelfemdyynwydwyaievosrgmambklovabdgypdglldvespsthysadamhpmjeinaahdcxntdllnaaeykoytdacygegwhgjsiyonpywmcmrpwphsvodsrerozsbyaxluzcoxdpamtaaddyoeadlncsehykaeykaeykaocyemrewytyaycypdbskeuytaadeetaadmwtaaddloxaxhdclaxzcfxeegdrpmogrgwkbzctlttweadkiengrwlhtprremouoluutqdpfbncedkynfhaahdcxjpwevdeogthttkmeswzcolcpsaahcfnshkhtehytclmnteatmoteadtlwynnftloamtaaddyoeadlncsghykaeykaeykaocyemrewytyaycybthlvytstaadeetaadmhtaadnytaaddloxaxhdclaxhhsnhdrpftdwuocntilydibehnecmovdfekpjkclcslasbhkpawsaddmcmmnahnyaahdcxlotedtndfymyltclhlmtpfsadscnhtztaolbnnkistaedegwfmmedreetnwmcycnamtaaddyoeadlfcsdpykaocyemrewytyaycyemrewytytaadeetaadmhtaadmetaadnytaaddloxaxhdclaxdwkswmztpytnswtsecnblfbayajkdldeclqzzolrsnhljedsgminetytbnahatbyaahdcxkkguwsvyimjkvwteytwztyswvendtpmncpasfrrylprnhtkblndrgrmkoyjtbkrpamtaaddyoeadlocsdyykaeykaeykadykaocyemrewytyaycyhkrpnddrtaadeetaadmetaadnytaaddloxaxhdclaohnhffmvsbndslrfgclpfjejyatbdpebacnzokotofxntaoemvskpaowmryfnotfgaahdcxdlnbvecentssfsssgylnhkrstoytecrdlyadrekirfaybglahltalsrfcaeerobwamtaaddyoeadlocsdyykaeykaeykaoykaocyemrewytyaycyhkrpnddrtaadeetaadnltaaddloxaxhdclaorkrhkeytwsoykorletwstbwycagtbsotmeptjkesgwrfcmveskvdmngujzttgtdpaahdcxgrfgmuvyylmwcxjtttechplslgoegagaptdniatidmhdmebdwfryfsnsdkcplyvaamtaaddyoeadlncshfykaeykaeykaocyemrewytyaycytostatbngmdavolk";
+const CRYPTO_ACCOUNT =
+  "ur:crypto-account/oeadcyemrewytyaolttaadeetaadmutaaddloxaxhdclaxwmfmdeiamecsdsemgtvsjzcncygrkowtrontzschgezokstswkkscfmklrtauteyaahdcxiehfonurdppfyntapejpproypegrdawkgmaewejlsfdtsrfybdehcaflmtrlbdhpamtaaddyoeadlncsdwykaeykaeykaocyemrewytyaycynlytsnyltaadeetaadmhtaadmwtaaddloxaxhdclaostvelfemdyynwydwyaievosrgmambklovabdgypdglldvespsthysadamhpmjeinaahdcxntdllnaaeykoytdacygegwhgjsiyonpywmcmrpwphsvodsrerozsbyaxluzcoxdpamtaaddyoeadlncsehykaeykaeykaocyemrewytyaycypdbskeuytaadeetaadmwtaaddloxaxhdclaxzcfxeegdrpmogrgwkbzctlttweadkiengrwlhtprremouoluutqdpfbncedkynfhaahdcxjpwevdeogthttkmeswzcolcpsaahcfnshkhtehytclmnteatmoteadtlwynnftloamtaaddyoeadlncsghykaeykaeykaocyemrewytyaycybthlvytstaadeetaadmhtaadnytaaddloxaxhdclaxhhsnhdrpftdwuocntilydibehnecmovdfekpjkclcslasbhkpawsaddmcmmnahnyaahdcxlotedtndfymyltclhlmtpfsadscnhtztaolbnnkistaedegwfmmedreetnwmcycnamtaaddyoeadlfcsdpykaocyemrewytyaycyemrewytytaadeetaadmhtaadmetaadnytaaddloxaxhdclaxdwkswmztpytnswtsecnblfbayajkdldeclqzzolrsnhljedsgminetytbnahatbyaahdcxkkguwsvyimjkvwteytwztyswvendtpmncpasfrrylprnhtkblndrgrmkoyjtbkrpamtaaddyoeadlocsdyykaeykaeykadykaocyemrewytyaycyhkrpnddrtaadeetaadmetaadnytaaddloxaxhdclaohnhffmvsbndslrfgclpfjejyatbdpebacnzokotofxntaoemvskpaowmryfnotfgaahdcxdlnbvecentssfsssgylnhkrstoytecrdlyadrekirfaybglahltalsrfcaeerobwamtaaddyoeadlocsdyykaeykaeykaoykaocyemrewytyaycyhkrpnddrtaadeetaadnltaaddloxaxhdclaorkrhkeytwsoykorletwstbwycagtbsotmeptjkesgwrfcmveskvdmngujzttgtdpaahdcxgrfgmuvyylmwcxjtttechplslgoegagaptdniatidmhdmebdwfryfsnsdkcplyvaamtaaddyoeadlncshfykaeykaeykaocyemrewytyaycytostatbngmdavolk";
 
 // The whole suite runs in parallel, and an unlock can take more than the default second.
 configure({ asyncUtilTimeout: 5000 });
@@ -133,10 +145,14 @@ describe("onboarding", () => {
   });
 
   it("offers the container's bridge as the server when it has one", async () => {
-    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ url: "ws://localhost:8080/electrum" }));
+    const fetch = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(Response.json({ url: "ws://localhost:8080/electrum" }));
     location.hash = "#/connect";
     renderApp();
-    await waitFor(() => expect((screen.getByLabelText("Server address") as HTMLInputElement).value).toBe("ws://localhost:3000/electrum"));
+    await waitFor(() =>
+      expect((screen.getByLabelText("Server address") as HTMLInputElement).value).toBe("ws://localhost:3000/electrum"),
+    );
     expect(fetch).toHaveBeenCalledWith("electrum.json");
     fetch.mockRestore();
   });
@@ -208,7 +224,9 @@ describe("onboarding", () => {
     for (const [other, otherTitle] of guidance)
       if (other !== failure) expect(screen.queryByRole("heading", { name: otherTitle })).toBeNull();
     if (failure === "certificate-rejected" || failure === "refused")
-      expect(screen.getByRole("link", { name: /Open it/ }).getAttribute("href")).toBe("https://node.example.ts.net:50004/");
+      expect(screen.getByRole("link", { name: /Open it/ }).getAttribute("href")).toBe(
+        "https://node.example.ts.net:50004/",
+      );
   });
 
   it("blames the container's link, not a certificate, when its own bridge fails", async () => {
@@ -216,7 +234,9 @@ describe("onboarding", () => {
     location.hash = "#/connect";
     const user = renderApp("certificate-rejected");
     await unlock(user);
-    expect(await screen.findByRole("heading", { name: "The container couldn't reach your Electrum server" })).toBeTruthy();
+    expect(
+      await screen.findByRole("heading", { name: "The container couldn't reach your Electrum server" }),
+    ).toBeTruthy();
     expect(screen.queryByRole("heading", { name: /certificate/ })).toBeNull();
   });
 
@@ -269,9 +289,15 @@ describe("onboarding", () => {
     const user = renderApp();
     await unlock(user);
     await user.click(await screen.findByLabelText("Descriptor or extended public key"));
-    await user.paste(`wsh(sortedmulti(2,[d34db33f/48h/0h/0h/2h]${asVersion(BIP84_ZPUB, VERSION.xpub)},${BIP86_XPUB},[0badc0de/48h/0h/0h/2h]${BIP86_XPUB}/<2;3>/*))`);
+    await user.paste(
+      `wsh(sortedmulti(2,[d34db33f/48h/0h/0h/2h]${asVersion(BIP84_ZPUB, VERSION.xpub)},${BIP86_XPUB},[0badc0de/48h/0h/0h/2h]${BIP86_XPUB}/<2;3>/*))`,
+    );
     expect(screen.getByText("2 of 3 multisig: spending needs 2 of these keys to sign.")).toBeTruthy();
-    expect(screen.getAllByRole("listitem").map((li) => li.textContent)).toEqual(["d34db33f", "no fingerprint", "0badc0de"]);
+    expect(screen.getAllByRole("listitem").map((li) => li.textContent)).toEqual([
+      "d34db33f",
+      "no fingerprint",
+      "0badc0de",
+    ]);
     expect(screen.getByLabelText("Name").getAttribute("placeholder")).toBe("2-of-3 multisig");
   });
 });
@@ -313,12 +339,18 @@ describe("settings", () => {
     const vault = await createVault(PASSPHRASE, CHEAP);
     await vault.put("settings", { server: SERVER });
     await createWallet(vault, { name: "Spending", descriptor: BIP84_ZPUB, network: "mainnet" });
-    const savings = await createWallet(vault, { name: "Savings", descriptor: BIP86_XPUB, network: "mainnet", scriptType: "tr" });
+    const savings = await createWallet(vault, {
+      name: "Savings",
+      descriptor: BIP86_XPUB,
+      network: "mainnet",
+      scriptType: "tr",
+    });
     vault.lock();
     location.hash = "#/settings";
     let user = renderApp();
     await unlock(user);
-    const summary = () => waitFor(() => document.querySelector("header summary") ?? Promise.reject(new Error("No wallet switcher")));
+    const summary = () =>
+      waitFor(() => document.querySelector("header summary") ?? Promise.reject(new Error("No wallet switcher")));
     expect((await summary()).textContent).toMatch(/^Spending/);
 
     await user.click(await summary());
@@ -334,7 +366,9 @@ describe("settings", () => {
     user = renderApp();
     await unlock(user);
     expect((await summary()).textContent).toMatch(/^Savings/);
-    await waitFor(() => expect(screen.getByRole<HTMLButtonElement>("button", { name: "Export labels" }).disabled).toBe(false));
+    await waitFor(() =>
+      expect(screen.getByRole<HTMLButtonElement>("button", { name: "Export labels" }).disabled).toBe(false),
+    );
   }, 30_000);
 
   it("shows a wallet's descriptor to copy, download or scan", async () => {
@@ -353,7 +387,11 @@ describe("settings", () => {
     expect(screen.getByRole("button", { name: "Download as a text file" })).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Copy" }));
     expect(await navigator.clipboard.readText()).toBe(descriptor);
-    await waitFor(() => expect(screen.getByRole<HTMLButtonElement>("button", { name: "Export labels", hidden: true }).disabled).toBe(false));
+    await waitFor(() =>
+      expect(screen.getByRole<HTMLButtonElement>("button", { name: "Export labels", hidden: true }).disabled).toBe(
+        false,
+      ),
+    );
   }, 30_000);
 
   it("renames a wallet, and removes one only once confirmed", async () => {
@@ -468,7 +506,9 @@ describe("no passphrase", () => {
     await waitFor(() => expect(file).toBeDefined());
     expect(name).toBe(`Spending-backup-${new Date().toISOString().slice(0, 10)}.json`);
     const records = await openBackup(await file!.text(), PASSPHRASE);
-    expect(Object.values(records)).toContainEqual(expect.objectContaining({ name: "Spending", descriptor: BIP84_ZPUB }));
+    expect(Object.values(records)).toContainEqual(
+      expect.objectContaining({ name: "Spending", descriptor: BIP84_ZPUB }),
+    );
   }, 30_000);
 });
 
@@ -502,7 +542,14 @@ describe("backup", () => {
     await waitFor(() => expect(file).toBeDefined());
     const text = await file!.text();
     expect(text).not.toContain("Rent");
-    const kept = ["book", `frozen/${wallet.id}`, `labels/${wallet.id}`, `requests/${wallet.id}`, "settings", `wallet/${wallet.id}`];
+    const kept = [
+      "book",
+      `frozen/${wallet.id}`,
+      `labels/${wallet.id}`,
+      `requests/${wallet.id}`,
+      "settings",
+      `wallet/${wallet.id}`,
+    ];
     expect(Object.keys(await openBackup(text, PASSPHRASE)).sort()).toEqual(kept.sort());
 
     cleanup();
@@ -535,7 +582,10 @@ describe("backup", () => {
     await other.put(`labels/${spending.id}`, { "tx:aa": "From the backup", "tx:bb": "Coffee" });
     await createWallet(other, { name: "Savings", descriptor: BIP86_XPUB, network: "mainnet", scriptType: "tr" });
     await other.put("settings", { server: "wss://other.example:50004" });
-    await other.put("book", [{ address: "address A", name: "From the backup" }, { address: "address B", name: "Plumber" }]);
+    await other.put("book", [
+      { address: "address A", name: "From the backup" },
+      { address: "address B", name: "Plumber" },
+    ]);
     const backup = await sealBackup("another passphrase", await backupRecords(other), CHEAP);
 
     const vault = await createVault(PASSPHRASE, CHEAP);
@@ -567,13 +617,18 @@ describe("backup", () => {
     ).toBeTruthy();
     expect(screen.getByText("2 in this vault")).toBeTruthy();
     expect(await screen.findByText("2 saved")).toBeTruthy();
-    await waitFor(() => expect(screen.getByRole<HTMLButtonElement>("button", { name: "Export labels" }).disabled).toBe(false));
+    await waitFor(() =>
+      expect(screen.getByRole<HTMLButtonElement>("button", { name: "Export labels" }).disabled).toBe(false),
+    );
 
     const reopened = await unlockVault(PASSPHRASE);
     expect((await listWallets(reopened)).map((w) => w.name).sort()).toEqual(["Daily", "Savings"]);
     expect(await reopened.get(`labels/${daily.id}`)).toEqual({ "tx:aa": "Rent", "tx:bb": "Coffee" });
     expect(await reopened.get("settings")).toMatchObject({ server: SERVER });
-    expect(await reopened.get("book")).toEqual([{ address: "address A", name: "Landlord" }, { address: "address B", name: "Plumber" }]);
+    expect(await reopened.get("book")).toEqual([
+      { address: "address A", name: "Landlord" },
+      { address: "address B", name: "Plumber" },
+    ]);
     reopened.lock();
   }, 30_000);
 });

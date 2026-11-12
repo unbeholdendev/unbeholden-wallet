@@ -31,7 +31,15 @@ export function DestroyVault({ open, onClose }: { open: boolean; onClose: () => 
         error={failed ? "Another tab still has this app open. Close it and the vault will be deleted." : undefined}
       >
         {(props) => (
-          <input {...props} className={inputClass} value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" spellCheck={false} autoCapitalize="none" />
+          <input
+            {...props}
+            className={inputClass}
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+            autoComplete="off"
+            spellCheck={false}
+            autoCapitalize="none"
+          />
         )}
       </Field>
       <div className="flex flex-wrap justify-end gap-2">

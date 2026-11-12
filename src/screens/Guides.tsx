@@ -42,27 +42,28 @@ export function Trust() {
         <li>
           <Icon name="check" className="mt-0.5 size-5 text-ok" />
           <p>
-            <strong>It does protect you from code changing under you.</strong> After the first load a service worker pins
-            the code. A new version is downloaded in the background but only runs when you choose to reload into it, or
-            after every tab of the app has been closed. The running version is always shown.
+            <strong>It does protect you from code changing under you.</strong> After the first load a service worker
+            pins the code. A new version is downloaded in the background but only runs when you choose to reload into
+            it, or after every tab of the app has been closed. The running version is always shown.
           </p>
         </li>
         <li>
           <Icon name="check" className="mt-0.5 size-5 text-ok" />
           <p>
-            <strong>It does protect you from leaking to third parties.</strong> By default, the app only contacts
-            the server you enter, Electrum or Esplora. If you enable fiat prices, it also contacts your chosen price service. There is no default server, no analytics, no CDN and no remote
-            fonts. A strict Content Security Policy blocks every other kind of request, but it can't name your server in
-            advance, so it allows a WebSocket or an HTTP request to any host. Which servers the app contacts is a
-            property of its code, not something the policy enforces.
+            <strong>It does protect you from leaking to third parties.</strong> By default, the app only contacts the
+            server you enter, Electrum or Esplora. If you enable fiat prices, it also contacts your chosen price
+            service. There is no default server, no analytics, no CDN and no remote fonts. A strict Content Security
+            Policy blocks every other kind of request, but it can't name your server in advance, so it allows a
+            WebSocket or an HTTP request to any host. Which servers the app contacts is a property of its code, not
+            something the policy enforces.
           </p>
         </li>
         <li>
           <Icon name="check" className="mt-0.5 size-5 text-ok" />
           <p>
             <strong>It does protect your history at rest.</strong> Wallet data in the browser is encrypted with a key
-            derived from your passphrase (Argon2id, AES-GCM). Set no passphrase and it doesn't: anyone using the
-            browser can see your wallets.
+            derived from your passphrase (Argon2id, AES-GCM). Set no passphrase and it doesn't: anyone using the browser
+            can see your wallets.
           </p>
         </li>
         <li>
@@ -93,8 +94,8 @@ export function Guide() {
       <p>Any way of getting one works. The common ones:</p>
       <ul className="m-0 grid list-disc gap-2 pl-5">
         <li>
-          <strong>Your own domain with Let's Encrypt.</strong> A DNS challenge needs no open port, and the name can point at
-          a home network address.
+          <strong>Your own domain with Let's Encrypt.</strong> A DNS challenge needs no open port, and the name can
+          point at a home network address.
         </li>
         <li>
           <strong>A private network that issues certificates</strong>, such as Tailscale with{" "}
@@ -104,15 +105,16 @@ export function Guide() {
           <strong>Your own certificate authority</strong>, such as mkcert, trusted on each device you use.
         </li>
         <li>
-          <strong>A self-signed certificate, accepted once on each device.</strong> The connection screen walks you through
-          it.
+          <strong>A self-signed certificate, accepted once on each device.</strong> The connection screen walks you
+          through it.
         </li>
       </ul>
       <Steps>
         <li>
           <div className="grid gap-2">
             <p>
-              Point Fulcrum at the certificate and open a secure WebSocket port, in <span className={c}>fulcrum.conf</span>:
+              Point Fulcrum at the certificate and open a secure WebSocket port, in{" "}
+              <span className={c}>fulcrum.conf</span>:
             </p>
             <Code>{`wss = 0.0.0.0:50004\ncert = /path/to/node.example.com.crt\nkey = /path/to/node.example.com.key`}</Code>
           </div>
@@ -130,24 +132,25 @@ export function Guide() {
 
       <h2>The local container, at home</h2>
       <p>
-        The container serves the built app on <span className={c}>http://localhost:8080</span>. A localhost page is a secure
-        context that may open plain ws://, so it reaches a node on your own network without a certificate. It also pins
-        the code you run to a commit you chose.
+        The container serves the built app on <span className={c}>http://localhost:8080</span>. A localhost page is a
+        secure context that may open plain ws://, so it reaches a node on your own network without a certificate. It
+        also pins the code you run to a commit you chose.
       </p>
       <Code>{`docker build --build-arg APP_VERSION=$(git describe --tags --always) -t unbeholden-wallet .\ndocker run --rm -p 127.0.0.1:8080:8080 unbeholden-wallet`}</Code>
       <p>
-        Then open <span className={c}>http://localhost:8080</span> and connect to <span className={c}>ws://</span> and your
-        node's WebSocket port, for example <span className={c}>ws://192.168.1.20:50003</span>.
+        Then open <span className={c}>http://localhost:8080</span> and connect to <span className={c}>ws://</span> and
+        your node's WebSocket port, for example <span className={c}>ws://192.168.1.20:50003</span>.
       </p>
       <p>
-        An Electrum server without WebSocket, such as electrs, is reached through the container. Give it the server's TCP
-        port, and the connection screen offers <span className={c}>ws://localhost:8080/electrum</span>.
+        An Electrum server without WebSocket, such as electrs, is reached through the container. Give it the server's
+        TCP port, and the connection screen offers <span className={c}>ws://localhost:8080/electrum</span>.
       </p>
       <Code>{`docker run --rm -p 127.0.0.1:8080:8080 -e ELECTRUM=192.168.1.20:50001 unbeholden-wallet`}</Code>
       <p>
         From another device, such as your phone, put https in front of the container: plain http to a network address is
         not a secure page, and the app won't run there. With Tailscale, run this on the machine with the container, then
-        open <span className={c}>https://&lt;machine&gt;.&lt;tailnet&gt;.ts.net</span>. The bridge then offers wss:// on that name.
+        open <span className={c}>https://&lt;machine&gt;.&lt;tailnet&gt;.ts.net</span>. The bridge then offers wss:// on
+        that name.
       </p>
       <Code>{`tailscale serve --bg 8080`}</Code>
     </Doc>

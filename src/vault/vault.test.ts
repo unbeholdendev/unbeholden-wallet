@@ -4,18 +4,18 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   BadBackup,
   createVault,
-  openBackup,
-  sealBackup,
   destroyVault,
   idleLock,
+  type KdfParams,
+  openBackup,
   requestPersistence,
+  sealBackup,
   unlockVault,
-  vaultExists,
   VaultBusy,
   VaultChanged,
   VaultLocked,
+  vaultExists,
   WrongPassphrase,
-  type KdfParams,
 } from "./vault";
 
 const CHEAP: KdfParams = { m: 8, t: 1, p: 1 };
@@ -49,8 +49,7 @@ describe("vault", () => {
   it("round-trips several wallets through lock and unlock", async () => {
     expect(await vaultExists()).toBe(false);
     const vault = await createVault(PASSPHRASE, CHEAP);
-    for (const [key, value] of Object.entries(wallets))
-      await vault.put(key, value);
+    for (const [key, value] of Object.entries(wallets)) await vault.put(key, value);
     await vault.put("settings", { server: "ssl://electrum.local:50002" });
     vault.lock();
 
@@ -107,9 +106,7 @@ describe("vault", () => {
     const vault = await createVault(PASSPHRASE, CHEAP);
     await vault.put("wallet/a", wallets["wallet/a"]);
 
-    await expect(
-      vault.changePassphrase("not it", "new passphrase", CHEAP),
-    ).rejects.toThrow(WrongPassphrase);
+    await expect(vault.changePassphrase("not it", "new passphrase", CHEAP)).rejects.toThrow(WrongPassphrase);
     await vault.changePassphrase(PASSPHRASE, "new passphrase", CHEAP);
     await vault.put("wallet/b", wallets["wallet/b"]);
     vault.lock();
@@ -146,7 +143,11 @@ describe("vault", () => {
     const vault = await createVault(null, CHEAP);
     await vault.put("wallet/a", wallets["wallet/a"]);
     const put = IDBObjectStore.prototype.put;
-    const spy = vi.spyOn(IDBObjectStore.prototype, "put").mockImplementation(function (this: IDBObjectStore, value, key) {
+    const spy = vi.spyOn(IDBObjectStore.prototype, "put").mockImplementation(function (
+      this: IDBObjectStore,
+      value,
+      key,
+    ) {
       if (key === "kdf") this.transaction.abort();
       return put.call(this, value, key);
     });
@@ -179,9 +180,7 @@ describe("vault", () => {
     const current = await unlockVault(PASSPHRASE);
     await current.changePassphrase(PASSPHRASE, "new passphrase", CHEAP);
 
-    await expect(stale.put("wallet/a", wallets["wallet/a"])).rejects.toThrow(
-      VaultLocked,
-    );
+    await expect(stale.put("wallet/a", wallets["wallet/a"])).rejects.toThrow(VaultLocked);
     expect(stale.locked).toBe(true);
     expect(await current.keys()).toEqual([]);
     current.lock();
@@ -192,9 +191,7 @@ describe("vault", () => {
     await vault.put("wallet/a", wallets["wallet/a"]);
 
     let changing = true;
-    const change = vault
-      .changePassphrase(PASSPHRASE, "new passphrase", CHEAP)
-      .finally(() => (changing = false));
+    const change = vault.changePassphrase(PASSPHRASE, "new passphrase", CHEAP).finally(() => (changing = false));
     for (let i = 0; changing; i++) await vault.put(`cache/a/${i}`, i);
     await change;
     vault.lock();
@@ -226,9 +223,7 @@ describe("vault", () => {
     other.lock();
     vault.lock();
 
-    const reopened = await unlockVault(
-      (await changed) ? "new passphrase" : PASSPHRASE,
-    );
+    const reopened = await unlockVault((await changed) ? "new passphrase" : PASSPHRASE);
     for (const key of await reopened.keys()) await reopened.get(key);
     reopened.lock();
   });
@@ -331,18 +326,12 @@ describe("argon2id", () => {
   it("produces RFC 9106's Argon2id test vector", () => {
     // https://www.rfc-editor.org/rfc/rfc9106.html#section-5.3
     const params: KdfParams = { m: 32, t: 3, p: 4 };
-    const tag = argon2id(
-      new Uint8Array(32).fill(1),
-      new Uint8Array(16).fill(2),
-      {
-        ...params,
-        key: new Uint8Array(8).fill(3),
-        personalization: new Uint8Array(12).fill(4),
-        dkLen: 32,
-      },
-    );
-    expect(hex.encode(tag)).toBe(
-      "0d640df58d78766c08c037a34a8b53c9d01ef0452d75b65eb52520e96b01e659",
-    );
+    const tag = argon2id(new Uint8Array(32).fill(1), new Uint8Array(16).fill(2), {
+      ...params,
+      key: new Uint8Array(8).fill(3),
+      personalization: new Uint8Array(12).fill(4),
+      dkLen: 32,
+    });
+    expect(hex.encode(tag)).toBe("0d640df58d78766c08c037a34a8b53c9d01ef0452d75b65eb52520e96b01e659");
   });
 });

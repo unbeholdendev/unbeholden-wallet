@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ConnectionError, NotFoundError } from "./backend";
+import { type ConnectionError, NotFoundError } from "./backend";
 import { electrumBackend } from "./electrum";
 
 describe("connecting from an https page", () => {
@@ -58,9 +58,10 @@ describe("a server that stops answering", () => {
         }
         send(text: string) {
           const { id, method } = JSON.parse(text);
-          const result = { "server.version": ["Fulcrum 2.1.3", "1.4"], "blockchain.headers.subscribe": { height: 1, hex: "00".repeat(80) } }[
-            method as string
-          ];
+          const result = {
+            "server.version": ["Fulcrum 2.1.3", "1.4"],
+            "blockchain.headers.subscribe": { height: 1, hex: "00".repeat(80) },
+          }[method as string];
           if (result) setTimeout(() => this.onmessage?.({ data: JSON.stringify({ id, result }) }), 0);
         }
         close() {}
@@ -85,23 +86,37 @@ describe("transaction RPC failures", () => {
   it.each([
     { code: -32603, message: "internal error", data: { retry: true } },
     { code: 2, message: "No such mempool or blockchain transaction. Use gettransaction for wallet transactions." },
-    { code: 2, message: "daemon error: {'code': -5, 'message': 'No such mempool or blockchain transaction. Use gettransaction for wallet transactions.'}" },
+    {
+      code: 2,
+      message:
+        "daemon error: {'code': -5, 'message': 'No such mempool or blockchain transaction. Use gettransaction for wallet transactions.'}",
+    },
     { code: 2, message: "daemon error: connection refused" },
-    { code: 2, message: "No such mempool transaction. Blockchain transactions are still in the process of being indexed" },
+    {
+      code: 2,
+      message: "No such mempool transaction. Blockchain transactions are still in the process of being indexed",
+    },
   ])("classifies $message", async (error) => {
-    vi.stubGlobal("WebSocket", class {
-      onopen?: () => void;
-      onmessage?: (event: { data: string }) => void;
-      constructor() { setTimeout(() => this.onopen?.(), 0); }
-      send(text: string) {
-        const { id, method } = JSON.parse(text);
-        const result = method === "server.version" ? ["Fulcrum 2.1.3", "1.4"] : { height: 1, hex: "00".repeat(80) };
-        queueMicrotask(() => this.onmessage?.({ data: JSON.stringify(
-          method === "blockchain.transaction.get" ? { id, error } : { id, result },
-        ) }));
-      }
-      close() {}
-    });
+    vi.stubGlobal(
+      "WebSocket",
+      class {
+        onopen?: () => void;
+        onmessage?: (event: { data: string }) => void;
+        constructor() {
+          setTimeout(() => this.onopen?.(), 0);
+        }
+        send(text: string) {
+          const { id, method } = JSON.parse(text);
+          const result = method === "server.version" ? ["Fulcrum 2.1.3", "1.4"] : { height: 1, hex: "00".repeat(80) };
+          queueMicrotask(() =>
+            this.onmessage?.({
+              data: JSON.stringify(method === "blockchain.transaction.get" ? { id, error } : { id, result }),
+            }),
+          );
+        }
+        close() {}
+      },
+    );
     const backend = electrumBackend("ws://127.0.0.1:50003");
     await backend.connect();
     try {

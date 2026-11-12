@@ -21,7 +21,9 @@ describe("a search", () => {
 
   it("opens an address, from a payment URI too, in its canonical lower case", () => {
     expect(parseSearch(MAINNET_P2WPKH.toUpperCase(), "mainnet")).toEqual({ route: `/address/${MAINNET_P2WPKH}` });
-    expect(parseSearch(`bitcoin:${MAINNET_P2WPKH}?amount=0.1`, "mainnet")).toEqual({ route: `/address/${MAINNET_P2WPKH}` });
+    expect(parseSearch(`bitcoin:${MAINNET_P2WPKH}?amount=0.1`, "mainnet")).toEqual({
+      route: `/address/${MAINNET_P2WPKH}`,
+    });
   });
 
   it("opens a block by its height, however it is spaced", () => {
@@ -34,7 +36,9 @@ describe("a search", () => {
   });
 
   it("refuses an address on another network, naming it", () => {
-    expect(parseSearch(TESTNET_P2WPKH, "mainnet")).toEqual({ error: "This is a testnet or signet address, but this wallet is on mainnet." });
+    expect(parseSearch(TESTNET_P2WPKH, "mainnet")).toEqual({
+      error: "This is a testnet or signet address, but this wallet is on mainnet.",
+    });
   });
 
   it("says plainly what it takes when the input is none of them", () => {

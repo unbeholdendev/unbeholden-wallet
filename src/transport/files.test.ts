@@ -27,7 +27,10 @@ describe("PSBT files", () => {
     ["a raw transaction", HEX.slice(10)],
     ["a truncated PSBT", HEX.slice(0, 60)],
     ["text", "hello"],
-    ["one part of an animated UR", "ur:crypto-psbt/1-9/lpadascfadaxcywenbpljkhdcahkadaemejtswhhylkepmykhhtsytsnoyoyaxaedsuttydmmhhpktpmsrjtdkgslpgh"],
+    [
+      "one part of an animated UR",
+      "ur:crypto-psbt/1-9/lpadascfadaxcywenbpljkhdcahkadaemejtswhhylkepmykhhtsytsnoyoyaxaedsuttydmmhhpktpmsrjtdkgslpgh",
+    ],
   ])("refuses %s", (_, input) => {
     expect(() => readPsbt(input)).toThrow();
   });

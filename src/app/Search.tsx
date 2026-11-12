@@ -29,7 +29,12 @@ export function parseSearch(text: string, network: Network): SearchResult {
   if (/^([0-9a-f]{2})+$/i.test(query) && isRawTx(query)) return { route: `/broadcast/${query.toLowerCase()}` };
   const address = checkAddress(parseUri(query).address, network);
   if ("address" in address) return { route: `/address/${address.address}` };
-  return { error: address.error === NOT_AN_ADDRESS ? "Search takes a transaction ID, an address, a block height or a raw transaction in hex." : address.error };
+  return {
+    error:
+      address.error === NOT_AN_ADDRESS
+        ? "Search takes a transaction ID, an address, a block height or a raw transaction in hex."
+        : address.error,
+  };
 }
 
 function useSearch(onDone?: () => void) {
@@ -57,7 +62,12 @@ function useSearch(onDone?: () => void) {
       setError(null);
     },
   };
-  return { input, error, submit: (e?: { preventDefault(): void }) => (e?.preventDefault(), submit(text)), scanned: submit };
+  return {
+    input,
+    error,
+    submit: (e?: { preventDefault(): void }) => (e?.preventDefault(), submit(text)),
+    scanned: submit,
+  };
 }
 
 function SearchField() {
@@ -70,7 +80,10 @@ function SearchField() {
         className="h-10 w-full rounded-control border border-rule-2 bg-sheet pr-3 pl-9 text-sm text-ink caret-carbon placeholder:text-ink-3 focus:border-transparent focus:outline-2 focus:-outline-offset-1 focus:outline-carbon"
       />
       {error && (
-        <p role="alert" className="absolute top-[calc(100%+6px)] right-0 z-20 m-0 w-80 rounded-panel border border-rule-2 bg-sheet p-3 text-sm text-ink shadow-float">
+        <p
+          role="alert"
+          className="absolute top-[calc(100%+6px)] right-0 z-20 m-0 w-80 rounded-panel border border-rule-2 bg-sheet p-3 text-sm text-ink shadow-float"
+        >
           {error}
         </p>
       )}

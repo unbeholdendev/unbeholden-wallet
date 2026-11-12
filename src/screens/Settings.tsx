@@ -1,23 +1,23 @@
-import { FiatControl } from "../ui/fiat";
-import { explorerBase } from "../ui/explorer";
-import { NETWORKS, type Network } from "../wallet/network";
-import { useState, type FormEvent } from "react";
+import { type FormEvent, useState } from "react";
 import { useConnection } from "../app/connection";
+import { useWalletSession, useWalletSnapshot } from "../app/session";
 import { IDLE_DEFAULT_MINUTES, useBook, useVault } from "../app/vault";
+import { historyCsv } from "../core/view";
+import { type Contact, type WalletRecord, walletDescriptor } from "../core/wallets";
 import { APP_VERSION } from "../pwa/register";
-import { VaultChanged, WrongPassphrase } from "../vault/vault";
+import { qrPath } from "../transport/qr";
+import { explorerBase } from "../ui/explorer";
+import { FiatControl } from "../ui/fiat";
+import { Icon } from "../ui/icons";
 import { Button, buttonClass, Field, inputClass, LinkButton, linkClass, Notice, Panel, Segmented } from "../ui/kit";
 import { Sheet } from "../ui/sheet";
-import { walletDescriptor, type Contact, type WalletRecord } from "../core/wallets";
-import { qrPath } from "../transport/qr";
-import { formatDescriptor } from "../wallet/descriptor";
-import { DescriptorBackup } from "./ImportWallet";
-import { Icon } from "../ui/icons";
-import { useWalletSession, useWalletSnapshot } from "../app/session";
-import { historyCsv } from "../core/view";
 import { useToast } from "../ui/toast";
+import { VaultChanged, WrongPassphrase } from "../vault/vault";
+import { formatDescriptor } from "../wallet/descriptor";
+import { NETWORKS, type Network } from "../wallet/network";
 import { download, ExportBackup, RestoreBackup } from "./Backup";
 import { DestroyVault } from "./DestroyVault";
+import { DescriptorBackup } from "./ImportWallet";
 import { MIN_LENGTH, NO_PASSPHRASE, PassphraseInput, Strength, strength } from "./passphrase";
 
 const idleOptions = [1, 5, 15, 60].map((m) => ({ value: String(m), label: m === 60 ? "1 hour" : `${m} min` }));
@@ -46,7 +46,9 @@ function AddressBook() {
 
   return (
     <Panel title="Address book" aside={`${book.length} saved`}>
-      {book.length === 0 && <p className="m-0 text-sm text-ink-3">Save an address on the send screen to pay it again by name.</p>}
+      {book.length === 0 && (
+        <p className="m-0 text-sm text-ink-3">Save an address on the send screen to pay it again by name.</p>
+      )}
       <ul className="m-0 grid list-none gap-3 p-0">
         {book.map((c) =>
           editing?.address === c.address ? (
@@ -54,7 +56,16 @@ function AddressBook() {
               <form onSubmit={rename} className="flex flex-wrap items-end gap-2">
                 <div className="min-w-0 flex-1">
                   <Field label={`New name for ${c.name}`}>
-                    {(props) => <input {...props} className={inputClass} value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} autoComplete="off" autoFocus />}
+                    {(props) => (
+                      <input
+                        {...props}
+                        className={inputClass}
+                        value={editing.name}
+                        onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                        autoComplete="off"
+                        autoFocus
+                      />
+                    )}
                   </Field>
                 </div>
                 <Button type="submit" variant="primary" disabled={!editing.name.trim()}>
@@ -128,8 +139,20 @@ function ChangePassphrase() {
       ) : (
         <Notice tone="warn">{NO_PASSPHRASE}</Notice>
       )}
-      <Field label="New passphrase" hint={<Strength score={score} />} error={passphrase ? undefined : (error ?? undefined)}>
-        {(props) => <PassphraseInput {...props} autoComplete="new-password" value={next} onChange={setNext} minLength={MIN_LENGTH} />}
+      <Field
+        label="New passphrase"
+        hint={<Strength score={score} />}
+        error={passphrase ? undefined : (error ?? undefined)}
+      >
+        {(props) => (
+          <PassphraseInput
+            {...props}
+            autoComplete="new-password"
+            value={next}
+            onChange={setNext}
+            minLength={MIN_LENGTH}
+          />
+        )}
       </Field>
       <div className="flex flex-wrap gap-2">
         <Button type="submit" disabled={busy || (passphrase && !old) || score.level === 0}>
@@ -152,7 +175,8 @@ function Labels() {
   const [report, setReport] = useState<string | null>(null);
   const name = wallets.find((w) => w.id === walletId)?.name ?? "wallet";
 
-  const save = (body: string, type: string, suffix: string) => download(body, type, `${name.replace(/[^\w-]+/g, "-")}-${suffix}`);
+  const save = (body: string, type: string, suffix: string) =>
+    download(body, type, `${name.replace(/[^\w-]+/g, "-")}-${suffix}`);
   const importLabels = async (file: File | undefined) => {
     if (!file || !session) return;
     const { imported, skipped } = await session.importLabels(await file.text());
@@ -169,7 +193,11 @@ function Labels() {
         and replaces any for the same thing.
       </p>
       <div className="flex flex-wrap gap-2">
-        <Button icon="download" disabled={!session} onClick={() => save(session!.exportLabels(), "application/jsonl", "labels.jsonl")}>
+        <Button
+          icon="download"
+          disabled={!session}
+          onClick={() => save(session!.exportLabels(), "application/jsonl", "labels.jsonl")}
+        >
           Export labels
         </Button>
         <label className={`${buttonClass({})} cursor-pointer has-disabled:cursor-not-allowed`}>
@@ -229,7 +257,9 @@ function Wallets() {
 
   return (
     <Panel title="Wallets" aside={`${wallets.length} in this vault`}>
-      <p className="m-0 text-sm text-ink-2">Each account has its own descriptor, balance and coins. A send spends from one account.</p>
+      <p className="m-0 text-sm text-ink-2">
+        Each account has its own descriptor, balance and coins. A send spends from one account.
+      </p>
       <ul className="m-0 grid list-none gap-2 p-0">
         {wallets.map((w) =>
           editing === w.id ? (
@@ -237,7 +267,16 @@ function Wallets() {
               <form onSubmit={rename} className="flex flex-wrap items-end gap-2">
                 <div className="min-w-0 flex-1">
                   <Field label={`New name for ${w.name}`}>
-                    {(props) => <input {...props} className={inputClass} value={name} onChange={(e) => setName(e.target.value)} autoComplete="off" autoFocus />}
+                    {(props) => (
+                      <input
+                        {...props}
+                        className={inputClass}
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        autoComplete="off"
+                        autoFocus
+                      />
+                    )}
                   </Field>
                 </div>
                 <Button type="submit" variant="primary" disabled={!name.trim()}>
@@ -248,7 +287,9 @@ function Wallets() {
             </li>
           ) : (
             <li key={w.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
-              <span className="min-w-0 basis-full font-medium break-words">{w.group ? `${w.group.name} / ${w.name}` : w.name}</span>
+              <span className="min-w-0 basis-full font-medium break-words">
+                {w.group ? `${w.group.name} / ${w.name}` : w.name}
+              </span>
               <span className="text-ink-3">{w.network}</span>
               <LinkButton
                 aria-label={`Rename ${w.name}`}
@@ -260,11 +301,18 @@ function Wallets() {
               >
                 Rename
               </LinkButton>
-              {w.group && <LinkButton aria-label={`Rename wallet ${w.group.name}`} onClick={() => {
-                setGroupEditing(true);
-                setName(w.group!.name);
-                setEditing(w.id);
-              }}>Rename wallet</LinkButton>}
+              {w.group && (
+                <LinkButton
+                  aria-label={`Rename wallet ${w.group.name}`}
+                  onClick={() => {
+                    setGroupEditing(true);
+                    setName(w.group!.name);
+                    setEditing(w.id);
+                  }}
+                >
+                  Rename wallet
+                </LinkButton>
+              )}
               <LinkButton aria-label={`Descriptor of ${w.name}`} onClick={() => setShowing(w)}>
                 Descriptor
               </LinkButton>
@@ -278,20 +326,32 @@ function Wallets() {
       <a className={linkClass} href="#/import">
         Add a wallet
       </a>
-      <Sheet open={!!showing} onClose={() => setShowing(null)} title={`Descriptor of ${showing?.name ?? "this wallet"}`}>
+      <Sheet
+        open={!!showing}
+        onClose={() => setShowing(null)}
+        title={`Descriptor of ${showing?.name ?? "this wallet"}`}
+      >
         {showing && descriptor && qr && (
           <>
             <div className="grid justify-items-center rounded-panel border border-rule bg-qr p-4">
-              <svg viewBox={`0 0 ${qr.size} ${qr.size}`} role="img" aria-label={`QR code of the descriptor of ${showing.name}`} shapeRendering="crispEdges" className="aspect-square w-full max-w-[360px]">
+              <svg
+                viewBox={`0 0 ${qr.size} ${qr.size}`}
+                role="img"
+                aria-label={`QR code of the descriptor of ${showing.name}`}
+                shapeRendering="crispEdges"
+                className="aspect-square w-full max-w-[360px]"
+              >
                 <path d={qr.d} className="fill-qr-ink" />
               </svg>
             </div>
             <DescriptorBackup name={showing.name} network={showing.network} descriptor={descriptor} />
-            <p className="m-0 text-sm text-ink-3">It holds no keys: someone who sees it can see your balance and history, but can't spend.</p>
+            <p className="m-0 text-sm text-ink-3">
+              It holds no keys: someone who sees it can see your balance and history, but can't spend.
+            </p>
             {parsed?.multi && (
               <p className="m-0 text-sm text-ink-2">
-                Scan it into each cosigner's signer. Until a signer holds it, it can't tell your change from a payment, so a
-                tampered page could send change to someone else's multisig.
+                Scan it into each cosigner's signer. Until a signer holds it, it can't tell your change from a payment,
+                so a tampered page could send change to someone else's multisig.
               </p>
             )}
           </>
@@ -333,9 +393,11 @@ function Explorer() {
       setUrl(base);
       toast(base ? "Explorer saved" : "Explorer links turned off");
     } catch (cause) {
-      setError(cause instanceof TypeError
-        ? "Enter an http:// or https:// base URL without a login, query or fragment."
-        : "Couldn't save the explorer. Try again.");
+      setError(
+        cause instanceof TypeError
+          ? "Enter an http:// or https:// base URL without a login, query or fragment."
+          : "Couldn't save the explorer. Try again.",
+      );
     } finally {
       setBusy(false);
     }
@@ -344,23 +406,52 @@ function Explorer() {
     <Panel title="Block explorer">
       <form onSubmit={save} className="grid gap-4" noValidate>
         <Field label="Explorer network">
-          {(props) => <select {...props} className={inputClass} value={network} disabled={busy} onChange={(e) => {
-            const next = e.target.value as Network;
-            setNetwork(next);
-            setUrl(settings.explorers?.[next] ?? "");
-            setError(null);
-          }}>
-            {Object.keys(NETWORKS).map((n) => <option key={n} value={n}>{n}</option>)}
-          </select>}
+          {(props) => (
+            <select
+              {...props}
+              className={inputClass}
+              value={network}
+              disabled={busy}
+              onChange={(e) => {
+                const next = e.target.value as Network;
+                setNetwork(next);
+                setUrl(settings.explorers?.[next] ?? "");
+                setError(null);
+              }}
+            >
+              {Object.keys(NETWORKS).map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          )}
         </Field>
-        <Field label="Explorer URL" error={error} hint="Use your explorer's base URL, including its network path. Leave blank to hide links.">
-          {(props) => <input {...props} className={inputClass} type="url" value={url} disabled={busy} onChange={(e) => setUrl(e.target.value)} autoComplete="off" spellCheck={false} />}
+        <Field
+          label="Explorer URL"
+          error={error}
+          hint="Use your explorer's base URL, including its network path. Leave blank to hide links."
+        >
+          {(props) => (
+            <input
+              {...props}
+              className={inputClass}
+              type="url"
+              value={url}
+              disabled={busy}
+              onChange={(e) => setUrl(e.target.value)}
+              autoComplete="off"
+              spellCheck={false}
+            />
+          )}
         </Field>
         <p className="m-0 text-sm text-ink-2">
-          For explorers using /tx/ and /address/ paths, such as mempool and Esplora. Links open in a new tab.
-          Opening one shares that transaction or address with the explorer. Nothing is sent until you follow a link.
+          For explorers using /tx/ and /address/ paths, such as mempool and Esplora. Links open in a new tab. Opening
+          one shares that transaction or address with the explorer. Nothing is sent until you follow a link.
         </p>
-        <Button type="submit" disabled={busy} className="justify-self-start">{busy ? "Saving" : "Save explorer"}</Button>
+        <Button type="submit" disabled={busy} className="justify-self-start">
+          {busy ? "Saving" : "Save explorer"}
+        </Button>
       </form>
     </Panel>
   );
@@ -383,14 +474,23 @@ function Notifications() {
   return (
     <Panel title="Notifications">
       <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={!!settings.notify} onChange={(e) => void toggle(e.target.checked)} className="size-4 accent-carbon" />
+        <input
+          type="checkbox"
+          checked={!!settings.notify}
+          onChange={(e) => void toggle(e.target.checked)}
+          className="size-4 accent-carbon"
+        />
         Tell me when a payment arrives and when it confirms
       </label>
       <p className="m-0 text-sm text-ink-2">
         Only while this app is open and unlocked. The browser shows them itself; nothing is sent anywhere. They say a
         payment arrived, not how much, as they can stay on the lock screen.
       </p>
-      {blocked && <Notice tone="warn">The browser has blocked notifications for this site. Allow them in its site settings, then try again.</Notice>}
+      {blocked && (
+        <Notice tone="warn">
+          The browser has blocked notifications for this site. Allow them in its site settings, then try again.
+        </Notice>
+      )}
     </Panel>
   );
 }
@@ -411,13 +511,19 @@ export function Settings() {
             Change server or see the connection
           </a>
         </Panel>
-        <Panel title="Fiat prices"><FiatControl /></Panel>
+        <Panel title="Fiat prices">
+          <FiatControl />
+        </Panel>
         <Explorer />
         <Wallets />
         <Labels />
         <AddressBook />
         <Panel title="Storage">
-          {status ? <Notice tone={status.tone}>{status.text}</Notice> : <p className="m-0 text-sm text-ink-3">Asking the browser.</p>}
+          {status ? (
+            <Notice tone={status.tone}>{status.text}</Notice>
+          ) : (
+            <p className="m-0 text-sm text-ink-3">Asking the browser.</p>
+          )}
         </Panel>
         <Panel title="About">
           <p className="m-0 text-sm text-ink-2">
@@ -451,13 +557,18 @@ export function Settings() {
         )}
         <Panel title="Spending">
           <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={!settings.skipForeignUnconfirmed} onChange={(e) => void saveSettings({ skipForeignUnconfirmed: !e.target.checked })} className="size-4 accent-carbon" />
+            <input
+              type="checkbox"
+              checked={!settings.skipForeignUnconfirmed}
+              onChange={(e) => void saveSettings({ skipForeignUnconfirmed: !e.target.checked })}
+              className="size-4 accent-carbon"
+            />
             Spend unconfirmed payments from others
           </label>
           <p className="m-0 text-sm text-ink-2">
             Until it confirms, the sender can replace a payment, and a transaction that spends it fails with it. Off,
-            they're left out of automatic picks and Max, and you're asked before picking one. Your own
-            unconfirmed change is spent either way.
+            they're left out of automatic picks and Max, and you're asked before picking one. Your own unconfirmed
+            change is spent either way.
           </p>
         </Panel>
         <Notifications />

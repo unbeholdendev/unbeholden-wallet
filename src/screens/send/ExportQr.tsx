@@ -44,10 +44,16 @@ function encoderFor(psbt: Uint8Array, format: Format, bytes: number) {
 export function ExportQr({ psbt }: { psbt: Uint8Array }) {
   const [prefs, setPrefs] = useState(loadPrefs);
   const counts = useMemo(
-    () => Object.fromEntries(Object.entries(DENSITY).map(([k, n]) => [k, encoderFor(psbt, prefs.format, n).seqLen])) as Record<Density, number>,
+    () =>
+      Object.fromEntries(
+        Object.entries(DENSITY).map(([k, n]) => [k, encoderFor(psbt, prefs.format, n).seqLen]),
+      ) as Record<Density, number>,
     [psbt, prefs.format],
   );
-  const encoder = useMemo(() => encoderFor(psbt, prefs.format, DENSITY[prefs.density]), [psbt, prefs.format, prefs.density]);
+  const encoder = useMemo(
+    () => encoderFor(psbt, prefs.format, DENSITY[prefs.density]),
+    [psbt, prefs.format, prefs.density],
+  );
   const [part, setPart] = useState(() => encoder.nextPart());
   useEffect(() => {
     setPart(encoder.nextPart());
@@ -59,7 +65,11 @@ export function ExportQr({ psbt }: { psbt: Uint8Array }) {
     let lock: WakeLockSentinel | undefined;
     let gone = false;
     // The browser drops the lock whenever the tab is hidden, so take it again on return.
-    const take = () => navigator.wakeLock?.request("screen").then((l) => void (gone ? l.release() : (lock = l)), () => {});
+    const take = () =>
+      navigator.wakeLock?.request("screen").then(
+        (l) => void (gone ? l.release() : (lock = l)),
+        () => {},
+      );
     take();
     document.addEventListener("visibilitychange", take);
     return () => {
@@ -79,23 +89,42 @@ export function ExportQr({ psbt }: { psbt: Uint8Array }) {
 
   return (
     <>
-      <div data-keep-unlocked className="mx-auto aspect-square w-full max-w-[calc(100svh-2rem)] rounded-control bg-qr p-1.5 shadow-[0_0_0_1px_var(--rule-2)] @min-[900px]:row-span-5">
-        <svg viewBox={`0 0 ${qr.size} ${qr.size}`} shapeRendering="crispEdges" role="img" aria-label={`QR code, part ${at} of ${encoder.seqLen}`} className="block size-full">
+      <div
+        data-keep-unlocked
+        className="mx-auto aspect-square w-full max-w-[calc(100svh-2rem)] rounded-control bg-qr p-1.5 shadow-[0_0_0_1px_var(--rule-2)] @min-[900px]:row-span-5"
+      >
+        <svg
+          viewBox={`0 0 ${qr.size} ${qr.size}`}
+          shapeRendering="crispEdges"
+          role="img"
+          aria-label={`QR code, part ${at} of ${encoder.seqLen}`}
+          className="block size-full"
+        >
           <path d={qr.d} className="fill-qr-ink" />
         </svg>
       </div>
       <div className="grid gap-1">
         <h2 className="text-md font-bold">Show this to your signer</h2>
         <p className="m-0 max-w-[60ch] text-sm text-ink-3">
-          On a SeedSigner choose Scan, then hold this screen steady in front of its camera. The code cycles through every part; the signer collects them in any order. A Coldcard Q reads BBQr: choose it under Signer can't read it.
+          On a SeedSigner choose Scan, then hold this screen steady in front of its camera. The code cycles through
+          every part; the signer collects them in any order. A Coldcard Q reads BBQr: choose it under Signer can't read
+          it.
         </p>
       </div>
       <div className="grid gap-1.5">
         <div className="flex items-baseline justify-between">
           <span className="text-xl font-medium" aria-live="off">
-            {encoder.seqLen === 1 ? "One part" : <>Part {at} <small className="text-md font-normal text-ink-2">of {encoder.seqLen}</small></>}
+            {encoder.seqLen === 1 ? (
+              "One part"
+            ) : (
+              <>
+                Part {at} <small className="text-md font-normal text-ink-2">of {encoder.seqLen}</small>
+              </>
+            )}
           </span>
-          <span className="text-sm text-ink-3">{encoder.seqLen === 1 ? "Nothing to animate" : `${prefs.fps} frames a second`}</span>
+          <span className="text-sm text-ink-3">
+            {encoder.seqLen === 1 ? "Nothing to animate" : `${prefs.fps} frames a second`}
+          </span>
         </div>
         {encoder.seqLen > 1 && (
           <div aria-hidden="true">
@@ -112,16 +141,31 @@ export function ExportQr({ psbt }: { psbt: Uint8Array }) {
         )}
       </div>
       <details className="grid rounded-control border border-rule p-3">
-        <summary className="cursor-pointer list-none text-sm font-medium text-carbon [&::-webkit-details-marker]:hidden">Signer can't read it?</summary>
+        <summary className="cursor-pointer list-none text-sm font-medium text-carbon [&::-webkit-details-marker]:hidden">
+          Signer can't read it?
+        </summary>
         <div className="mt-3 grid gap-3.5">
           <div className="grid gap-1.5">
             <span className="text-sm font-medium text-ink-2">Format</span>
-            <Segmented label="Format" value={prefs.format} onChange={(format) => change({ format })} options={[{ value: "ur", label: "UR" }, { value: "bbqr", label: "BBQr" }]} />
+            <Segmented
+              label="Format"
+              value={prefs.format}
+              onChange={(format) => change({ format })}
+              options={[
+                { value: "ur", label: "UR" },
+                { value: "bbqr", label: "BBQr" },
+              ]}
+            />
             <p className="m-0 text-sm text-ink-3">Most signers read UR. A Coldcard Q reads BBQr.</p>
           </div>
           <div className="grid gap-1.5">
             <span className="text-sm font-medium text-ink-2">Speed, frames per second</span>
-            <Segmented label="Speed, frames per second" value={String(prefs.fps)} onChange={(v) => change({ fps: Number(v) })} options={SPEEDS.map((f) => ({ value: String(f), label: f }))} />
+            <Segmented
+              label="Speed, frames per second"
+              value={String(prefs.fps)}
+              onChange={(v) => change({ fps: Number(v) })}
+              options={SPEEDS.map((f) => ({ value: String(f), label: f }))}
+            />
           </div>
           <div className="grid gap-1.5">
             <span className="text-sm font-medium text-ink-2">Density</span>
@@ -129,9 +173,14 @@ export function ExportQr({ psbt }: { psbt: Uint8Array }) {
               label="Density"
               value={prefs.density}
               onChange={(density) => change({ density })}
-              options={(Object.keys(DENSITY) as Density[]).map((k) => ({ value: k, label: `${k[0]!.toUpperCase()}${k.slice(1)}, ${counts[k]} part${counts[k] === 1 ? "" : "s"}` }))}
+              options={(Object.keys(DENSITY) as Density[]).map((k) => ({
+                value: k,
+                label: `${k[0]!.toUpperCase()}${k.slice(1)}, ${counts[k]} part${counts[k] === 1 ? "" : "s"}`,
+              }))}
             />
-            <p className="m-0 text-sm text-ink-3">Lower density is easier for a weak camera to read but takes longer.</p>
+            <p className="m-0 text-sm text-ink-3">
+              Lower density is easier for a weak camera to read but takes longer.
+            </p>
           </div>
         </div>
       </details>

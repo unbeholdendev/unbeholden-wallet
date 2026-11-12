@@ -11,7 +11,13 @@ const INTERVAL_MS = 80;
  * Reads QR codes from the camera. Calls `onResult` for every frame it decodes,
  * repeats included, so an animated UR can be collected part by part.
  */
-export function QrScanner({ onResult, onBlocked }: { onResult: (text: string) => void; onBlocked?: (blocked: boolean) => void }) {
+export function QrScanner({
+  onResult,
+  onBlocked,
+}: {
+  onResult: (text: string) => void;
+  onBlocked?: (blocked: boolean) => void;
+}) {
   const video = useRef<HTMLVideoElement>(null);
   const latest = useRef(onResult);
   const [state, setState] = useState<State>("starting");
@@ -70,11 +76,21 @@ export function QrScanner({ onResult, onBlocked }: { onResult: (text: string) =>
   return (
     <div data-keep-unlocked={state === "live" || undefined} className="grid gap-3">
       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-panel bg-[radial-gradient(120%_90%_at_50%_40%,#33413f_0%,#151c1d_70%)]">
-        <video ref={video} muted playsInline className={`size-full object-cover ${state === "live" ? "" : "invisible"}`} />
+        <video
+          ref={video}
+          muted
+          playsInline
+          className={`size-full object-cover ${state === "live" ? "" : "invisible"}`}
+        />
         {!blocked &&
-          ["top-[14%] left-[22%] border-r-0 border-b-0", "top-[14%] right-[22%] border-l-0 border-b-0", "bottom-[14%] left-[22%] border-r-0 border-t-0", "bottom-[14%] right-[22%] border-l-0 border-t-0"].map(
-            (corner) => <span key={corner} aria-hidden="true" className={`absolute size-9 border-[3px] border-white ${corner}`} />,
-          )}
+          [
+            "top-[14%] left-[22%] border-r-0 border-b-0",
+            "top-[14%] right-[22%] border-l-0 border-b-0",
+            "bottom-[14%] left-[22%] border-r-0 border-t-0",
+            "bottom-[14%] right-[22%] border-l-0 border-t-0",
+          ].map((corner) => (
+            <span key={corner} aria-hidden="true" className={`absolute size-9 border-[3px] border-white ${corner}`} />
+          ))}
         <p className="absolute top-3 left-3 m-0 flex items-center gap-1.5 rounded-[4px] bg-[rgb(0_0_0/0.45)] px-2 py-0.5 text-xs text-white">
           {state === "live" && <span className="size-2 rounded-full bg-[#f05f5f]" />}
           {state === "starting" ? "Asking for the camera" : state === "live" ? "Scanning" : "Camera off"}
@@ -93,8 +109,8 @@ export function QrScanner({ onResult, onBlocked }: { onResult: (text: string) =>
       )}
       {state === "no-camera" && (
         <p role="alert" className="m-0 text-sm text-ink-2">
-          <b className="font-bold text-ink">No camera.</b> The browser can't find one it can use on
-          this page. Paste the text instead.
+          <b className="font-bold text-ink">No camera.</b> The browser can't find one it can use on this page. Paste the
+          text instead.
         </p>
       )}
     </div>

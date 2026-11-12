@@ -1,13 +1,7 @@
 import { beforeAll, expect, it, vi } from "vitest";
+import { buildLargeHistory, ELECTRUM_WS, LARGE, rpc, script } from "../scripts/regtest/fixture";
 import { scriptHash } from "../src/backend/backend";
 import { electrumBackend } from "../src/backend/electrum";
-import {
-  buildLargeHistory,
-  ELECTRUM_WS,
-  LARGE,
-  rpc,
-  script,
-} from "../scripts/regtest/fixture";
 
 const TRANSACTIONS = 500;
 
@@ -34,10 +28,7 @@ it(`fetches a ${TRANSACTIONS}-transaction wallet in well under ten seconds`, asy
   const histories = await backend.history(hashes);
   const txids = [...new Set(histories.flat().map((entry) => entry.txid))];
   const heights = [...new Set(histories.flat().map((entry) => entry.height!))];
-  const [transactions, headers] = await Promise.all([
-    backend.transactions(txids),
-    backend.blockHeaders(heights),
-  ]);
+  const [transactions, headers] = await Promise.all([backend.transactions(txids), backend.blockHeaders(heights)]);
   const elapsed = performance.now() - started;
   backend.close();
 

@@ -1,26 +1,22 @@
 import { hex } from "@scure/base";
 import { RawTx } from "@scure/btc-signer";
 import {
+  type BlockHeader,
   BroadcastError,
   ConnectionError,
+  type HistoryEntry,
   NotFoundError,
   RefusedError,
+  type ScriptBalance,
   scriptHash,
   txidOf,
-  type BlockHeader,
-  type HistoryEntry,
-  type ScriptBalance,
   type Unspent,
   type Unsubscribe,
   type WalletBackend,
 } from "./backend";
 import { handshake } from "./handshake";
 
-export type ConnectionStatus =
-  | "connecting"
-  | "connected"
-  | "disconnected"
-  | "retrying";
+export type ConnectionStatus = "connecting" | "connected" | "disconnected" | "retrying";
 
 export type ServerInfo = {
   /** As `server.version` reports it, e.g. "Fulcrum 2.1.3". */
@@ -76,19 +72,13 @@ function toHeader(result: unknown): BlockHeader {
  * `close()`.
  * https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html
  */
-export function electrumBackend(
-  url: string,
-  { timeout = 10_000 } = {},
-): ElectrumBackend {
+export function electrumBackend(url: string, { timeout = 10_000 } = {}): ElectrumBackend {
   let socket: WebSocket | null = null;
   let status: ConnectionStatus = "disconnected";
   let info: ServerInfo | null = null;
   let tip: BlockHeader | null = null;
   let nextId = 0;
-  const pending = new Map<
-    number,
-    { resolve: (result: unknown) => void; reject: (error: Error) => void }
-  >();
+  const pending = new Map<number, { resolve: (result: unknown) => void; reject: (error: Error) => void }>();
   const statuses = new Map<string, unknown>();
   const statusListeners = new Set<(status: ConnectionStatus) => void>();
   const headerListeners = new Set<(tip: BlockHeader) => void>();
@@ -105,9 +95,7 @@ export function electrumBackend(
   function send(calls: [string, unknown[]][]): Promise<unknown>[] {
     const open = socket;
     if (!open) {
-      return calls.map(() =>
-        Promise.reject(new Error("The backend isn't connected")),
-      );
+      return calls.map(() => Promise.reject(new Error("The backend isn't connected")));
     }
     const requests = calls.map(([method, params]) => ({
       jsonrpc: "2.0",
@@ -146,9 +134,7 @@ export function electrumBackend(
   async function batch(method: string, params: unknown[][]): Promise<unknown[]> {
     const chunks: Promise<unknown[]>[] = [];
     for (let i = 0; i < params.length; i += BATCH) {
-      const calls = params
-        .slice(i, i + BATCH)
-        .map((p): [string, unknown[]] => [method, p]);
+      const calls = params.slice(i, i + BATCH).map((p): [string, unknown[]] => [method, p]);
       chunks.push(Promise.all(send(calls)));
     }
     return (await Promise.all(chunks)).flat();
@@ -237,9 +223,7 @@ export function electrumBackend(
 
   async function retry(failures: number): Promise<void> {
     setStatus("retrying");
-    await new Promise((resolve) =>
-      setTimeout(resolve, Math.min(1000 * 2 ** failures, MAX_BACKOFF)),
-    );
+    await new Promise((resolve) => setTimeout(resolve, Math.min(1000 * 2 ** failures, MAX_BACKOFF)));
     if (status !== "retrying") return;
     try {
       await establish();
@@ -309,15 +293,14 @@ export function electrumBackend(
       ).catch((error) => {
         throw refused(error);
       });
-      return (results as { tx_hash: string; height: number }[][]).map(
-        (entries) =>
-          entries.map(
-            ({ tx_hash, height }): HistoryEntry => ({
-              txid: tx_hash,
-              height: height > 0 ? height : null,
-              unconfirmedParents: height === -1,
-            }),
-          ),
+      return (results as { tx_hash: string; height: number }[][]).map((entries) =>
+        entries.map(
+          ({ tx_hash, height }): HistoryEntry => ({
+            txid: tx_hash,
+            height: height > 0 ? height : null,
+            unconfirmedParents: height === -1,
+          }),
+        ),
       );
     },
 
@@ -340,7 +323,14 @@ export function electrumBackend(
         throw refused(error);
       });
       return (results as { tx_hash: string; tx_pos: number; value: number; height: number }[][]).map((outputs) =>
-        outputs.map(({ tx_hash, tx_pos, value, height }): Unspent => ({ txid: tx_hash, vout: tx_pos, value, height: height > 0 ? height : null })),
+        outputs.map(
+          ({ tx_hash, tx_pos, value, height }): Unspent => ({
+            txid: tx_hash,
+            vout: tx_pos,
+            value,
+            height: height > 0 ? height : null,
+          }),
+        ),
       );
     },
 
@@ -349,7 +339,8 @@ export function electrumBackend(
         "blockchain.transaction.get",
         txids.map((txid) => [txid]),
       ).catch((error) => {
-        throw error instanceof RpcError && error.code === 2 &&
+        throw error instanceof RpcError &&
+          error.code === 2 &&
           /(?:^|['"])No such mempool or blockchain transaction(?:\.|$)/.test(error.message)
           ? new NotFoundError(error.message)
           : error;
@@ -399,19 +390,13 @@ export function electrumBackend(
     },
 
     async feeHistogram() {
-      const result = (await call("mempool.get_fee_histogram")) as [
-        number,
-        number,
-      ][];
+      const result = (await call("mempool.get_fee_histogram")) as [number, number][];
       return result.map(([feeRate, vsize]) => ({ feeRate, vsize }));
     },
 
     async broadcast(raw) {
       try {
-        return (await call(
-          "blockchain.transaction.broadcast",
-          hex.encode(raw),
-        )) as string;
+        return (await call("blockchain.transaction.broadcast", hex.encode(raw))) as string;
       } catch (error) {
         if (error instanceof RpcError) throw new BroadcastError(error.message);
         throw error;

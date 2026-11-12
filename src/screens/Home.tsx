@@ -1,22 +1,22 @@
-import { FiatAmount, TxRowFiat } from "../app/fiat";
-import { FiatControl } from "../ui/fiat";
 import { useEffect, useState } from "react";
 import { useConnection } from "../app/connection";
+import { FiatAmount, TxRowFiat } from "../app/fiat";
 import { navigate } from "../app/route";
 import { useOwners, useSendDraft, useWalletSession, useWalletSnapshot } from "../app/session";
 import { useUnit, useVault } from "../app/vault";
 import { feeRate, isOutgoing, txDirection, txWhen } from "../core/view";
 import type { WalletSnapshot, WalletTx } from "../core/wallet";
 import { Amount, btcParts, groupSats, UnitSwitch } from "../ui/amount";
+import { FiatControl } from "../ui/fiat";
 import { ageText, confText, dateText, hostText, timeText, txFallback } from "../ui/format";
 import { Icon } from "../ui/icons";
 import { Button, buttonClass, Chip, Empty, LinkButton, linkClass, Panel, Segmented } from "../ui/kit";
 import { RestoreBackup } from "./Backup";
 import { reasons } from "./Connect";
+import { BalanceChart, CoinAge, Network, Pending, Sources, Stats } from "./HomePanels";
 import { EditableLabel, Opening } from "./parts";
 import { parseAmount } from "./send/Recipients";
 import { stillPending } from "./send/Send";
-import { BalanceChart, CoinAge, Network, Pending, Sources, Stats } from "./HomePanels";
 
 const stages = { history: "Checking addresses", transactions: "Fetching transactions", blocks: "Fetching block times" };
 
@@ -39,23 +39,35 @@ function SyncLine({ snapshot }: { snapshot: WalletSnapshot }) {
   const server = settings.server ? hostText(settings.server) : "your server";
   const { progress, error, tip } = snapshot;
   const failed = connection.phase === "failed";
-  const synced = snapshot.syncedAt === null ? "" : `, ${dateText(snapshot.syncedAt / 1000)} at ${timeText(snapshot.syncedAt / 1000)}`;
+  const synced =
+    snapshot.syncedAt === null
+      ? ""
+      : `, ${dateText(snapshot.syncedAt / 1000)} at ${timeText(snapshot.syncedAt / 1000)}`;
   const stale = `Balances are as of the last sync${synced}.`;
   const now = useNow();
   // The demo's chain never moves.
   const tipAge = tip && import.meta.env.MODE !== "demo" ? now / 1000 - tip.time : 0;
   const [dot, text] = failed
-    ? ["bg-bad", `Not connected to ${server}. ${connection.failure ? reasons[connection.failure] : connection.message} ${stale}`]
+    ? [
+        "bg-bad",
+        `Not connected to ${server}. ${connection.failure ? reasons[connection.failure] : connection.message} ${stale}`,
+      ]
     : connection.phase === "retrying"
       ? ["bg-warn animate-pulse", `Lost ${server}, trying again. ${stale}`]
       : connection.phase !== "connected"
         ? ["bg-warn animate-pulse", `Connecting to ${server}.`]
         : progress
-          ? ["bg-warn animate-pulse", `${stages[progress.stage]}, ${groupSats(progress.done)} of ${groupSats(progress.total)}.`]
+          ? [
+              "bg-warn animate-pulse",
+              `${stages[progress.stage]}, ${groupSats(progress.done)} of ${groupSats(progress.total)}.`,
+            ]
           : error
             ? ["bg-bad", `The last sync failed. ${error}`]
             : tip && tipAge > STALE_TIP
-              ? ["bg-warn", `Your server's newest block, ${groupSats(tip.height)}, is ${tipAge < 172_800 ? `${Math.floor(tipAge / 3600)} hours` : ageText(tipAge)} old. Its node may be stuck or have lost its peers.`]
+              ? [
+                  "bg-warn",
+                  `Your server's newest block, ${groupSats(tip.height)}, is ${tipAge < 172_800 ? `${Math.floor(tipAge / 3600)} hours` : ageText(tipAge)} old. Its node may be stuck or have lost its peers.`,
+                ]
               : ["bg-ok", tip ? `Up to date at block ${groupSats(tip.height)}.` : "Up to date."];
   return (
     <div role="status" className="flex items-center gap-2.5 border-t border-rule px-4 py-3 text-sm text-ink-2">
@@ -147,10 +159,19 @@ function HistoryRow({ tx, owners }: { tx: WalletTx; owners: ReadonlyMap<string, 
         )}
       </span>
       <span className="col-start-1 row-start-1 flex min-w-0 items-baseline gap-1.5 @min-[640px]:col-start-2 [&:has(input)>a]:hidden [&>input]:flex-1">
-        <a href={`#/tx/${tx.txid}`} className={`min-w-0 truncate font-medium no-underline after:absolute after:inset-0 ${tx.label ? "text-ink" : "text-ink-2"}`}>
+        <a
+          href={`#/tx/${tx.txid}`}
+          className={`min-w-0 truncate font-medium no-underline after:absolute after:inset-0 ${tx.label ? "text-ink" : "text-ink-2"}`}
+        >
           {tx.label ?? txFallback(tx, owners)}
         </a>
-        <EditableLabel type="tx" target={tx.txid} value={tx.label} placeholder="Label this transaction" className="relative z-[1] text-sm">
+        <EditableLabel
+          type="tx"
+          target={tx.txid}
+          value={tx.label}
+          placeholder="Label this transaction"
+          className="relative z-[1] text-sm"
+        >
           <span className="sr-only">{tx.label ?? "Label this transaction"}</span>
         </EditableLabel>
       </span>
@@ -189,7 +210,8 @@ const directions = [
   { value: "sent", label: "Sent" },
   { value: "to self", label: "To self" },
 ];
-const smallInput = "min-h-9 w-full rounded-control border border-rule-2 bg-sheet px-2.5 py-1.5 text-ink placeholder:text-ink-3 focus:outline-2 focus:-outline-offset-1 focus:outline-carbon";
+const smallInput =
+  "min-h-9 w-full rounded-control border border-rule-2 bg-sheet px-2.5 py-1.5 text-ink placeholder:text-ink-3 focus:outline-2 focus:-outline-offset-1 focus:outline-carbon";
 const localDay = (seconds: number) => new Date(seconds * 1000).toLocaleDateString("en-CA");
 
 function History({ snapshot }: { snapshot: WalletSnapshot }) {
@@ -232,41 +254,89 @@ function History({ snapshot }: { snapshot: WalletSnapshot }) {
             <input
               type="search"
               value={query}
-              onChange={(e) => { setQuery(e.target.value); setLimit(25); }}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setLimit(25);
+              }}
               placeholder="Label, amount or date"
               className="min-w-0 flex-1 bg-transparent py-1.5 text-ink outline-none placeholder:text-ink-3"
             />
           </label>
-          <Button size="sm" aria-expanded={open} aria-controls="history-filters" onClick={() => setOpen(!open)} className={active ? "border-carbon text-carbon" : ""}>
+          <Button
+            size="sm"
+            aria-expanded={open}
+            aria-controls="history-filters"
+            onClick={() => setOpen(!open)}
+            className={active ? "border-carbon text-carbon" : ""}
+          >
             {active ? `Filters (${active})` : "Filters"}
           </Button>
         </div>
       </div>
       {open && (
-        <div id="history-filters" className="grid gap-3 border-t border-rule bg-sunk px-4 py-3 text-sm text-ink-2 @min-[640px]:grid-cols-2">
-          <Segmented label="Direction" options={directions} value={filters.direction} onChange={(direction) => set({ direction })} />
+        <div
+          id="history-filters"
+          className="grid gap-3 border-t border-rule bg-sunk px-4 py-3 text-sm text-ink-2 @min-[640px]:grid-cols-2"
+        >
+          <Segmented
+            label="Direction"
+            options={directions}
+            value={filters.direction}
+            onChange={(direction) => set({ direction })}
+          />
           <label className="flex items-center gap-2">
-            <input type="checkbox" checked={filters.unconfirmed} onChange={(e) => set({ unconfirmed: e.target.checked })} className="size-4 accent-carbon" />
+            <input
+              type="checkbox"
+              checked={filters.unconfirmed}
+              onChange={(e) => set({ unconfirmed: e.target.checked })}
+              className="size-4 accent-carbon"
+            />
             Unconfirmed only
           </label>
           <div className="grid grid-cols-2 gap-2">
             <label className="grid gap-1">
               From
-              <input type="date" value={filters.from} onChange={(e) => set({ from: e.target.value })} className={smallInput} />
+              <input
+                type="date"
+                value={filters.from}
+                onChange={(e) => set({ from: e.target.value })}
+                className={smallInput}
+              />
             </label>
             <label className="grid gap-1">
               To
-              <input type="date" value={filters.to} onChange={(e) => set({ to: e.target.value })} className={smallInput} />
+              <input
+                type="date"
+                value={filters.to}
+                onChange={(e) => set({ to: e.target.value })}
+                className={smallInput}
+              />
             </label>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <label className="grid gap-1">
               At least
-              <input inputMode={inSats ? "numeric" : "decimal"} autoComplete="off" placeholder={inSats ? "sats" : "BTC"} value={filters.min} onChange={(e) => set({ min: e.target.value })} aria-invalid={!!filters.min && min === null} className={`${smallInput} aria-invalid:border-bad`} />
+              <input
+                inputMode={inSats ? "numeric" : "decimal"}
+                autoComplete="off"
+                placeholder={inSats ? "sats" : "BTC"}
+                value={filters.min}
+                onChange={(e) => set({ min: e.target.value })}
+                aria-invalid={!!filters.min && min === null}
+                className={`${smallInput} aria-invalid:border-bad`}
+              />
             </label>
             <label className="grid gap-1">
               At most
-              <input inputMode={inSats ? "numeric" : "decimal"} autoComplete="off" placeholder={inSats ? "sats" : "BTC"} value={filters.max} onChange={(e) => set({ max: e.target.value })} aria-invalid={!!filters.max && max === null} className={`${smallInput} aria-invalid:border-bad`} />
+              <input
+                inputMode={inSats ? "numeric" : "decimal"}
+                autoComplete="off"
+                placeholder={inSats ? "sats" : "BTC"}
+                value={filters.max}
+                onChange={(e) => set({ max: e.target.value })}
+                aria-invalid={!!filters.max && max === null}
+                className={`${smallInput} aria-invalid:border-bad`}
+              />
             </label>
           </div>
           {active > 0 && (
@@ -284,12 +354,20 @@ function History({ snapshot }: { snapshot: WalletSnapshot }) {
         </ul>
       ) : (
         <p className="m-0 border-t border-rule px-4 py-6 text-ink-3">
-          {terms.length ? <>Nothing matches &ldquo;{query.trim()}&rdquo;{active ? " with these filters" : ""}.</> : "Nothing matches these filters."}
+          {terms.length ? (
+            <>
+              Nothing matches &ldquo;{query.trim()}&rdquo;{active ? " with these filters" : ""}.
+            </>
+          ) : (
+            "Nothing matches these filters."
+          )}
         </p>
       )}
       {shown.length > limit && (
         <div className="flex justify-center border-t border-rule px-4 py-3">
-          <Button size="sm" onClick={() => setLimit((n) => n + 25)}>Show more</Button>
+          <Button size="sm" onClick={() => setLimit((n) => n + 25)}>
+            Show more
+          </Button>
         </div>
       )}
     </section>
@@ -308,14 +386,22 @@ export function Home() {
     <div className="grid content-start gap-6">
       <h1 className="sr-only">Home</h1>
       {snapshot.reorg && (
-        <div role="status" className="flex items-start gap-2 rounded-control bg-warn-tint px-3 py-2.5 text-sm text-warn">
+        <div
+          role="status"
+          className="flex items-start gap-2 rounded-control bg-warn-tint px-3 py-2.5 text-sm text-warn"
+        >
           <Icon name="warn" className="mt-px size-[18px]" />
           <p className="m-0 flex-1 text-ink">
             <b className="font-bold text-warn">The chain reorganised.</b> The tip moved to a different block at height{" "}
-            {groupSats(snapshot.reorg.height)}, so this wallet threw away what it had cached and synced again. Balances and
-            confirmations below are current.
+            {groupSats(snapshot.reorg.height)}, so this wallet threw away what it had cached and synced again. Balances
+            and confirmations below are current.
           </p>
-          <button type="button" onClick={() => session?.dismissReorg()} aria-label="Dismiss" className="-m-1 grid size-8 flex-none place-items-center rounded-control hover:bg-[color-mix(in_srgb,var(--warn)_12%,transparent)]">
+          <button
+            type="button"
+            onClick={() => session?.dismissReorg()}
+            aria-label="Dismiss"
+            className="-m-1 grid size-8 flex-none place-items-center rounded-control hover:bg-[color-mix(in_srgb,var(--warn)_12%,transparent)]"
+          >
             <Icon name="close" />
           </button>
         </div>
@@ -384,15 +470,27 @@ export function Start() {
       <div className="grid gap-4 @min-[720px]/app:grid-cols-2">
         <Panel title="Your server" aside={connected ? "Connected" : settings.server ? "Not connected" : undefined}>
           <p className="m-0 text-sm text-ink-2">
-            {connected ? <>Connected to {hostText(connection.url)}.</> : "An Electrum server or Esplora API you run. The wallet talks to nothing else."}
+            {connected ? (
+              <>Connected to {hostText(connection.url)}.</>
+            ) : (
+              "An Electrum server or Esplora API you run. The wallet talks to nothing else."
+            )}
           </p>
-          <a className={`${buttonClass({ variant: connected ? "default" : "primary" })} justify-self-start`} href="#/connect">
+          <a
+            className={`${buttonClass({ variant: connected ? "default" : "primary" })} justify-self-start`}
+            href="#/connect"
+          >
             {connected ? "See the connection" : "Connect to your server"}
           </a>
         </Panel>
         <Panel title="Your wallet">
-          <p className="m-0 text-sm text-ink-2">An output descriptor or extended public key from your signer. No private keys.</p>
-          <a className={`${buttonClass({ variant: connected ? "primary" : "default" })} justify-self-start`} href="#/import">
+          <p className="m-0 text-sm text-ink-2">
+            An output descriptor or extended public key from your signer. No private keys.
+          </p>
+          <a
+            className={`${buttonClass({ variant: connected ? "primary" : "default" })} justify-self-start`}
+            href="#/import"
+          >
             Add a wallet
           </a>
         </Panel>

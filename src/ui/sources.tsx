@@ -38,7 +38,9 @@ export function sourcesOf(snapshot: WalletSnapshot): Source[] {
     byGroup.set(id, [...(byGroup.get(id) ?? []), coin]);
   }
   const txLabel = new Map(snapshot.transactions.map((t) => [t.txid, t.label]));
-  const marked = snapshot.transactions.flatMap((t) => t.outputs.filter((o) => o.kyc).map((o) => ({ txid: t.txid, vout: o.vout })));
+  const marked = snapshot.transactions.flatMap((t) =>
+    t.outputs.filter((o) => o.kyc).map((o) => ({ txid: t.txid, vout: o.vout })),
+  );
   const addressLabel = new Map(
     [...snapshot.addresses.receive, ...snapshot.addresses.change].map((a) => [a.address, a.label]),
   );

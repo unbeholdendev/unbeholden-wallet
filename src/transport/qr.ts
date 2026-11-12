@@ -1,14 +1,11 @@
-import { encodeQR, type ErrorCorrection } from "qr";
+import { type ErrorCorrection, encodeQR } from "qr";
 import { decodeQR } from "qr/decode.js";
 
 /**
  * The QR code's modules, true for dark, including a four-module quiet zone.
  * Upper-case a UR first: it then fits the denser alphanumeric mode.
  */
-export function qrMatrix(
-  text: string,
-  ecc: ErrorCorrection = "low",
-): boolean[][] {
+export function qrMatrix(text: string, ecc: ErrorCorrection = "low"): boolean[][] {
   return encodeQR(text, "raw", { ecc, border: 4 });
 }
 
@@ -16,10 +13,7 @@ export function qrMatrix(
  * SVG path data for the dark modules, one unit per module, to draw inside a
  * `viewBox` of `0 0 size size` on a light background.
  */
-export function qrPath(
-  text: string,
-  ecc: ErrorCorrection = "low",
-): { size: number; d: string } {
+export function qrPath(text: string, ecc: ErrorCorrection = "low"): { size: number; d: string } {
   const matrix = qrMatrix(text, ecc);
   let d = "";
   matrix.forEach((row, y) => {
@@ -34,11 +28,7 @@ export function qrPath(
 }
 
 /** The text of a QR code in a video frame, or null if none can be read. */
-export function readQr(image: {
-  width: number;
-  height: number;
-  data: Uint8ClampedArray;
-}): string | null {
+export function readQr(image: { width: number; height: number; data: Uint8ClampedArray }): string | null {
   try {
     return decodeQR(image);
   } catch {

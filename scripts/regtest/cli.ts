@@ -1,12 +1,4 @@
-import {
-  BIP84,
-  BIP86,
-  buildFixture,
-  ELECTRUM_WS,
-  mine,
-  reorg,
-  rpc,
-} from "./fixture";
+import { BIP84, BIP86, buildFixture, ELECTRUM_WS, mine, reorg, rpc } from "./fixture";
 
 const [command, ...args] = process.argv.slice(2);
 

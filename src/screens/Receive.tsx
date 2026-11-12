@@ -27,11 +27,22 @@ export function received(snapshot: WalletSnapshot, address: string) {
   let confirmed = 0;
   let unconfirmed = 0;
   for (const tx of snapshot.transactions)
-    for (const o of tx.outputs) if (o.address === address) tx.height === null ? (unconfirmed += o.value!) : (confirmed += o.value!);
+    for (const o of tx.outputs)
+      if (o.address === address) tx.height === null ? (unconfirmed += o.value!) : (confirmed += o.value!);
   return { confirmed, unconfirmed };
 }
 
-function Requests({ snapshot, requests, onShow, onRemove }: { snapshot: WalletSnapshot; requests: PaymentRequest[]; onShow: (r: PaymentRequest) => void; onRemove: (r: PaymentRequest) => void }) {
+function Requests({
+  snapshot,
+  requests,
+  onShow,
+  onRemove,
+}: {
+  snapshot: WalletSnapshot;
+  requests: PaymentRequest[];
+  onShow: (r: PaymentRequest) => void;
+  onRemove: (r: PaymentRequest) => void;
+}) {
   const labels = new Map(snapshot.addresses.receive.map((a) => [a.address, a.label]));
   return (
     <Panel title="Requests" className="@min-[720px]/app:col-span-2">
@@ -45,14 +56,34 @@ function Requests({ snapshot, requests, onShow, onRemove }: { snapshot: WalletSn
             <li key={r.address} className="grid gap-1 border-t border-rule pt-3 text-sm first:border-0 first:pt-0">
               <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                 <span className="min-w-0 flex-1 font-medium break-words">{name}</span>
-                <Chip tone={status === "Waiting" ? "neutral" : status === "Paid" && !unconfirmed ? "ok" : "warn"}>{status}</Chip>
-                <LinkButton aria-label={`Show request ${name}`} onClick={() => onShow(r)}>Show</LinkButton>
-                <LinkButton aria-label={`Remove request ${name}`} onClick={() => onRemove(r)}>Remove</LinkButton>
+                <Chip tone={status === "Waiting" ? "neutral" : status === "Paid" && !unconfirmed ? "ok" : "warn"}>
+                  {status}
+                </Chip>
+                <LinkButton aria-label={`Show request ${name}`} onClick={() => onShow(r)}>
+                  Show
+                </LinkButton>
+                <LinkButton aria-label={`Remove request ${name}`} onClick={() => onRemove(r)}>
+                  Remove
+                </LinkButton>
               </span>
               <span className="text-ink-2">
-                {r.sats ? <>Asked <Amount sats={r.sats} unit /></> : "No amount asked"}
-                {got > 0 && <>, received <Amount sats={got} unit /></>}
-                {unconfirmed > 0 && <>, <Amount sats={unconfirmed} unit /> not yet confirmed</>}
+                {r.sats ? (
+                  <>
+                    Asked <Amount sats={r.sats} unit />
+                  </>
+                ) : (
+                  "No amount asked"
+                )}
+                {got > 0 && (
+                  <>
+                    , received <Amount sats={got} unit />
+                  </>
+                )}
+                {unconfirmed > 0 && (
+                  <>
+                    , <Amount sats={unconfirmed} unit /> not yet confirmed
+                  </>
+                )}
               </span>
             </li>
           );
@@ -67,7 +98,10 @@ export function Receive() {
   const skips = useReceiveSkips();
   const { vault } = useVault();
   const toast = useToast();
-  const { record: { id }, descriptor: { keys, multi } } = useWallet();
+  const {
+    record: { id },
+    descriptor: { keys, multi },
+  } = useWallet();
   const [from, setFrom] = useState(() => skips.get(id) ?? "");
   const [amount, setAmount] = useState("");
   const inSats = useUnit() === "sats";
@@ -75,7 +109,10 @@ export function Receive() {
   const [requests, setRequests] = useState<PaymentRequest[] | null>(null);
   const [shown, setShown] = useState<string | null>(null);
   useEffect(() => {
-    vault.get<PaymentRequest[]>(`requests/${id}`).then((saved) => setRequests(saved ?? []), () => {});
+    vault.get<PaymentRequest[]>(`requests/${id}`).then(
+      (saved) => setRequests(saved ?? []),
+      () => {},
+    );
   }, [vault, id]);
   if (!snapshot) return <Opening title="Receive" />;
   // Before the first sync this wallet cannot know which addresses have been paid.
@@ -92,7 +129,8 @@ export function Receive() {
   const skipTo = receive.find((a) => a.address === from)?.index ?? 0;
   const requested = new Set(requests?.map((r) => r.address));
   const unused = receive.filter((a) => !a.used && a.index >= snapshot.nextReceive.index && !requested.has(a.address));
-  const next = receive.find((a) => a.address === shown) ?? unused.find((a) => a.index >= skipTo) ?? snapshot.nextReceive;
+  const next =
+    receive.find((a) => a.address === shown) ?? unused.find((a) => a.index >= skipTo) ?? snapshot.nextReceive;
   const after = unused.find((a) => a.index > next.index);
   const sats = inSats ? parseAmount(`${amount}sats`) : parseBtc(amount);
   const isRequest = requested.has(next.address);
@@ -116,41 +154,82 @@ export function Receive() {
     <div className="grid max-w-[880px] content-start items-start gap-6 @min-[720px]/app:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <h1 className="m-0 text-xl font-bold @min-[720px]/app:col-span-2">Receive</h1>
       <div className="grid justify-items-center rounded-panel border border-rule bg-qr p-4">
-        <svg viewBox={`0 0 ${qr.size} ${qr.size}`} role="img" aria-label={`QR code for ${next.address}`} shapeRendering="crispEdges" className="aspect-square w-full max-w-[360px]">
+        <svg
+          viewBox={`0 0 ${qr.size} ${qr.size}`}
+          role="img"
+          aria-label={`QR code for ${next.address}`}
+          shapeRendering="crispEdges"
+          className="aspect-square w-full max-w-[360px]"
+        >
           <path d={qr.d} className="fill-qr-ink" />
         </svg>
       </div>
       <section className="grid gap-4 rounded-panel border border-rule bg-sheet p-4">
         <div className="grid gap-1.5">
-          <span className="text-sm text-ink-2">{isRequest ? "Requested address" : next.index === snapshot.nextReceive.index ? "Next unused address" : "Unused address"}</span>
+          <span className="text-sm text-ink-2">
+            {isRequest
+              ? "Requested address"
+              : next.index === snapshot.nextReceive.index
+                ? "Next unused address"
+                : "Unused address"}
+          </span>
           <p data-testid="receive-address" className="m-0 text-md leading-relaxed select-all">
             <GroupedAddress address={next.address} />
           </p>
           <span className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <CopyButton text={next.address} what="Address" />
-            {isRequest ? <LinkButton onClick={fresh}>New request</LinkButton> : after && <LinkButton onClick={() => {
-                  skips.set(id, after.address);
-                  setFrom(after.address);
-                }}>Use a new address</LinkButton>}
+            {isRequest ? (
+              <LinkButton onClick={fresh}>New request</LinkButton>
+            ) : (
+              after && (
+                <LinkButton
+                  onClick={() => {
+                    skips.set(id, after.address);
+                    setFrom(after.address);
+                  }}
+                >
+                  Use a new address
+                </LinkButton>
+              )
+            )}
           </span>
           {multi && (
             <p className="m-0 text-sm text-ink-2">
-              A {multi.threshold}-of-{keys.length} multisig address. Check it on a cosigner device before you share it, so a
-              tampered page can't hand out an address the multisig doesn't control.
+              A {multi.threshold}-of-{keys.length} multisig address. Check it on a cosigner device before you share it,
+              so a tampered page can't hand out an address the multisig doesn't control.
             </p>
           )}
         </div>
         <div className="grid gap-1 border-t border-rule pt-3">
           <span className="text-sm text-ink-2">Who's paying, or what for</span>
-          <EditableLabel type="addr" target={next.address} value={next.label} placeholder="Label it before you share it" />
+          <EditableLabel
+            type="addr"
+            target={next.address}
+            value={next.label}
+            placeholder="Label it before you share it"
+          />
           {next.label && (
             <label className="flex items-center gap-2 text-sm text-ink-2">
-              <input type="checkbox" checked={withLabel} onChange={(e) => setWithLabel(e.target.checked)} className="size-4 accent-carbon" />
+              <input
+                type="checkbox"
+                checked={withLabel}
+                onChange={(e) => setWithLabel(e.target.checked)}
+                className="size-4 accent-carbon"
+              />
               Put the label in the QR code for the payer to see
             </label>
           )}
         </div>
-        <Field label={`Amount to ask for, ${inSats ? "sats" : "BTC"} (optional)`} error={amount && sats === null ? (inSats ? "Write it as whole sats." : "Write it as BTC, up to eight decimals.") : undefined}>
+        <Field
+          label={`Amount to ask for, ${inSats ? "sats" : "BTC"} (optional)`}
+          error={
+            amount && sats === null
+              ? inSats
+                ? "Write it as whole sats."
+                : "Write it as BTC, up to eight decimals."
+              : undefined
+          }
+        >
           {(props) => (
             <input
               {...props}
@@ -204,7 +283,10 @@ export function Receive() {
             setWithLabel(false);
           }}
           onRemove={(r) => {
-            saveRequests(requests.filter((x) => x !== r), () => shown === r.address && fresh());
+            saveRequests(
+              requests.filter((x) => x !== r),
+              () => shown === r.address && fresh(),
+            );
           }}
         />
       )}

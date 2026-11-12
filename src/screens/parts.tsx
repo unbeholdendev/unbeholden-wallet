@@ -1,10 +1,10 @@
-import { ExplorerLink } from "../ui/explorer";
-import { useRef, useState, type ReactNode } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { useOpenFailure, useWalletSession } from "../app/session";
 import type { LabelType } from "../core/wallet";
+import { ExplorerLink } from "../ui/explorer";
 import { Icon } from "../ui/icons";
 import { Button, inputClass, linkClass, Notice } from "../ui/kit";
-import { SourceTag, type Source } from "../ui/sources";
+import { type Source, SourceTag } from "../ui/sources";
 import { useToast } from "../ui/toast";
 import { outpoint } from "../wallet/coin";
 
@@ -63,7 +63,10 @@ export function EditableLabel({
     >
       {children ?? <span className="min-w-0 break-words">{value ?? placeholder}</span>}
       {value && <span className="sr-only">, edit label</span>}
-      <Icon name="pencil" className="size-3.5 translate-y-0.5 text-ink-3 opacity-60 group-hover:text-carbon group-hover:opacity-100" />
+      <Icon
+        name="pencil"
+        className="size-3.5 translate-y-0.5 text-ink-3 opacity-60 group-hover:text-carbon group-hover:opacity-100"
+      />
     </button>
   );
 }
@@ -91,11 +94,13 @@ export function Opening({ title }: { title: string }) {
       <h1 className="m-0 text-xl font-bold">{title}</h1>
       {failed ? (
         <>
-          <Notice tone="bad">
-            This wallet couldn't be opened. {failed.message}
-          </Notice>
+          <Notice tone="bad">This wallet couldn't be opened. {failed.message}</Notice>
           <p className="m-0 text-ink-2">
-            Try again. If it still fails, remove the wallet in <a href="#/settings" className={linkClass}>Settings</a> and add it again.
+            Try again. If it still fails, remove the wallet in{" "}
+            <a href="#/settings" className={linkClass}>
+              Settings
+            </a>{" "}
+            and add it again.
           </p>
           <Button className="justify-self-start" icon="retry" onClick={failed.retry}>
             Try again
@@ -129,7 +134,13 @@ export function SourceTitle({ source, on = false }: { source: Source; on?: boole
   const session = useWalletSession();
   return (
     <div className="grid min-w-0 justify-items-start gap-1">
-      <EditableLabel type="output" target={outpoint(source.coins[0]!)} value={source.label} placeholder={source.name} className="relative z-[1] max-w-full">
+      <EditableLabel
+        type="output"
+        target={outpoint(source.coins[0]!)}
+        value={source.label}
+        placeholder={source.name}
+        className="relative z-[1] max-w-full"
+      >
         <SourceTag source={source} large on={on} />
       </EditableLabel>
       <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-manila-ink">

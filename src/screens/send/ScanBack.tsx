@@ -1,6 +1,6 @@
-import { useRef, useState } from "react";
 import { hex } from "@scure/base";
 import { RawTx } from "@scure/btc-signer";
+import { useRef, useState } from "react";
 import { BbqrDecoder } from "../../transport/bbqr";
 import { readPsbt } from "../../transport/files";
 import { psbtFromUr, psbtUrDecoder } from "../../transport/ur";
@@ -94,13 +94,16 @@ export function ScanBack({ onSigned, error }: { onSigned: (signed: Uint8Array) =
       </div>
       <div hidden={blocked} className="grid gap-1">
         <h2 className="text-md font-bold">Point your camera at the signer</h2>
-        <p className="m-0 max-w-[60ch] text-sm text-ink-3">Keep the signed code in view. Parts arrive in any order; gaps fill in as the code loops.</p>
+        <p className="m-0 max-w-[60ch] text-sm text-ink-3">
+          Keep the signed code in view. Parts arrive in any order; gaps fill in as the code loops.
+        </p>
       </div>
       <div hidden={blocked} className="grid gap-2" aria-live="polite">
         <span className="text-xl font-medium">
           {progress.expected ? (
             <>
-              {captured.size} <small className="text-md font-normal text-ink-2">of {progress.expected} parts captured</small>
+              {captured.size}{" "}
+              <small className="text-md font-normal text-ink-2">of {progress.expected} parts captured</small>
             </>
           ) : (
             <small className="text-md font-normal text-ink-2">Waiting for the first part</small>
@@ -109,14 +112,19 @@ export function ScanBack({ onSigned, error }: { onSigned: (signed: Uint8Array) =
         {progress.expected > 0 && (
           <div aria-hidden="true" className="grid grid-cols-10 gap-[3px]">
             {Array.from({ length: progress.expected }, (_, i) => (
-              <i key={i} className={`aspect-[1.6] rounded-[2px] border ${captured.has(i) ? "border-carbon bg-carbon" : "border-rule-2 bg-sheet"}`} />
+              <i
+                key={i}
+                className={`aspect-[1.6] rounded-[2px] border ${captured.has(i) ? "border-carbon bg-carbon" : "border-rule-2 bg-sheet"}`}
+              />
             ))}
           </div>
         )}
       </div>
       {(error ?? scanError) && <Notice tone="bad">{error ?? scanError}</Notice>}
       <details open={blocked || undefined} className="group grid gap-3 rounded-control border border-rule p-3">
-        <summary className="cursor-pointer list-none text-sm font-medium text-carbon [&::-webkit-details-marker]:hidden">No camera? Load the signed file or paste it</summary>
+        <summary className="cursor-pointer list-none text-sm font-medium text-carbon [&::-webkit-details-marker]:hidden">
+          No camera? Load the signed file or paste it
+        </summary>
         <div className="mt-3 grid gap-3">
           <label className={`${buttonClass({})} cursor-pointer justify-self-start`}>
             <Icon name="file" />
@@ -134,7 +142,13 @@ export function ScanBack({ onSigned, error }: { onSigned: (signed: Uint8Array) =
           </label>
           <label className="grid gap-1.5 text-sm font-medium text-ink-2">
             Or paste it, base64 or hex
-            <textarea value={pasted} onChange={(e) => setPasted(e.target.value)} rows={3} spellCheck={false} className={`${inputClass} font-mono text-[0.86em]`} />
+            <textarea
+              value={pasted}
+              onChange={(e) => setPasted(e.target.value)}
+              rows={3}
+              spellCheck={false}
+              className={`${inputClass} font-mono text-[0.86em]`}
+            />
           </label>
           <Button size="sm" className="justify-self-start" disabled={!pasted.trim()} onClick={() => read(pasted)}>
             Check pasted PSBT

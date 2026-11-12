@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { type FormEvent, useState } from "react";
 import { useVault } from "../app/vault";
 import type { Merged } from "../core/wallets";
 import { Icon } from "../ui/icons";
@@ -45,7 +45,11 @@ export function ExportBackup() {
     setError(null);
     try {
       const names = wallets.map((w) => w.name.replace(/[^\w-]+/g, "-")).join("+") || "wallet";
-      download(await exportBackup(passphrase), "application/json", `${names}-backup-${new Date().toISOString().slice(0, 10)}.json`);
+      download(
+        await exportBackup(passphrase),
+        "application/json",
+        `${names}-backup-${new Date().toISOString().slice(0, 10)}.json`,
+      );
       setPassphrase("");
       setConfirm("");
       toast("Backup saved");
@@ -59,19 +63,26 @@ export function ExportBackup() {
     <form onSubmit={submit} className="grid gap-3" noValidate>
       <p className="m-0 text-sm text-ink-2">
         Every wallet's descriptor with its labels, frozen coins and your settings, in one file encrypted with{" "}
-        {vaultHas ? "the vault passphrase" : "a passphrase you choose for it"}. History is left out; your server sends it again.
+        {vaultHas ? "the vault passphrase" : "a passphrase you choose for it"}. History is left out; your server sends
+        it again.
       </p>
       {vaultHas ? (
         <Field label="Vault passphrase, to confirm" error={error ?? undefined}>
-          {(props) => <PassphraseInput {...props} autoComplete="current-password" value={passphrase} onChange={setPassphrase} />}
+          {(props) => (
+            <PassphraseInput {...props} autoComplete="current-password" value={passphrase} onChange={setPassphrase} />
+          )}
         </Field>
       ) : (
         <>
           <Field label="Backup passphrase" hint={<Strength score={score} />} error={error ?? undefined}>
-            {(props) => <PassphraseInput {...props} autoComplete="new-password" value={passphrase} onChange={setPassphrase} />}
+            {(props) => (
+              <PassphraseInput {...props} autoComplete="new-password" value={passphrase} onChange={setPassphrase} />
+            )}
           </Field>
           <Field label="Type it again">
-            {(props) => <PassphraseInput {...props} autoComplete="new-password" value={confirm} onChange={setConfirm} />}
+            {(props) => (
+              <PassphraseInput {...props} autoComplete="new-password" value={confirm} onChange={setConfirm} />
+            )}
           </Field>
         </>
       )}

@@ -1,32 +1,32 @@
-import { SignMessage, VerifyMessage } from "./screens/Messages";
-import { FiatProvider } from "./app/fiat";
 import { Fragment, useEffect, useState } from "react";
-import { BackendProvider, ConnectionProvider, useConnection, type BackendFactory } from "./app/connection";
+import { type BackendFactory, BackendProvider, ConnectionProvider, useConnection } from "./app/connection";
+import { FiatProvider } from "./app/fiat";
 import { Page } from "./app/layout";
 import { useRoute } from "./app/route";
-import { SessionProvider } from "./app/session";
-import { log } from "./log";
 import { Shell, type Tab } from "./app/Shell";
+import { SessionProvider } from "./app/session";
 import { useVault, useVaultState, VaultProvider } from "./app/vault";
+import { log } from "./log";
 import { registerServiceWorker } from "./pwa/register";
+import { Addresses } from "./screens/Addresses";
+import { AddressLookup } from "./screens/AddressLookup";
+import { Block } from "./screens/Block";
+import { CoinHistory } from "./screens/CoinHistory";
+import { Coins } from "./screens/Coins";
 import { Connect } from "./screens/Connect";
 import { CreateVault } from "./screens/CreateVault";
 import { Guide, Trust } from "./screens/Guides";
-import { ImportWallet } from "./screens/ImportWallet";
-import { Addresses } from "./screens/Addresses";
-import { Coins } from "./screens/Coins";
 import { Home, Start } from "./screens/Home";
+import { ImportWallet } from "./screens/ImportWallet";
+import { Lookup } from "./screens/Lookup";
+import { SignMessage, VerifyMessage } from "./screens/Messages";
 import { Receive } from "./screens/Receive";
+import { Settings } from "./screens/Settings";
+import { BroadcastRaw } from "./screens/send/BroadcastRaw";
 import { Bump, type BumpMode } from "./screens/send/Bump";
 import { Send } from "./screens/send/Send";
-import { BroadcastRaw } from "./screens/send/BroadcastRaw";
 import { BroadcastSigned } from "./screens/send/Sign";
-import { Block } from "./screens/Block";
-import { Lookup } from "./screens/Lookup";
-import { AddressLookup } from "./screens/AddressLookup";
 import { Transaction } from "./screens/Transaction";
-import { CoinHistory } from "./screens/CoinHistory";
-import { Settings } from "./screens/Settings";
 import { Unlock } from "./screens/Unlock";
 import { Button, Empty, linkClass } from "./ui/kit";
 import { ToastProvider } from "./ui/toast";
@@ -54,26 +54,58 @@ function Unlocked({ route }: { route: string[] }) {
 
   const [screen = "home", detail] = route;
   const body =
-    screen === "settings" ? <Settings /> :
-    screen === "connect" ? <Connect onboarding={!wallets.length} /> :
-    screen === "import" ? <ImportWallet /> :
-    screen === "tx" ? (wallets.length ? <Transaction txid={detail} /> : <Lookup txid={detail} />) :
-    screen === "address" ? <AddressLookup address={detail} /> :
-    screen === "broadcast" && detail ? <BroadcastRaw key={detail} text={detail} /> :
-    screen === "block" ? <Block height={detail} /> :
-    !wallets.length ? <Start /> :
-    screen === "coin" ? <CoinHistory point={detail} /> :
-    screen === "sign-message" ? <SignMessage /> :
-    screen === "send" ? <Send /> :
-    screen === "broadcast" ? <BroadcastSigned /> :
-    BUMPS[screen] && detail ? <Bump key={screen + detail} txid={detail} mode={BUMPS[screen]} /> :
-    screen === "receive" ? <Receive /> :
-    screen === "coins" ? <Coins /> :
-    screen === "addresses" ? <Addresses /> :
-    <Home />;
+    screen === "settings" ? (
+      <Settings />
+    ) : screen === "connect" ? (
+      <Connect onboarding={!wallets.length} />
+    ) : screen === "import" ? (
+      <ImportWallet />
+    ) : screen === "tx" ? (
+      wallets.length ? (
+        <Transaction txid={detail} />
+      ) : (
+        <Lookup txid={detail} />
+      )
+    ) : screen === "address" ? (
+      <AddressLookup address={detail} />
+    ) : screen === "broadcast" && detail ? (
+      <BroadcastRaw key={detail} text={detail} />
+    ) : screen === "block" ? (
+      <Block height={detail} />
+    ) : !wallets.length ? (
+      <Start />
+    ) : screen === "coin" ? (
+      <CoinHistory point={detail} />
+    ) : screen === "sign-message" ? (
+      <SignMessage />
+    ) : screen === "send" ? (
+      <Send />
+    ) : screen === "broadcast" ? (
+      <BroadcastSigned />
+    ) : BUMPS[screen] && detail ? (
+      <Bump key={screen + detail} txid={detail} mode={BUMPS[screen]} />
+    ) : screen === "receive" ? (
+      <Receive />
+    ) : screen === "coins" ? (
+      <Coins />
+    ) : screen === "addresses" ? (
+      <Addresses />
+    ) : (
+      <Home />
+    );
   return (
     <SessionProvider>
-      <Shell tab={BUMPS[screen] || screen === "broadcast" ? "send" : screen === "coin" ? "coins" : TABS.includes(screen) ? (screen as Tab) : null}>
+      <Shell
+        tab={
+          BUMPS[screen] || screen === "broadcast"
+            ? "send"
+            : screen === "coin"
+              ? "coins"
+              : TABS.includes(screen)
+                ? (screen as Tab)
+                : null
+        }
+      >
         <Fragment key={["settings", "connect", "import"].includes(screen) ? screen : walletId}>{body}</Fragment>
       </Shell>
     </SessionProvider>
@@ -86,8 +118,8 @@ function Insecure() {
       <Empty title="Open this over https or localhost">
         <div className="grid gap-3">
           <p>
-            The vault needs your browser's encryption, and a browser only offers it to a secure page. Plain http to a network
-            address isn't one. Open the app over https, or at http://localhost on the computer running it.
+            The vault needs your browser's encryption, and a browser only offers it to a secure page. Plain http to a
+            network address isn't one. Open the app over https, or at http://localhost on the computer running it.
           </p>
           <a className={linkClass} href="#/guide">
             How to reach it from another device
@@ -102,7 +134,12 @@ function Root() {
   const route = useRoute();
   const { state } = useVaultState();
   useEffect(() => log("screen", { screen: route[0] ?? "home", vault: state.phase }), [route[0], state.phase]);
-  if (route[0] === "verify-message") return <Page><VerifyMessage /></Page>;
+  if (route[0] === "verify-message")
+    return (
+      <Page>
+        <VerifyMessage />
+      </Page>
+    );
   if (route[0] === "trust") return <Trust />;
   if (route[0] === "guide") return <Guide />;
   if (!window.isSecureContext) return <Insecure />;
@@ -115,7 +152,10 @@ function UpdatePrompt() {
   useEffect(() => registerServiceWorker((next) => setApply(() => next)), []);
   if (!apply) return null;
   return (
-    <div role="status" className="fixed inset-x-4 bottom-[calc(72px+env(safe-area-inset-bottom))] z-30 mx-auto flex max-w-[480px] flex-wrap items-center gap-3 rounded-panel border border-rule-2 bg-sheet p-3 pl-4 shadow-float min-[720px]:bottom-6">
+    <div
+      role="status"
+      className="fixed inset-x-4 bottom-[calc(72px+env(safe-area-inset-bottom))] z-30 mx-auto flex max-w-[480px] flex-wrap items-center gap-3 rounded-panel border border-rule-2 bg-sheet p-3 pl-4 shadow-float min-[720px]:bottom-6"
+    >
       <p className="m-0 flex-1 text-sm">A new version is ready. It runs only when you reload.</p>
       <Button size="sm" variant="primary" onClick={apply}>
         Reload now
@@ -130,7 +170,9 @@ export function App({ factory, kdf }: { factory: BackendFactory; kdf?: KdfParams
       <BackendProvider factory={factory}>
         <VaultProvider kdf={kdf}>
           <ConnectionProvider>
-            <FiatProvider><Root /></FiatProvider>
+            <FiatProvider>
+              <Root />
+            </FiatProvider>
             <UpdatePrompt />
           </ConnectionProvider>
         </VaultProvider>

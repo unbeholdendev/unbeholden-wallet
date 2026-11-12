@@ -1,5 +1,5 @@
 import { hex } from "@scure/base";
-import { sha256, type BTC_NETWORK } from "@scure/btc-signer/utils.js";
+import { type BTC_NETWORK, sha256 } from "@scure/btc-signer/utils.js";
 
 export type Network = "mainnet" | "signet" | "regtest" | "testnet3" | "testnet4";
 

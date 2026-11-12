@@ -1,9 +1,9 @@
 import { hex } from "@scure/base";
 import { RawTx } from "@scure/btc-signer";
 import type { HistoryEntry } from "../backend/backend";
-import { outpoint, type Coin, type CoinStatus } from "../wallet/coin";
-import { childPath, formatIndex, type Descriptor } from "../wallet/descriptor";
-import { linkCoins, type HistoryTx } from "../wallet/privacy";
+import { type Coin, type CoinStatus, outpoint } from "../wallet/coin";
+import { childPath, type Descriptor, formatIndex } from "../wallet/descriptor";
+import { type HistoryTx, linkCoins } from "../wallet/privacy";
 
 export type AddressInfo = {
   address: string;
@@ -93,8 +93,7 @@ export const COINBASE = "00".repeat(32);
 
 // Timestamp field of the block header.
 // https://developer.bitcoin.org/reference/block_chain.html
-export const blockTime = (header: Uint8Array) =>
-  new DataView(header.buffer, header.byteOffset).getUint32(68, true);
+export const blockTime = (header: Uint8Array) => new DataView(header.buffer, header.byteOffset).getUint32(68, true);
 
 const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
 
@@ -102,11 +101,14 @@ function pathOf(descriptor: Descriptor, chain: number, index: number): string {
   const signers = new Map<string, string[]>();
   for (const key of descriptor.keys) {
     const { origin } = key;
-    const path = (origin ? "m/" : "") + [...(origin?.path ?? []), ...childPath(key, chain, index)].map(formatIndex).join("/");
+    const path =
+      (origin ? "m/" : "") + [...(origin?.path ?? []), ...childPath(key, chain, index)].map(formatIndex).join("/");
     signers.set(path, [...(signers.get(path) ?? []), ...(origin ? [origin.fingerprint] : [])]);
   }
   if (!descriptor.multi) return [...signers.keys()][0]!;
-  return [...signers].map(([path, fingerprints]) => (fingerprints.length ? `${path} on ${fingerprints.join(", ")}` : path)).join("; ");
+  return [...signers]
+    .map(([path, fingerprints]) => (fingerprints.length ? `${path} on ${fingerprints.join(", ")}` : path))
+    .join("; ");
 }
 
 export function parseTx(txid: string, bytes: Uint8Array): Parsed {
@@ -175,8 +177,7 @@ export function deriveView(source: ViewSource) {
     if (info && count > 1) info.reused = true;
   }
 
-  const prevout = (input: { txid: string; vout: number }) =>
-    parsed(input.txid)?.outputs[input.vout];
+  const prevout = (input: { txid: string; vout: number }) => parsed(input.txid)?.outputs[input.vout];
   const statuses = new Map<string, CoinStatus>();
   const statusOf = (txid: string): CoinStatus => {
     const known = statuses.get(txid);
@@ -281,9 +282,7 @@ export function deriveView(source: ViewSource) {
         seenAt: cache.seen[tx.txid] ?? null,
         unconfirmedParents: entries.get(tx.txid)!.unconfirmedParents,
         net: ownValue(outputs) - ownValue(inputs),
-        fee: inputs.every((i) => i.value !== null)
-          ? sum(inputs.map((i) => i.value!)) - outTotal
-          : null,
+        fee: inputs.every((i) => i.value !== null) ? sum(inputs.map((i) => i.value!)) - outTotal : null,
         vsize: tx.vsize,
         inputs,
         outputs,
@@ -301,11 +300,7 @@ export function deriveView(source: ViewSource) {
       unconfirmed: total(coins.filter((c) => c.status !== "confirmed")),
       frozen: total(coins.filter((c) => c.frozen)),
       foreign: total(coins.filter((c) => !c.frozen && c.status === "foreign-unconfirmed")),
-      spendable: total(
-        coins.filter(
-          (c) => !c.frozen && (c.status === "confirmed" || c.status === "own-change"),
-        ),
-      ),
+      spendable: total(coins.filter((c) => !c.frozen && (c.status === "confirmed" || c.status === "own-change"))),
     },
     transactions,
     addresses: { receive, change },
@@ -327,7 +322,8 @@ export const isOutgoing = (tx: WalletTx) => tx.inputs.some((i) => i.mine);
 /** Unix seconds: block time, else when first seen. */
 export const txWhen = (tx: WalletTx) => tx.time ?? (tx.seenAt === null ? null : Math.floor(tx.seenAt / 1000));
 
-export const feeRate = (tx: Pick<WalletTx, "fee" | "vsize">) => (tx.fee === null ? null : Math.round((tx.fee / tx.vsize) * 10) / 10);
+export const feeRate = (tx: Pick<WalletTx, "fee" | "vsize">) =>
+  tx.fee === null ? null : Math.round((tx.fee / tx.vsize) * 10) / 10;
 
 export const txDirection = (tx: WalletTx) =>
   !isOutgoing(tx) ? "received" : tx.outputs.every((o) => o.mine) ? "to self" : "sent";
@@ -357,6 +353,17 @@ export function historyCsv(transactions: WalletTx[]) {
       tx.label && /^[=+\-@]/.test(tx.label) ? `'${tx.label}` : tx.label,
     ];
   });
-  const head = ["date", "txid", "direction", "net_btc", "net_sats", "fee_btc", "fee_sats", "confirmations", "height", "label"];
-  return [head, ...rows].map((r) => r.map(csvField).join(",")).join("\r\n") + "\r\n";
+  const head = [
+    "date",
+    "txid",
+    "direction",
+    "net_btc",
+    "net_sats",
+    "fee_btc",
+    "fee_sats",
+    "confirmations",
+    "height",
+    "label",
+  ];
+  return `${[head, ...rows].map((r) => r.map(csvField).join(",")).join("\r\n")}\r\n`;
 }

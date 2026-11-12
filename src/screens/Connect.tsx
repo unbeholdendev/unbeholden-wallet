@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { useConnection, type Connection, type Failure } from "../app/connection";
+import { type FormEvent, type ReactNode, useEffect, useState } from "react";
+import { type Connection, type Failure, useConnection } from "../app/connection";
 import { Heading } from "../app/layout";
 import { useVault } from "../app/vault";
 import { POLL_SECONDS } from "../backend/esplora";
@@ -48,7 +48,11 @@ function RouteLine({ connection }: { connection: Connection }) {
       preserveAspectRatio="xMinYMid meet"
       role="img"
       aria-label={
-        failed ? `The route from this tab to your server stops: ${label}.` : reached ? "This tab talks only to your server." : "This tab will talk only to your server."
+        failed
+          ? `The route from this tab to your server stops: ${label}.`
+          : reached
+            ? "This tab talks only to your server."
+            : "This tab will talk only to your server."
       }
     >
       <circle cx="18" cy="32" r="7" className="fill-sheet stroke-ink stroke-[1.6]" />
@@ -69,7 +73,10 @@ function RouteLine({ connection }: { connection: Connection }) {
         </>
       )}
       <g transform="translate(342 32)">
-        <path d="M0 -9L8 6H-8Z" className={`stroke-[1.6] ${reached ? "fill-carbon-tint stroke-carbon" : "fill-sheet stroke-ink"}`} />
+        <path
+          d="M0 -9L8 6H-8Z"
+          className={`stroke-[1.6] ${reached ? "fill-carbon-tint stroke-carbon" : "fill-sheet stroke-ink"}`}
+        />
         <circle r="2" cy="1.5" className={reached ? "fill-carbon" : "fill-ink"} />
       </g>
       <text x="352" y="58" textAnchor="end" className="fill-ink-2 text-[11px]">
@@ -80,7 +87,11 @@ function RouteLine({ connection }: { connection: Connection }) {
 }
 
 function Url({ children }: { children: ReactNode }) {
-  return <span className="mt-1 inline-block rounded-[4px] bg-sunk px-2 py-1 font-mono text-[0.86em] break-all">{children}</span>;
+  return (
+    <span className="mt-1 inline-block rounded-[4px] bg-sunk px-2 py-1 font-mono text-[0.86em] break-all">
+      {children}
+    </span>
+  );
 }
 
 const certificate = (
@@ -110,7 +121,12 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
                 <b className="font-bold">Open the server's https address in a new tab.</b>
                 <br />
                 <Url>{httpsForm(url)}</Url>{" "}
-                <a className={`${buttonClass({ size: "sm" })} mt-1 align-middle`} href={httpsForm(url)} target="_blank" rel="noreferrer">
+                <a
+                  className={`${buttonClass({ size: "sm" })} mt-1 align-middle`}
+                  href={httpsForm(url)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   Open it <Icon name="ext" className="size-4" />
                 </a>
               </div>
@@ -142,14 +158,16 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
       body: (
         <>
           <p className="m-0">
-            This app was loaded over https, and browsers don't let an https page open an unencrypted ws:// or http:// connection to
-            another machine. There are two ways round it.
+            This app was loaded over https, and browsers don't let an https page open an unencrypted ws:// or http://
+            connection to another machine. There are two ways round it.
           </p>
           <Steps>
             <li>
               <div>
                 <b className="font-bold">Give your server a certificate and use wss:// or https://.</b>{" "}
-                <a className={linkClass} href="#/guide">How to get one</a>
+                <a className={linkClass} href="#/guide">
+                  How to get one
+                </a>
               </div>
             </li>
             <li>
@@ -157,7 +175,9 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
                 <b className="font-bold">Or run this app from the local container.</b> It serves the app on{" "}
                 <span className="font-mono text-[0.86em]">http://localhost:8080</span>, and a localhost page may open
                 ws:// or http:// to a node on your own network.{" "}
-                <a className={linkClass} href="#/guide">How to run it</a>
+                <a className={linkClass} href="#/guide">
+                  How to run it
+                </a>
               </div>
             </li>
           </Steps>
@@ -168,7 +188,9 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
       title: `Nothing at ${h} accepted the connection`,
       body: (
         <>
-          <p className="m-0">The address was reached, or looked up, but no service took the connection. Check, in order:</p>
+          <p className="m-0">
+            The address was reached, or looked up, but no service took the connection. Check, in order:
+          </p>
           <Steps>
             <li>
               <div>
@@ -178,16 +200,18 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
             <li>
               {/^https?:/.test(url) ? (
                 <div>
-                  <b className="font-bold">The port is the one your Esplora API listens on</b>, not the explorer's
-                  web page if it serves that elsewhere.
+                  <b className="font-bold">The port is the one your Esplora API listens on</b>, not the explorer's web
+                  page if it serves that elsewhere.
                 </div>
               ) : (
                 <div>
                   <b className="font-bold">The port is the WebSocket one.</b> Fulcrum's TCP ports (50001, 50002) don't
                   speak WebSocket; the <span className="font-mono text-[0.86em]">ws</span> and{" "}
-                  <span className="font-mono text-[0.86em]">wss</span> settings in fulcrum.conf name the right ports. A server with only a TCP port, such as electrs, is
-                  reached through the local container.{" "}
-                  <a className={linkClass} href="#/guide">How to run it</a>
+                  <span className="font-mono text-[0.86em]">wss</span> settings in fulcrum.conf name the right ports. A
+                  server with only a TCP port, such as electrs, is reached through the local container.{" "}
+                  <a className={linkClass} href="#/guide">
+                    How to run it
+                  </a>
                 </div>
               )}
             </li>
@@ -201,9 +225,14 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
               <li>
                 <div>
                   <b className="font-bold">A self-signed certificate can look exactly like this.</b> Open{" "}
-                  <Url>{httpsForm(url)}</Url> in a new tab, accept the warning if it's about your own server, then
-                  come back and retry.{" "}
-                  <a className={`${buttonClass({ size: "sm" })} mt-1 align-middle`} href={httpsForm(url)} target="_blank" rel="noreferrer">
+                  <Url>{httpsForm(url)}</Url> in a new tab, accept the warning if it's about your own server, then come
+                  back and retry.{" "}
+                  <a
+                    className={`${buttonClass({ size: "sm" })} mt-1 align-middle`}
+                    href={httpsForm(url)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
                     Open it <Icon name="ext" className="size-4" />
                   </a>
                 </div>
@@ -222,8 +251,8 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
           <Steps>
             <li>
               <div>
-                <b className="font-bold">A home network address while you're away from home.</b> Addresses like
-                192.168… only work on that network.
+                <b className="font-bold">A home network address while you're away from home.</b> Addresses like 192.168…
+                only work on that network.
               </div>
             </li>
             <li>
@@ -233,8 +262,8 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
             </li>
             <li>
               <div>
-                <b className="font-bold">A server still indexing the chain.</b> Fulcrum doesn't answer until its
-                first sync is done.
+                <b className="font-bold">A server still indexing the chain.</b> Fulcrum doesn't answer until its first
+                sync is done.
               </div>
             </li>
           </Steps>
@@ -247,9 +276,9 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
       body: (
         <>
           <p className="m-0">
-            This address is the container's bridge, on the same server as this page, so the browser already trusts it. The
-            bridge passes the connection on to the server set in <span className="font-mono text-[0.86em]">ELECTRUM</span>,
-            and that part failed. Check, in order:
+            This address is the container's bridge, on the same server as this page, so the browser already trusts it.
+            The bridge passes the connection on to the server set in{" "}
+            <span className="font-mono text-[0.86em]">ELECTRUM</span>, and that part failed. Check, in order:
           </p>
           <Steps>
             <li>
@@ -340,9 +369,16 @@ function Guidance({ failure, url, message }: { failure: Failure | null; url: str
   const guide =
     failure && failure !== "invalid-url"
       ? guides[failure]
-      : { title: "The connection failed", body: <p className="m-0">The browser reported: {message}</p>, more: certificate };
+      : {
+          title: "The connection failed",
+          body: <p className="m-0">The browser reported: {message}</p>,
+          more: certificate,
+        };
   return (
-    <section aria-live="polite" className="overflow-hidden rounded-panel border border-[color-mix(in_srgb,var(--bad)_40%,var(--rule))] bg-sheet">
+    <section
+      aria-live="polite"
+      className="overflow-hidden rounded-panel border border-[color-mix(in_srgb,var(--bad)_40%,var(--rule))] bg-sheet"
+    >
       <div className="flex items-start gap-2.5 bg-bad-tint px-4 py-3.5 text-bad">
         <Icon name="warn" className="mt-0.5 size-5" />
         <h2 className="m-0 text-md font-bold">{guide.title}</h2>
@@ -364,7 +400,9 @@ function Status({ connection }: { connection: Connection }) {
       <section className="grid gap-2 rounded-panel border border-rule bg-sheet p-4">
         <h2 className="m-0 flex items-center gap-2 text-md font-bold">
           <span className={`size-2 rounded-full ${connection.phase === "connected" ? "bg-ok" : "bg-warn"}`} />
-          {connection.phase === "connected" ? `Connected to ${hostText(connection.url)}` : `Reconnecting to ${hostText(connection.url)}`}
+          {connection.phase === "connected"
+            ? `Connected to ${hostText(connection.url)}`
+            : `Reconnecting to ${hostText(connection.url)}`}
         </h2>
         <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
           <dt className="text-ink-2">Server software</dt>
@@ -423,7 +461,11 @@ export function Connect({ onboarding = false }: { onboarding?: boolean }) {
     if (url) return;
     fetch("electrum.json")
       .then((r) => r.json())
-      .then((bridge: { url?: unknown }) => typeof bridge.url === "string" && setUrl((u) => u || new URL("electrum", location.href).href.replace(/^http/, "ws")))
+      .then(
+        (bridge: { url?: unknown }) =>
+          typeof bridge.url === "string" &&
+          setUrl((u) => u || new URL("electrum", location.href).href.replace(/^http/, "ws")),
+      )
       .catch(() => {});
   }, []);
 
@@ -448,7 +490,11 @@ export function Connect({ onboarding = false }: { onboarding?: boolean }) {
           <Field
             label="Server address"
             hint="An Electrum server as wss:// and its WebSocket Secure port, often 50004, or an Esplora API as its https:// address."
-            error={invalid ? "Write it as wss://host:port, for example wss://node.example.com:50004, or as https://host/api." : undefined}
+            error={
+              invalid
+                ? "Write it as wss://host:port, for example wss://node.example.com:50004, or as https://host/api."
+                : undefined
+            }
           >
             {(props) => (
               <input
@@ -464,16 +510,36 @@ export function Connect({ onboarding = false }: { onboarding?: boolean }) {
               />
             )}
           </Field>
-          {busy && <p className="m-0 text-sm text-ink-2" role="status">Connecting to {hostText(url)}. Waiting up to 10 seconds for an answer.</p>}
-          <Button type="submit" variant="primary" wide disabled={busy || !url.trim()} icon={failed && !invalid ? "retry" : undefined}>
-            {failed && !invalid ? "Retry connection" : busy ? "Connecting" : connection.phase === "connected" && connection.url === url.trim() ? "Reconnect" : "Connect"}
+          {busy && (
+            <p className="m-0 text-sm text-ink-2" role="status">
+              Connecting to {hostText(url)}. Waiting up to 10 seconds for an answer.
+            </p>
+          )}
+          <Button
+            type="submit"
+            variant="primary"
+            wide
+            disabled={busy || !url.trim()}
+            icon={failed && !invalid ? "retry" : undefined}
+          >
+            {failed && !invalid
+              ? "Retry connection"
+              : busy
+                ? "Connecting"
+                : connection.phase === "connected" && connection.url === url.trim()
+                  ? "Reconnect"
+                  : "Connect"}
           </Button>
           <p className="m-0 text-sm text-ink-3">
             There's no default or public server. If yours is unreachable, this app does nothing rather than ask someone
             else.
           </p>
         </form>
-        {failed && !invalid ? <Guidance failure={failed.failure} url={failed.url} message={failed.message} /> : <Status connection={connection} />}
+        {failed && !invalid ? (
+          <Guidance failure={failed.failure} url={failed.url} message={failed.message} />
+        ) : (
+          <Status connection={connection} />
+        )}
       </div>
     </div>
   );

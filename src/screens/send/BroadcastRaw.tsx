@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useConnection } from "../../app/connection";
 import { navigate } from "../../app/route";
 import { useNetwork, useWalletSessions } from "../../app/session";
-import { decodeTransaction, type DecodedTx } from "../../core/lookup";
+import { type DecodedTx, decodeTransaction } from "../../core/lookup";
 import { hostText } from "../../ui/format";
 import { Button, Chip, Empty, linkClass } from "../../ui/kit";
 import { TxDetails } from "../Lookup";
@@ -26,7 +26,9 @@ export function BroadcastRaw({ text }: { text: string }) {
   const network = useNetwork();
   const sessions = useWalletSessions();
   const raw = useMemo(() => parseRaw(text), [text]);
-  const [decoded, setDecoded] = useState<{ raw: Uint8Array; tx: DecodedTx } | { raw: Uint8Array; error: string } | null>(null);
+  const [decoded, setDecoded] = useState<
+    { raw: Uint8Array; tx: DecodedTx } | { raw: Uint8Array; error: string } | null
+  >(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const shown = useRef(true);
@@ -58,7 +60,11 @@ export function BroadcastRaw({ text }: { text: string }) {
     ) : (
       <Empty title="Not connected">
         <p className="m-0">
-          Broadcasting needs the server. <a href="#/connect" className={linkClass}>Connect to it</a>.
+          Broadcasting needs the server.{" "}
+          <a href="#/connect" className={linkClass}>
+            Connect to it
+          </a>
+          .
         </p>
       </Empty>
     );

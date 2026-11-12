@@ -1,4 +1,4 @@
-import { HARDENED, type Descriptor } from "../wallet/descriptor";
+import { type Descriptor, HARDENED } from "../wallet/descriptor";
 
 /** One line of a BIP329 export. https://github.com/bitcoin/bips/blob/master/bip-0329.mediawiki */
 export type Bip329Record = {
@@ -39,7 +39,7 @@ export function parseBip329(text: string): { records: Bip329Record[]; skipped: n
 }
 
 export function formatBip329(records: Bip329Record[]): string {
-  return records.map((r) => JSON.stringify(r) + "\n").join("");
+  return records.map((r) => `${JSON.stringify(r)}\n`).join("");
 }
 
 /** The abbreviated descriptor BIP329 names a wallet by, such as `wpkh([d34db33f/84'/0'/0'])`. */
@@ -50,7 +50,9 @@ export function bip329Origin(descriptor: Descriptor): string | null {
     const steps = origin!.path.map((i) => (i >= HARDENED ? `${i - HARDENED}'` : `${i}`));
     return `[${[origin!.fingerprint, ...steps].join("/")}]`;
   });
-  const inner = multi ? `${multi.sorted ? "sortedmulti" : "multi"}(${multi.threshold},${origins.join(",")})` : origins[0];
+  const inner = multi
+    ? `${multi.sorted ? "sortedmulti" : "multi"}(${multi.threshold},${origins.join(",")})`
+    : origins[0];
   return `${scriptType}(${inner})`;
 }
 

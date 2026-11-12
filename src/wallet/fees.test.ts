@@ -1,20 +1,52 @@
 import { describe, expect, it } from "vitest";
-import { effectiveFeeRate, feeTargets, mempoolDepth, mempoolPosition, type MempoolTx } from "./fees";
+import { effectiveFeeRate, feeTargets, type MempoolTx, mempoolDepth, mempoolPosition } from "./fees";
 
 // The protocol's own example result.
 // https://electrum-protocol.readthedocs.io/en/latest/protocol-methods.html#mempool-get-fee-histogram
 const histogram = (
   [
-    [59.5, 30324], [40.1, 34305], [35.0, 38459], [29.3, 41270], [27.0, 45167],
-    [24.3, 53512], [22.9, 53488], [21.8, 70279], [20.0, 65328], [18.2, 72180],
-    [18.1, 5254], [18.0, 191579], [16.5, 103640], [15.7, 106715],
-    [15.1, 141776], [14.0, 183261], [13.5, 166496], [11.8, 166050],
-    [11.1, 242436], [9.2, 184043], [7.1, 202137], [5.2, 222011],
-    [4.8, 344788], [4.6, 17101], [4.5, 1696864], [4.1, 598001],
-    [4.0, 32688687], [3.9, 505192], [3.8, 38417], [3.7, 2944970],
-    [3.3, 693364], [3.2, 726373], [3.1, 308878], [3.0, 11884957],
-    [2.6, 996967], [2.3, 822802], [2.2, 9075547], [2.1, 12149801],
-    [2.0, 16387874], [1.4, 873120], [1.3, 3493364], [1.1, 2302460],
+    [59.5, 30324],
+    [40.1, 34305],
+    [35.0, 38459],
+    [29.3, 41270],
+    [27.0, 45167],
+    [24.3, 53512],
+    [22.9, 53488],
+    [21.8, 70279],
+    [20.0, 65328],
+    [18.2, 72180],
+    [18.1, 5254],
+    [18.0, 191579],
+    [16.5, 103640],
+    [15.7, 106715],
+    [15.1, 141776],
+    [14.0, 183261],
+    [13.5, 166496],
+    [11.8, 166050],
+    [11.1, 242436],
+    [9.2, 184043],
+    [7.1, 202137],
+    [5.2, 222011],
+    [4.8, 344788],
+    [4.6, 17101],
+    [4.5, 1696864],
+    [4.1, 598001],
+    [4.0, 32688687],
+    [3.9, 505192],
+    [3.8, 38417],
+    [3.7, 2944970],
+    [3.3, 693364],
+    [3.2, 726373],
+    [3.1, 308878],
+    [3.0, 11884957],
+    [2.6, 996967],
+    [2.3, 822802],
+    [2.2, 9075547],
+    [2.1, 12149801],
+    [2.0, 16387874],
+    [1.4, 873120],
+    [1.3, 3493364],
+    [1.1, 2302460],
     [1.0, 23204633],
   ] as const
 ).map(([feeRate, vsize]) => ({ feeRate, vsize }));
@@ -33,9 +65,12 @@ describe("feeTargets", () => {
   it("falls back to the relay minimum when the mempool would clear", () => {
     const expected = { nextBlock: 1, threeBlocks: 1, sixBlocks: 1 };
     expect(feeTargets([])).toEqual(expected);
-    expect(feeTargets([{ feeRate: 5, vsize: 2000 }, { feeRate: 1, vsize: 90_000 }])).toEqual(
-      expected,
-    );
+    expect(
+      feeTargets([
+        { feeRate: 5, vsize: 2000 },
+        { feeRate: 1, vsize: 90_000 },
+      ]),
+    ).toEqual(expected);
   });
 
   it("never goes above the most the wallet accepts", () => {
@@ -105,7 +140,13 @@ describe("effectiveFeeRate", () => {
 
   it("is unknown when an ancestor's fee or the ancestor itself is unknown", () => {
     expect(
-      effectiveFeeRate("child", lookup({ child: { fee: 1000, vsize: 100, parents: ["parent"] }, parent: { fee: null, vsize: 100, parents: [] } })),
+      effectiveFeeRate(
+        "child",
+        lookup({
+          child: { fee: 1000, vsize: 100, parents: ["parent"] },
+          parent: { fee: null, vsize: 100, parents: [] },
+        }),
+      ),
     ).toBeNull();
     expect(effectiveFeeRate("child", lookup({ child: { fee: 1000, vsize: 100, parents: ["parent"] } }))).toBeNull();
     expect(effectiveFeeRate("a", lookup({ a: { fee: null, vsize: 100, parents: [] } }))).toBeNull();
@@ -115,7 +156,10 @@ describe("effectiveFeeRate", () => {
     const chain = (ancestors: number) =>
       lookup(
         Object.fromEntries(
-          Array.from({ length: ancestors + 1 }, (_, i) => [`t${i}`, { fee: 100, vsize: 100, parents: i < ancestors ? [`t${i + 1}`] : [] }]),
+          Array.from({ length: ancestors + 1 }, (_, i) => [
+            `t${i}`,
+            { fee: 100, vsize: 100, parents: i < ancestors ? [`t${i + 1}`] : [] },
+          ]),
         ),
       );
     expect(effectiveFeeRate("t0", chain(25))).toBe(1);

@@ -1,13 +1,28 @@
 import { expect, it } from "vitest";
 import { memoryStore } from "../vault/vault";
 import { formatDescriptor } from "../wallet/descriptor";
-import { asVersion, VERSION, BIP84_ZPUB, BIP86_XPUB } from "../wallet/vectors";
-import { walletDescriptor, backupRecords, mergeBackup, createWallet, listWallets, renameWalletGroup, renameWallet, deleteWallet } from "./wallets";
+import { asVersion, BIP84_ZPUB, BIP86_XPUB, VERSION } from "../wallet/vectors";
+import {
+  backupRecords,
+  createWallet,
+  deleteWallet,
+  listWallets,
+  mergeBackup,
+  renameWallet,
+  renameWalletGroup,
+  walletDescriptor,
+} from "./wallets";
 
 it("adds an explicitly imported account without changing the original account boundary", async () => {
   const vault = memoryStore();
   const first = await createWallet(vault, { name: "Savings", descriptor: BIP84_ZPUB, network: "mainnet" });
-  const second = await createWallet(vault, { name: "Daily", descriptor: BIP86_XPUB, scriptType: "tr", network: "mainnet", accountOf: first.id });
+  const second = await createWallet(vault, {
+    name: "Daily",
+    descriptor: BIP86_XPUB,
+    scriptType: "tr",
+    network: "mainnet",
+    accountOf: first.id,
+  });
   const accounts = await listWallets(vault);
   expect(accounts.map((w) => w.id)).toEqual([first.id, second.id]);
   expect(accounts[0]!.group).toEqual(accounts[1]!.group);
@@ -21,10 +36,22 @@ it("adds an explicitly imported account without changing the original account bo
 it("restores a new sibling beside a deduplicated account and preserves local names and membership", async () => {
   const source = memoryStore();
   const parent = await createWallet(source, { name: "Old", descriptor: BIP84_ZPUB, network: "mainnet" });
-  await createWallet(source, { name: "Sibling", descriptor: BIP86_XPUB, scriptType: "tr", network: "mainnet", accountOf: parent.id });
+  await createWallet(source, {
+    name: "Sibling",
+    descriptor: BIP86_XPUB,
+    scriptType: "tr",
+    network: "mainnet",
+    accountOf: parent.id,
+  });
   const target = memoryStore();
   const existing = await createWallet(target, { name: "Local", descriptor: BIP84_ZPUB, network: "mainnet" });
-  await createWallet(target, { name: "Local sibling", descriptor: BIP86_XPUB, scriptType: "wpkh", network: "mainnet", accountOf: existing.id });
+  await createWallet(target, {
+    name: "Local sibling",
+    descriptor: BIP86_XPUB,
+    scriptType: "wpkh",
+    network: "mainnet",
+    accountOf: existing.id,
+  });
   const before = await listWallets(target);
   const backup = await backupRecords(source);
   await mergeBackup(target, backup);
@@ -39,9 +66,22 @@ it("restores a new sibling beside a deduplicated account and preserves local nam
 it("remaps colliding group IDs without joining unrelated local accounts", async () => {
   const vault = memoryStore();
   const local = await createWallet(vault, { name: "Local", descriptor: BIP84_ZPUB, network: "mainnet" });
-  await createWallet(vault, { name: "Local sibling", descriptor: BIP86_XPUB, scriptType: "wpkh", network: "mainnet", accountOf: local.id });
+  await createWallet(vault, {
+    name: "Local sibling",
+    descriptor: BIP86_XPUB,
+    scriptType: "wpkh",
+    network: "mainnet",
+    accountOf: local.id,
+  });
   const group = (await listWallets(vault))[0]!.group!;
-  const incoming = { ...local, id: "backup-account", name: "Imported", descriptor: BIP86_XPUB, scriptType: "tr" as const, group };
+  const incoming = {
+    ...local,
+    id: "backup-account",
+    name: "Imported",
+    descriptor: BIP86_XPUB,
+    scriptType: "tr" as const,
+    group,
+  };
   await mergeBackup(vault, { "wallet/backup-account": incoming });
   const imported = (await listWallets(vault)).find((w) => w.name === "Imported")!;
   expect(imported.group!.id).not.toBe(group.id);
@@ -51,7 +91,13 @@ it("remaps colliding group IDs without joining unrelated local accounts", async 
 it("keeps an ungrouped duplicate unchanged and restores its sibling once", async () => {
   const source = memoryStore();
   const parent = await createWallet(source, { name: "Signer", descriptor: BIP84_ZPUB, network: "mainnet" });
-  await createWallet(source, { name: "Daily", descriptor: BIP86_XPUB, scriptType: "tr", network: "mainnet", accountOf: parent.id });
+  await createWallet(source, {
+    name: "Daily",
+    descriptor: BIP86_XPUB,
+    scriptType: "tr",
+    network: "mainnet",
+    accountOf: parent.id,
+  });
   const target = memoryStore();
   const local = await createWallet(target, { name: "Existing", descriptor: BIP84_ZPUB, network: "mainnet" });
   const backup = await backupRecords(source);
@@ -66,14 +112,27 @@ it("keeps an ungrouped duplicate unchanged and restores its sibling once", async
 it("keeps account names independent from wallet names", async () => {
   const vault = memoryStore();
   const first = await createWallet(vault, { name: "Signer", descriptor: BIP84_ZPUB, network: "mainnet" });
-  const second = await createWallet(vault, { name: "Daily", descriptor: BIP86_XPUB, scriptType: "tr", network: "mainnet", accountOf: first.id });
+  const second = await createWallet(vault, {
+    name: "Daily",
+    descriptor: BIP86_XPUB,
+    scriptType: "tr",
+    network: "mainnet",
+    accountOf: first.id,
+  });
   await renameWallet(vault, second.id, "Spending");
-  expect((await listWallets(vault)).map((w) => [w.name, w.group?.name])).toEqual([["Signer", "Signer"], ["Spending", "Signer"]]);
+  expect((await listWallets(vault)).map((w) => [w.name, w.group?.name])).toEqual([
+    ["Signer", "Signer"],
+    ["Spending", "Signer"],
+  ]);
 });
 
 it("deduplicates canonical descriptors within a network and keeps other networks separate", async () => {
   const source = memoryStore();
-  const account = await createWallet(source, { name: "Original", descriptor: asVersion(BIP84_ZPUB, VERSION.vpub), network: "signet" });
+  const account = await createWallet(source, {
+    name: "Original",
+    descriptor: asVersion(BIP84_ZPUB, VERSION.vpub),
+    network: "signet",
+  });
   const backup = await backupRecords(source);
   const canonical = formatDescriptor(walletDescriptor(account));
   const merged = await mergeBackup(source, {
@@ -88,7 +147,11 @@ it("deduplicates canonical descriptors within a network and keeps other networks
 it("keeps restored wallet groups separate across networks", async () => {
   const vault = memoryStore();
   const source = memoryStore();
-  const account = await createWallet(source, { name: "Signet", descriptor: asVersion(BIP84_ZPUB, VERSION.vpub), network: "signet" });
+  const account = await createWallet(source, {
+    name: "Signet",
+    descriptor: asVersion(BIP84_ZPUB, VERSION.vpub),
+    network: "signet",
+  });
   const group = { id: "shared", name: "Signer" };
   await mergeBackup(vault, {
     "wallet/signet": { ...account, group },
@@ -97,6 +160,12 @@ it("keeps restored wallet groups separate across networks", async () => {
   const accounts = await listWallets(vault);
   expect(accounts).toHaveLength(2);
   expect(accounts[0]!.group!.id).not.toBe(accounts[1]!.group!.id);
-  await createWallet(vault, { name: "Sibling", descriptor: asVersion(BIP86_XPUB, VERSION.tpub), scriptType: "tr", network: "regtest", accountOf: accounts[1]!.id });
+  await createWallet(vault, {
+    name: "Sibling",
+    descriptor: asVersion(BIP86_XPUB, VERSION.tpub),
+    scriptType: "tr",
+    network: "regtest",
+    accountOf: accounts[1]!.id,
+  });
   expect((await listWallets(vault))[2]!.group).toEqual(accounts[1]!.group);
 });

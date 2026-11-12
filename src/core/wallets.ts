@@ -1,9 +1,9 @@
 import type { Clock, Store } from "../vault/vault";
 import {
+  type Descriptor,
   descriptorFromExtendedKey,
   formatDescriptor,
   parseDescriptor,
-  type Descriptor,
   type ScriptType,
 } from "../wallet/descriptor";
 import type { Network } from "../wallet/network";
@@ -31,20 +31,14 @@ export type Settings = { server: string | null };
 export type Contact = { address: string; name: string };
 
 /** @throws when the text is neither a supported descriptor nor an extended key. */
-export function walletDescriptor(
-  wallet: Pick<WalletRecord, "descriptor" | "network" | "scriptType">,
-): Descriptor {
+export function walletDescriptor(wallet: Pick<WalletRecord, "descriptor" | "network" | "scriptType">): Descriptor {
   const text = wallet.descriptor.trim();
   return text.includes("(")
     ? parseDescriptor(text, wallet.network)
     : descriptorFromExtendedKey(text, wallet.network, wallet.scriptType ?? undefined);
 }
 
-export async function createWallet(
-  vault: Store,
-  wallet: NewWallet,
-  now: Clock = Date.now,
-): Promise<WalletRecord> {
+export async function createWallet(vault: Store, wallet: NewWallet, now: Clock = Date.now): Promise<WalletRecord> {
   const newest = (await listWallets(vault)).at(-1)?.createdAt ?? -Infinity;
   const record: WalletRecord = {
     id: crypto.randomUUID(),
@@ -95,12 +89,22 @@ export async function renameWalletGroup(vault: Store, accountId: string, name: s
 /** Removes the wallet with its cached chain data, labels, frozen and KYC marks, unfinished send and payment requests. */
 export async function deleteWallet(vault: Store, id: string): Promise<void> {
   const cache = await vault.keys(`cache/${id}/`);
-  await vault.delete(`wallet/${id}`, `labels/${id}`, `frozen/${id}`, `kyc/${id}`, `send/${id}`, `requests/${id}`, ...cache);
+  await vault.delete(
+    `wallet/${id}`,
+    `labels/${id}`,
+    `frozen/${id}`,
+    `kyc/${id}`,
+    `send/${id}`,
+    `requests/${id}`,
+    ...cache,
+  );
 }
 
 /** What `mergeBackup` reads: no cached chain data, no unfinished send. */
 export async function backupRecords(vault: Store): Promise<Record<string, unknown>> {
-  const keys = (await vault.keys()).filter((key) => key === "settings" || key === "book" || /^(wallet|labels|frozen|kyc|requests)\//.test(key));
+  const keys = (await vault.keys()).filter(
+    (key) => key === "settings" || key === "book" || /^(wallet|labels|frozen|kyc|requests)\//.test(key),
+  );
   return Object.fromEntries(await Promise.all(keys.map(async (key) => [key, await vault.get(key)])));
 }
 
@@ -151,7 +155,10 @@ export async function mergeBackup(vault: Store, records: Record<string, unknown>
     }
     await vault.put(`labels/${to}`, labels);
     for (const marks of ["frozen", "kyc"]) {
-      const union = new Set([...((await vault.get<string[]>(`${marks}/${to}`)) ?? []), ...((records[`${marks}/${from}`] ?? []) as string[])]);
+      const union = new Set([
+        ...((await vault.get<string[]>(`${marks}/${to}`)) ?? []),
+        ...((records[`${marks}/${from}`] ?? []) as string[]),
+      ]);
       await vault.put(`${marks}/${to}`, [...union]);
     }
     const requests = (await vault.get<{ address: string }[]>(`requests/${to}`)) ?? [];

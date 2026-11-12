@@ -9,11 +9,7 @@
  * - `unconfirmed-parents`: its transaction spends an output that is itself
  *   unconfirmed and not the wallet's own change.
  */
-export type CoinStatus =
-  | "confirmed"
-  | "own-change"
-  | "foreign-unconfirmed"
-  | "unconfirmed-parents";
+export type CoinStatus = "confirmed" | "own-change" | "foreign-unconfirmed" | "unconfirmed-parents";
 
 /** An unspent output the wallet's descriptor can spend. Amounts in sats. */
 export type Coin = {
@@ -32,5 +28,4 @@ export type Coin = {
   frozen: boolean;
 };
 
-export const outpoint = (coin: { txid: string; vout: number }) =>
-  `${coin.txid}:${coin.vout}`;
+export const outpoint = (coin: { txid: string; vout: number }) => `${coin.txid}:${coin.vout}`;

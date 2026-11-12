@@ -8,7 +8,18 @@ describe("explorer base URLs", () => {
     expect(explorerBase("  ")).toBe("");
   });
 
-  it.each(["javascript:alert(1)", "data:text/html,hello", "file:///tmp/explorer", "//explorer.example", "https://user:pass@explorer.example", "https://explorer.example?network=signet", "https://explorer.example/#/", "https://explorer.example?", "https://explorer.example/#", "not a URL"])("rejects %s", (url) => {
+  it.each([
+    "javascript:alert(1)",
+    "data:text/html,hello",
+    "file:///tmp/explorer",
+    "//explorer.example",
+    "https://user:pass@explorer.example",
+    "https://explorer.example?network=signet",
+    "https://explorer.example/#/",
+    "https://explorer.example?",
+    "https://explorer.example/#",
+    "not a URL",
+  ])("rejects %s", (url) => {
     expect(() => explorerBase(url)).toThrow();
   });
 });
