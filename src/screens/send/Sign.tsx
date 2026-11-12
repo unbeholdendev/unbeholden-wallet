@@ -8,6 +8,7 @@ import { hostText, shortId } from "../../ui/format";
 import { Icon } from "../../ui/icons";
 import { Button, Chip, LinkButton, Notice, Panel } from "../../ui/kit";
 import { sourcesOf } from "../../ui/sources";
+import { rateText } from "../../wallet/fees";
 import {
   adoptExternal,
   type Collected,
@@ -20,7 +21,6 @@ import {
 } from "../../wallet/psbt";
 import { CustodyLog } from "./CustodyLog";
 import { download, ExportQr } from "./ExportQr";
-import { rateText } from "./fees";
 import { ScanBack } from "./ScanBack";
 
 type Stage = "show" | "scan" | "verified";

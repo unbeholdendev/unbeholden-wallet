@@ -1,12 +1,12 @@
 import { hex } from "@scure/base";
 import { RawTx } from "@scure/btc-signer";
 import { useState } from "react";
-import { checkAddress, NOT_AN_ADDRESS, parseUri } from "../screens/send/Recipients";
 import { Icon } from "../ui/icons";
 import { Button, inputClass } from "../ui/kit";
 import { QrScanner } from "../ui/QrScanner";
 import { Sheet } from "../ui/sheet";
 import type { Network } from "../wallet/network";
+import { checkAddress, NOT_AN_ADDRESS, parseUri } from "../wallet/parse";
 import { navigate } from "./route";
 import { useNetwork } from "./session";
 

@@ -1,4 +1,5 @@
-import type { FeeBucket } from "../backend/backend";
+/** One bar of the mempool's fee histogram: total vsize paying that rate. */
+export type FeeBucket = { feeRate: number; vsize: number };
 
 // 4,000,000 weight units at four to the vbyte.
 // https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki
@@ -17,6 +18,8 @@ export const MAX_FEE_RATE = 10_000;
 
 /** sat/vB to confirm within one, three and six blocks, about an hour. */
 export type FeeTargets = { nextBlock: number; threeBlocks: number; sixBlocks: number };
+
+export type FeeChoice = { preset: keyof FeeTargets | "floor" } | { manual: number };
 
 /**
  * Electrum's histogram runs highest rate first, each bucket holding the vsize
@@ -88,4 +91,25 @@ export function feeTargets(histogram: FeeBucket[]): FeeTargets {
     threeBlocks: rateWithin(histogram, 3),
     sixBlocks: rateWithin(histogram, 6),
   };
+}
+
+/** The rate a choice comes to now; a preset follows the mempool, a manual rate never moves. */
+export function rateOf(choice: FeeChoice, histogram: FeeBucket[] | null, floor = MIN_FEE_RATE): number {
+  if ("manual" in choice) return choice.manual;
+  const targets = histogram ? feeTargets(histogram) : null;
+  const rate = choice.preset === "floor" || !targets ? MIN_FEE_RATE : targets[choice.preset];
+  return Math.max(rate, floor);
+}
+
+export const MVB = 1_000_000;
+export const mvb = (vsize: number) => (vsize / MVB).toLocaleString("en-GB", { maximumFractionDigits: 1 });
+export const rateText = (rate: number) => rate.toLocaleString("en-GB", { maximumFractionDigits: 1 });
+
+export function eta(blocks: number) {
+  const minutes = blocks * 10;
+  return minutes < 60
+    ? `about ${minutes} min`
+    : minutes < 240
+      ? `about ${Math.round(minutes / 60)} hour${minutes >= 90 ? "s" : ""}`
+      : "several hours";
 }

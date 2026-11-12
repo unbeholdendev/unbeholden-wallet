@@ -1,6 +1,7 @@
 import { hex } from "@scure/base";
 import { RawTx } from "@scure/btc-signer";
 import { sha256, sha256x2 } from "@scure/btc-signer/utils.js";
+import type { FeeBucket } from "../wallet/fees";
 
 /** An 80-byte block header and the height it sits at. */
 export type BlockHeader = { height: number; header: Uint8Array };
@@ -19,9 +20,6 @@ export type ScriptBalance = { confirmed: number; unconfirmed: number };
 
 /** An output paying a scripthash that nothing has spent, counting the mempool. */
 export type Unspent = { txid: string; vout: number; value: number; height: number | null };
-
-/** One bar of the mempool's fee histogram: total vsize paying that rate. */
-export type FeeBucket = { feeRate: number; vsize: number };
 
 /**
  * The outcomes the connection screen has to tell apart. `mixed-content` is a

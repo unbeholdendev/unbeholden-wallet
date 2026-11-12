@@ -7,8 +7,8 @@ import { Amount } from "../ui/amount";
 import { shortId } from "../ui/format";
 import { Button, Chip, Field, inputClass, LinkButton, linkClass, Panel } from "../ui/kit";
 import { useToast } from "../ui/toast";
+import { btcText, parseAmount, parseBtc } from "../wallet/parse";
 import { CopyButton, EditableLabel, GroupedAddress, Opening } from "./parts";
-import { btcText, parseAmount, parseBtc } from "./send/Recipients";
 
 /** A BIP21 request. Only the address part is upper case: that fits the denser alphanumeric QR mode, and a label keeps its case. */
 // https://github.com/bitcoin/bips/blob/master/bip-0021.mediawiki

@@ -4,6 +4,7 @@ import { FiatAmount, TxRowFiat } from "../app/fiat";
 import { navigate } from "../app/route";
 import { useOwners, useSendDraft, useWalletSession, useWalletSnapshot } from "../app/session";
 import { useUnit, useVault } from "../app/vault";
+import { stillPending } from "../core/send";
 import { feeRate, isOutgoing, txDirection, txWhen } from "../core/view";
 import type { WalletSnapshot, WalletTx } from "../core/wallet";
 import { Amount, btcParts, groupSats, UnitSwitch } from "../ui/amount";
@@ -11,12 +12,11 @@ import { FiatControl } from "../ui/fiat";
 import { ageText, confText, dateText, hostText, timeText, txFallback } from "../ui/format";
 import { Icon } from "../ui/icons";
 import { Button, buttonClass, Chip, Empty, LinkButton, linkClass, Panel, Segmented } from "../ui/kit";
+import { parseAmount } from "../wallet/parse";
 import { RestoreBackup } from "./Backup";
 import { reasons } from "./Connect";
 import { BalanceChart, CoinAge, Network, Pending, Sources, Stats } from "./HomePanels";
 import { EditableLabel, Opening } from "./parts";
-import { parseAmount } from "./send/Recipients";
-import { stillPending } from "./send/Send";
 
 const stages = { history: "Checking addresses", transactions: "Fetching transactions", blocks: "Fetching block times" };
 

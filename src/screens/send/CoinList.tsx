@@ -1,19 +1,14 @@
 import { useWallet } from "../../app/session";
+import { selectable } from "../../core/send";
 import type { WalletCoin } from "../../core/wallet";
 import { Amount, btcParts, groupSats } from "../../ui/amount";
 import { Icon, type IconName } from "../../ui/icons";
 import { Button, Chip } from "../../ui/kit";
 import type { Source } from "../../ui/sources";
 import { outpoint } from "../../wallet/coin";
+import { rateText } from "../../wallet/fees";
 import { spendCost } from "../../wallet/select";
 import { SourceTitle } from "../parts";
-import { rateText } from "./fees";
-
-/** Frozen coins and coins waiting on someone else's unconfirmed transaction cannot be chosen. */
-export const selectable = (c: WalletCoin) => !c.frozen && c.status !== "unconfirmed-parents";
-
-/** What a group tap or Max takes when the setting leaves out someone else's unconfirmed payment. */
-export const bulk = (c: WalletCoin) => selectable(c) && c.status !== "foreign-unconfirmed";
 
 function age(coin: WalletCoin, tip: number | null) {
   if (coin.height === null || tip === null) return "unconfirmed";

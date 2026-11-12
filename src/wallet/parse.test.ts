@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseAmount, parseBtc, parseUri } from "./Recipients";
+import { parseAmount, parseBtc, parseUri } from "./parse";
 
 describe("parseBtc", () => {
   it.each([

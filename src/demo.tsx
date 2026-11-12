@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
-import { demoBackend, seedDemoVault } from "./backend/fixture";
+import { demoBackend, seedDemoVault } from "./fixture";
 import { DEFAULT_KDF, vaultExists } from "./vault/vault";
 
 if (!(await vaultExists()))

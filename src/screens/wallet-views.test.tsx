@@ -7,15 +7,15 @@ import { App } from "../App";
 import { scriptHash, txidOf } from "../backend/backend";
 import type { ConnectionStatus } from "../backend/electrum";
 import { type FakeBackend, fakeBackend } from "../backend/fake";
-import { DEMO_DESCRIPTOR, DEMO_FOREIGN, DEMO_TXIDS, demoBackend, seedDemoVault } from "../backend/fixture";
 import { createWallet, saveSettings } from "../core/wallets";
+import { DEMO_DESCRIPTOR, DEMO_FOREIGN, DEMO_TXIDS, demoBackend, seedDemoVault } from "../fixture";
 import { createVault, destroyVault, unlockVault } from "../vault/vault";
 import { deriveAddress } from "../wallet/derive";
 import { parseDescriptor } from "../wallet/descriptor";
 import { NETWORKS } from "../wallet/network";
+import { parseUri } from "../wallet/parse";
 import { BIP86_XPUB } from "../wallet/vectors";
 import { bip21 } from "./Receive";
-import { parseUri } from "./send/Recipients";
 
 configure({ asyncUtilTimeout: 8000 });
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 30_000 });

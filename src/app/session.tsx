@@ -1,4 +1,3 @@
-import { hex } from "@scure/base";
 import {
   createContext,
   type Dispatch,
@@ -12,11 +11,10 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import { loadSend, type SendDraft, saveSend } from "../core/send";
 import { openWallet, type WalletSession, type WalletSnapshot } from "../core/wallet";
 import { walletDescriptor } from "../core/wallets";
 import { log } from "../log";
-import type { SendDraft } from "../screens/send/Send";
-import type { Store } from "../vault/vault";
 import type { Network } from "../wallet/network";
 import { walletKind } from "../wallet/select";
 import { useConnection } from "./connection";
@@ -27,31 +25,6 @@ const SessionContext = createContext<WalletSession | null>(null);
 const DraftContext = createContext<[SendDraft | null, Dispatch<SetStateAction<SendDraft | null>>]>([null, () => {}]);
 const SkipContext = createContext(new Map<string, string>());
 const FailedContext = createContext<{ message: string; retry(): void } | null>(null);
-
-type Saved = Omit<SendDraft, "built"> & {
-  built: Omit<NonNullable<SendDraft["built"]>, "psbt" | "signed" | "partial"> & {
-    psbt: string;
-    signed?: string;
-    partial?: string;
-  };
-};
-
-/** Keeps a send with a built PSBT in the vault, so it outlasts a lock or a reload, and forgets one without. */
-async function saveSend(vault: Store, walletId: string, draft: SendDraft | null): Promise<void> {
-  const built = draft?.built;
-  if (!built) return vault.delete(`send/${walletId}`);
-  const signed = built.signed && hex.encode(built.signed);
-  const partial = built.partial && hex.encode(built.partial);
-  await vault.put(`send/${walletId}`, { ...draft, built: { ...built, psbt: hex.encode(built.psbt), signed, partial } });
-}
-
-async function loadSend(vault: Store, walletId: string): Promise<SendDraft | null> {
-  const saved = await vault.get<Saved>(`send/${walletId}`);
-  if (!saved) return null;
-  const { psbt, signed, partial, ...built } = saved.built;
-  const bytes = (text?: string) => (text ? hex.decode(text) : undefined);
-  return { ...saved, built: { ...built, psbt: hex.decode(psbt), signed: bytes(signed), partial: bytes(partial) } };
-}
 
 function without<T>(all: ReadonlyMap<string, T>, id: string): ReadonlyMap<string, T> {
   if (!all.has(id)) return all;

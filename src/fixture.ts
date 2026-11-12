@@ -1,12 +1,12 @@
 import { hex } from "@scure/base";
 import { Transaction } from "@scure/btc-signer";
-import { openWallet } from "../core/wallet";
-import { createWallet, saveSettings } from "../core/wallets";
-import { createVault, type KdfParams } from "../vault/vault";
-import { derivePayment } from "../wallet/derive";
-import { parseDescriptor } from "../wallet/descriptor";
-import { BIP84_ZPUB, BIP86_XPUB } from "../wallet/vectors";
-import { fakeBackend } from "./fake";
+import { fakeBackend } from "./backend/fake";
+import { openWallet } from "./core/wallet";
+import { createWallet, saveSettings } from "./core/wallets";
+import { createVault, type KdfParams } from "./vault/vault";
+import { derivePayment } from "./wallet/derive";
+import { parseDescriptor } from "./wallet/descriptor";
+import { BIP84_ZPUB, BIP86_XPUB } from "./wallet/vectors";
 
 /**
  * A spending wallet with three months of history, for UI tests and

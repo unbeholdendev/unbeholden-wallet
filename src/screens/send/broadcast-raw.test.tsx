@@ -6,8 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../../App";
 import { BroadcastError, txidOf } from "../../backend/backend";
 import type { FakeBackend } from "../../backend/fake";
-import { DEMO_UNSENT, demoBackend, seedDemoVault } from "../../backend/fixture";
 import { saveSettings } from "../../core/wallets";
+import { DEMO_UNSENT, demoBackend, seedDemoVault } from "../../fixture";
 import { createVault, destroyVault } from "../../vault/vault";
 
 configure({ asyncUtilTimeout: 8000 });

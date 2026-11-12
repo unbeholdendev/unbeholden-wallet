@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../App";
 import { RefusedError, scriptHash } from "../backend/backend";
 import type { FakeBackend } from "../backend/fake";
-import { DEMO_DESCRIPTOR, DEMO_FOREIGN, demoBackend, seedDemoVault } from "../backend/fixture";
+import { DEMO_DESCRIPTOR, DEMO_FOREIGN, demoBackend, seedDemoVault } from "../fixture";
 import { destroyVault } from "../vault/vault";
 import { deriveAddress } from "../wallet/derive";
 import { parseDescriptor } from "../wallet/descriptor";

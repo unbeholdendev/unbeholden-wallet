@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { TxFiat } from "../app/fiat";
 import { navigate } from "../app/route";
 import { useOwners, useWalletSnapshot } from "../app/session";
-import type { FeeBucket } from "../backend/backend";
 import {
   type AddressInfo,
   feeRate,
@@ -17,10 +16,10 @@ import { ExplorerLink } from "../ui/explorer";
 import { confText, dateText, satsText, shortId, timeText, txFallback } from "../ui/format";
 import { Icon } from "../ui/icons";
 import { Button, Chip, linkClass } from "../ui/kit";
-import { effectiveFeeRate, type MempoolTx, mempoolPosition } from "../wallet/fees";
+import { effectiveFeeRate, eta, type FeeBucket, type MempoolTx, mempoolPosition, mvb, rateText } from "../wallet/fees";
 import { Lookup } from "./Lookup";
 import { CopyButton, EditableLabel, GroupedAddress, Opening } from "./parts";
-import { eta, mvb, rateText, useFeeHistogram } from "./send/fees";
+import { useFeeHistogram } from "./send/fees";
 
 function Back() {
   return (

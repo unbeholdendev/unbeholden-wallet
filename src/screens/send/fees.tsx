@@ -1,8 +1,19 @@
 import { useEffect, useId, useState } from "react";
 import { useConnection } from "../../app/connection";
-import type { FeeBucket } from "../../backend/backend";
 import { LinkButton, Panel } from "../../ui/kit";
-import { type FeeTargets, feeTargets, MAX_FEE_RATE, MIN_FEE_RATE, mempoolPosition } from "../../wallet/fees";
+import {
+  eta,
+  type FeeBucket,
+  type FeeChoice,
+  type FeeTargets,
+  MAX_FEE_RATE,
+  MIN_FEE_RATE,
+  MVB,
+  mempoolPosition,
+  mvb,
+  rateOf,
+  rateText,
+} from "../../wallet/fees";
 
 // A NaN rate passes every comparison, so it would get past the fee clamp and the bump checks.
 const valid = ({ feeRate, vsize }: FeeBucket) =>
@@ -31,35 +42,12 @@ export function useFeeHistogram(): FeeBucket[] | null {
   return histogram;
 }
 
-export type FeeChoice = { preset: keyof FeeTargets | "floor" } | { manual: number };
-
 const PRESETS: { key: keyof FeeTargets | "floor"; name: string }[] = [
   { key: "nextBlock", name: "Next block" },
   { key: "threeBlocks", name: "Within 30 minutes" },
   { key: "sixBlocks", name: "Within an hour" },
   { key: "floor", name: "No rush" },
 ];
-
-/** The rate a choice comes to now; a preset follows the mempool, a manual rate never moves. */
-export function rateOf(choice: FeeChoice, histogram: FeeBucket[] | null, floor = MIN_FEE_RATE): number {
-  if ("manual" in choice) return choice.manual;
-  const targets = histogram ? feeTargets(histogram) : null;
-  const rate = choice.preset === "floor" || !targets ? MIN_FEE_RATE : targets[choice.preset];
-  return Math.max(rate, floor);
-}
-
-const MVB = 1_000_000;
-export const mvb = (vsize: number) => (vsize / MVB).toLocaleString("en-GB", { maximumFractionDigits: 1 });
-export const rateText = (rate: number) => rate.toLocaleString("en-GB", { maximumFractionDigits: 1 });
-
-export function eta(blocks: number) {
-  const minutes = blocks * 10;
-  return minutes < 60
-    ? `about ${minutes} min`
-    : minutes < 240
-      ? `about ${Math.round(minutes / 60)} hour${minutes >= 90 ? "s" : ""}`
-      : "several hours";
-}
 
 const W = 360;
 const H = 124;

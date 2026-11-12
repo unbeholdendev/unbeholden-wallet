@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { BroadcastError, NotFoundError, RefusedError, txidOf, type WalletBackend } from "../backend/backend";
 import { electrumBackend } from "../backend/electrum";
 import { type FakeBackend, fakeBackend, fakeEsplora } from "../backend/fake";
-import { DEMO_FOREIGN, DEMO_TXIDS, DEMO_UNSENT, demoBackend } from "../backend/fixture";
+import { DEMO_FOREIGN, DEMO_TXIDS, DEMO_UNSENT, demoBackend } from "../fixture";
 import { NETWORKS } from "../wallet/network";
 import { addressAmounts, decodeTransaction, difficulty, lookupAddress, lookupBlock, lookupTransaction } from "./lookup";
 

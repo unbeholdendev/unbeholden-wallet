@@ -2,13 +2,14 @@ import { useState } from "react";
 import { navigate } from "../../app/route";
 import { useSendDraft, useWallet, useWalletSnapshot } from "../../app/session";
 import { type BumpProblem, planBump, planCpfp } from "../../core/bump";
+import { blankDraft, stillPending } from "../../core/send";
 import { nextChange } from "../../core/view";
 import { Amount, groupSats } from "../../ui/amount";
 import { Button, Empty, linkClass, Notice, Panel } from "../../ui/kit";
 import { outpoint } from "../../wallet/coin";
+import { type FeeChoice, rateOf, rateText } from "../../wallet/fees";
 import { buildPsbt } from "../../wallet/psbt";
-import { type FeeChoice, FeePanel, rateOf, rateText, useFeeHistogram } from "./fees";
-import { blankDraft, stillPending } from "./Send";
+import { FeePanel, useFeeHistogram } from "./fees";
 
 export type BumpMode = "speed" | "cancel" | "cpfp";
 
@@ -121,7 +122,6 @@ export function Bump({ txid, mode }: { txid: string; mode: BumpMode }) {
           warnings,
           title: copy.sign,
           label: tx.label ?? "",
-          // Kept in the vault as JSON, so text only.
           summary: [
             [copy.link, `${txid.slice(0, 10)}…${txid.slice(-6)}`],
             ["Extra cost", `${groupSats(extra)} sats`],

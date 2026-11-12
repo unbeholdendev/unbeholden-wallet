@@ -6,9 +6,9 @@ import { AMOUNTS_PAGE, addressAmounts, type LookedUpAddress, lookupAddress } fro
 import { Amount, groupSats } from "../ui/amount";
 import { dateText, shortId } from "../ui/format";
 import { Button, Chip, linkClass } from "../ui/kit";
+import { checkAddress } from "../wallet/parse";
 import { Missing } from "./Lookup";
 import { CopyButton, GroupedAddress } from "./parts";
-import { checkAddress } from "./send/Recipients";
 
 type Found = { address: string } & ({ found: LookedUpAddress } | { refused: string } | { error: string });
 

@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { App } from "../src/App";
-import { demoBackend, seedDemoVault } from "../src/backend/fixture";
+import { demoBackend, seedDemoVault } from "../src/fixture";
 import { setVaultDatabase, vaultExists } from "../src/vault/vault";
 import "../src/index.css";
 

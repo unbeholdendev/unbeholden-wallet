@@ -1,12 +1,12 @@
 import { hex } from "@scure/base";
 import { Transaction } from "@scure/btc-signer";
 import { sha256x2 } from "@scure/btc-signer/utils.js";
+import type { FeeBucket } from "../wallet/fees";
 import {
   type BlockHeader,
   BroadcastError,
   ConnectionError,
   type ConnectionFailure,
-  type FeeBucket,
   type HistoryEntry,
   NotFoundError,
   RefusedError,

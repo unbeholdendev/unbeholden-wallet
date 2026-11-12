@@ -2,6 +2,17 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useConnection } from "../../app/connection";
 import { useSendDraft, useWallet, useWalletSession, useWalletSnapshot } from "../../app/session";
 import { useBook, useVault } from "../../app/vault";
+import {
+  blankDraft,
+  buildSend,
+  bulk,
+  type Draft,
+  planSend,
+  type SendDraft,
+  type SendProblem,
+  selectable,
+  stillPending,
+} from "../../core/send";
 import { nextChange } from "../../core/view";
 import type { WalletCoin, WalletSnapshot } from "../../core/wallet";
 import { Amount, groupSats } from "../../ui/amount";
@@ -11,18 +22,14 @@ import { Button, Chip, linkClass, Notice } from "../../ui/kit";
 import { Sheet } from "../../ui/sheet";
 import { type Source, sourcesOf } from "../../ui/sources";
 import { outpoint } from "../../wallet/coin";
-import { assessPrivacy } from "../../wallet/privacy";
-import { buildPsbt } from "../../wallet/psbt";
-import { type Payment, type Spend, selectCoins, spend } from "../../wallet/select";
-import { bulk, CoinList, selectable } from "./CoinList";
+import { type FeeChoice, rateOf, rateText } from "../../wallet/fees";
+import { CoinList } from "./CoinList";
 import { CustodyLog } from "./CustodyLog";
-import { type FeeChoice, FeePanel, rateOf, rateText, useFeeHistogram } from "./fees";
-import { checkAddress, type Draft, parseAmount, Recipients } from "./Recipients";
+import { FeePanel, useFeeHistogram } from "./fees";
+import { Recipients } from "./Recipients";
 import { SignFlow } from "./Sign";
 
 const and = (names: string[]) => (names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names[0]);
-
-const seed = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16)).join("");
 
 /** Plays its background once whenever the value changes, so a moved total catches the eye. */
 function Flash({ value, children }: { value: number; children: ReactNode }) {
@@ -34,50 +41,23 @@ function Flash({ value, children }: { value: number; children: ReactNode }) {
   );
 }
 
-export type Built = {
-  psbt: Uint8Array;
-  warnings: string[];
-  title?: string;
-  label: string;
-  names?: Record<string, string>;
-  summary: [ReactNode, ReactNode][];
-};
-
-/** `picked` null lets the wallet choose coins for the amount; a tap fixes the choice. `replaces` is set for a fee bump or cancellation, whose `inputs` are only the coins it adds. */
-export type SendDraft = {
-  drafts: Draft[];
-  fee: FeeChoice;
-  seed: string;
-  picked: string[] | null;
-  built: (Built & { inputs: string[]; replaces?: string; signed?: Uint8Array; partial?: Uint8Array }) | null;
-};
-
-/** Whether a built send can still go out: its coins unspent and what it replaces still unconfirmed. */
-export function stillPending(built: NonNullable<SendDraft["built"]>, snapshot: WalletSnapshot) {
-  const unspent = new Set(snapshot.coins.map(outpoint));
-  return (
-    built.inputs.every((k) => unspent.has(k)) &&
-    (!built.replaces || snapshot.transactions.some((t) => t.txid === built.replaces && t.height === null))
-  );
-}
-
-export const blankDraft = (): SendDraft => ({
-  drafts: [{ key: 0, address: "", amount: "", max: false, label: "" }],
-  fee: { preset: "threeBlocks" },
-  seed: seed(),
-  picked: null,
-  built: null,
-});
-
-function blocker(drafts: Draft[], valid: boolean[], result: Spend): string | null {
-  if (drafts.some((d) => !d.address.trim())) return "Enter who to pay";
-  if (valid.includes(false)) return "Fix the address first";
-  if (drafts.some((d) => !d.max && !parseAmount(d.amount))) return "Enter an amount";
-  const p = result.problem;
-  if (p?.kind === "no-coins") return "Select coins to pay from";
-  if (p?.kind === "insufficient") return `Short by ${groupSats(p.missing)} sats`;
-  if (p?.kind === "dust") return `Payment ${p.recipient + 1} is too small to send`;
-  return null;
+function blocker(problem: SendProblem | null): string | null {
+  switch (problem?.kind) {
+    case "no-recipient":
+      return "Enter who to pay";
+    case "bad-address":
+      return "Fix the address first";
+    case "no-amount":
+      return "Enter an amount";
+    case "no-coins":
+      return "Select coins to pay from";
+    case "insufficient":
+      return `Short by ${groupSats(problem.missing)} sats`;
+    case "dust":
+      return `Payment ${problem.recipient + 1} is too small to send`;
+    default:
+      return null;
+  }
 }
 
 function Compose({
@@ -106,73 +86,19 @@ function Compose({
   const named = new Map(book.map((c) => [c.address, c.name]));
 
   const sources = useMemo(() => sourcesOf(snapshot), [snapshot]);
-  const nameOf = useMemo(() => new Map(sources.flatMap((s) => s.coins.map((c) => [outpoint(c), s.name]))), [sources]);
-  const kycOf = useMemo(
-    () => new Set(sources.filter((s) => s.kyc.length).flatMap((s) => s.coins.map(outpoint))),
-    [sources],
-  );
   const own = useMemo(
     () => new Set([...snapshot.addresses.receive, ...snapshot.addresses.change].map((a) => a.address)),
     [snapshot],
   );
   const rate = rateOf(fee, histogram);
-  // An unfinished address still has to cost its output's bytes, so it stands in as one of the wallet's own type.
-  const placeholder =
-    kind.scriptType === "wpkh"
-      ? `0014${"00".repeat(20)}`
-      : `${kind.scriptType === "tr" ? "5120" : "0020"}${"00".repeat(32)}`;
-  const checks = drafts.map((d) => (d.address.trim() ? checkAddress(d.address, network) : null));
-  const addresses = checks.map((c) => (c && "address" in c ? c.address : ""));
-  const payment: Payment = {
-    recipients: drafts.map((d, i) => {
-      const check = checks[i];
-      return {
-        script: check && "script" in check ? check.script : placeholder,
-        value: d.max ? "max" : (parseAmount(d.amount) ?? 0),
-      };
-    }),
-    feeRate: rate,
-    ...kind,
-  };
-  const typed = drafts.every((d) => !d.max && parseAmount(d.amount));
-  const paymentKey = JSON.stringify(payment);
-  const auto = useMemo(
-    () =>
-      typed
-        ? selectCoins(snapshot.coins, payment, draft.seed, snapshot.groups, !skip).coins.map(outpoint)
-        : drafts.some((d) => d.max)
-          ? snapshot.coins.filter(take).map(outpoint)
-          : [],
-    [typed, paymentKey, snapshot, draft.seed, skip],
+  const plan = useMemo(
+    () => planSend(snapshot, sources, draft, rate, { ...kind, network }, skip),
+    [snapshot, sources, draft, rate, kind, network, skip],
   );
-  const selected = new Set(draft.picked ?? auto);
-  const chosen = snapshot.coins.filter((c) => selected.has(outpoint(c)));
-  const result = spend(chosen, payment);
-  const report = assessPrivacy(result, payment, snapshot.groups, {
-    label: (c) => nameOf.get(outpoint(c)),
-    kyc: (c) => kycOf.has(outpoint(c)),
-  });
+  const { selected, chosen, spend: result, privacy: report, left, foreign, suggestion } = plan;
   const linked = report.sources.length;
-  const covers = (coins: WalletCoin[]) => !spend(coins, payment).problem;
-  const known = sources.filter((s) => s.kyc.length && s.coins.some(bulk));
-  const open = sources.filter((s) => !s.kyc.length && s.coins.some((c) => selected.has(outpoint(c))));
-  const knownCoins = known.flatMap((s) => s.coins.filter(bulk));
-  const suggest =
-    linked > 1 &&
-    typed &&
-    open.length > 0 &&
-    open.length < linked &&
-    !sources.some((s) => covers(s.coins.filter(bulk)));
-  const foreign = chosen.filter((c) => c.status === "foreign-unconfirmed");
-  const stop = blocker(
-    drafts,
-    checks.map((c) => !c || "script" in c),
-    result,
-  );
+  const stop = blocker(plan.problem);
   const change = nextChange(snapshot);
-  const sweepable = snapshot.coins.filter(take);
-  const swept = drafts.some((d) => d.max) && sweepable.length > 0 && sweepable.every((c) => selected.has(outpoint(c)));
-  const left = snapshot.coins.filter((c) => !selected.has(outpoint(c)) && !sweepable.includes(c));
   const leftOut = (
     [
       [left.filter((c) => c.frozen).length, "frozen"],
@@ -194,32 +120,9 @@ function Compose({
 
   const review = () => {
     try {
-      const built = buildPsbt({
-        descriptor,
-        network,
-        coins: result.coins,
-        recipients: drafts.map((d, i) => ({ address: d.address.trim(), value: result.amounts[i]! })),
-        change: result.change ? { chain: change.chain, index: change.index, value: result.change } : null,
-        tip: snapshot.tip,
-      });
+      const built = buildSend(plan, drafts, snapshot, { descriptor, network }, named);
       setError(null);
-      update({
-        built: {
-          ...built,
-          label: drafts
-            .map((d, i) => d.label.trim() || named.get(addresses[i]!))
-            .filter(Boolean)
-            .join(", "),
-          names: Object.fromEntries(addresses.flatMap((a) => (named.has(a) ? [[a, named.get(a)!]] : []))),
-          summary: [
-            [
-              "Inputs",
-              `${result.coins.length} coin${result.coins.length === 1 ? "" : "s"} from ${linked} source${linked === 1 ? "" : "s"}`,
-            ],
-          ],
-          inputs: result.coins.map(outpoint),
-        },
-      });
+      update({ built });
     } catch (e) {
       setError((e as Error).message);
     }
@@ -252,7 +155,7 @@ function Compose({
             book={book}
             onSave={(c) => saveBook([...book.filter((b) => b.address !== c.address), c])}
           />
-          {swept && left.length > 0 && (
+          {left.length > 0 && (
             <Notice tone="warn">
               Sending everything spendable. Left out, <Amount sats={left.reduce((a, c) => a + c.value, 0)} unit />:{" "}
               {leftOut}.
@@ -311,15 +214,15 @@ function Compose({
                     {w.message}
                   </p>
                 ))}
-              {suggest &&
-                (covers(knownCoins) ? (
+              {suggestion &&
+                (suggestion.coins ? (
                   <div className="grid justify-items-start gap-2 rounded-control border border-rule-2 p-3">
                     <span>
                       No single source covers this payment. Use only coins from sources that already know who you are,{" "}
-                      {and(known.map((s) => s.name))}, and {and(open.map((s) => s.name))}{" "}
-                      {open.length > 1 ? "stay" : "stays"} private.
+                      {and(suggestion.known)}, and {and(suggestion.open)}{" "}
+                      {suggestion.open.length > 1 ? "stay" : "stays"} private.
                     </span>
-                    <Button size="sm" onClick={() => setSelected(new Set(knownCoins.map(outpoint)))}>
+                    <Button size="sm" onClick={() => setSelected(new Set(suggestion.coins!.map(outpoint)))}>
                       Use only those coins
                     </Button>
                   </div>

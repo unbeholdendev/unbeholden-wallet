@@ -2,6 +2,7 @@ import { useState } from "react";
 import { navigate } from "../app/route";
 import { useSendDraft, useWallet, useWalletSession, useWalletSnapshot } from "../app/session";
 import { useVault } from "../app/vault";
+import { blankDraft, selectable } from "../core/send";
 import { nextChange } from "../core/view";
 import type { WalletCoin, WalletSnapshot, WalletTx } from "../core/wallet";
 import { Amount, btcParts, groupSats } from "../ui/amount";
@@ -11,12 +12,10 @@ import { Icon } from "../ui/icons";
 import { Button, Chip, Empty, linkClass, Panel } from "../ui/kit";
 import { type Source, SourceTag, sourcesOf } from "../ui/sources";
 import { outpoint } from "../wallet/coin";
-import { BUSY_RATE, feeTargets, MIN_FEE_RATE } from "../wallet/fees";
+import { BUSY_RATE, feeTargets, MIN_FEE_RATE, rateOf, rateText } from "../wallet/fees";
 import { spend, spendCost, type WalletKind } from "../wallet/select";
 import { EditableLabel, Opening, SourceTitle } from "./parts";
-import { selectable } from "./send/CoinList";
-import { rateOf, rateText, useFeeHistogram } from "./send/fees";
-import { blankDraft } from "./send/Send";
+import { useFeeHistogram } from "./send/fees";
 
 const statusChip = {
   confirmed: null,

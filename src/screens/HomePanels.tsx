@@ -8,10 +8,10 @@ import { Amount, groupSats } from "../ui/amount";
 import { dateText } from "../ui/format";
 import { linkClass, Panel } from "../ui/kit";
 import { SourceTag, sourcesOf } from "../ui/sources";
-import { BLOCK_VSIZE, BUSY_RATE, feeTargets } from "../wallet/fees";
+import { BLOCK_VSIZE, BUSY_RATE, eta, feeTargets, rateText } from "../wallet/fees";
 import { spend, spendCost } from "../wallet/select";
 import { type PaymentRequest, received } from "./Receive";
-import { eta, rateText, useFeeHistogram } from "./send/fees";
+import { useFeeHistogram } from "./send/fees";
 
 /** The balance after each transaction, oldest first, as a step line under the balance. Hover or arrow keys read out each step. */
 export function BalanceChart({ snapshot }: { snapshot: WalletSnapshot }) {

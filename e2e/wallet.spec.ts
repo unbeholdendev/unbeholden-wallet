@@ -75,7 +75,7 @@ for (const width of [390, 1280])
     // The dev server serves the fixture module, which Node cannot load for import.meta.env.
     const txid: string = await page.evaluate(
       async (path) => (await import(path)).DEMO_FOREIGN.pending,
-      "/src/backend/fixture.ts",
+      "/src/fixture.ts",
     );
     if (width < 1024) await page.getByRole("button", { name: "Search the chain" }).click();
     const box = page.getByRole("searchbox", { name: "Search the chain" });
@@ -95,7 +95,7 @@ for (const width of [390, 1280])
     // The dev server serves the fixture module, which Node cannot load for import.meta.env.
     const address: string = await page.evaluate(
       async (path) => (await import(path)).DEMO_FOREIGN.address,
-      "/src/backend/fixture.ts",
+      "/src/fixture.ts",
     );
     if (width < 1024) await page.getByRole("button", { name: "Search the chain" }).click();
     const box = page.getByRole("searchbox", { name: "Search the chain" });
@@ -149,7 +149,7 @@ test("long wallet names leave the header controls in view", async ({ page }) => 
 
 test("searching raw transaction hex shows its fee, then broadcasts it", async ({ page }) => {
   await open(page);
-  const raw: string = await page.evaluate(async (path) => (await import(path)).DEMO_UNSENT, "/src/backend/fixture.ts");
+  const raw: string = await page.evaluate(async (path) => (await import(path)).DEMO_UNSENT, "/src/fixture.ts");
   const box = page.getByRole("searchbox", { name: "Search the chain" });
   await box.fill(raw);
   await box.press("Enter");
