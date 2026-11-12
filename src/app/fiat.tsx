@@ -1,11 +1,20 @@
 import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
-import { type History, historyKey, parseHistory, priceAt, refreshed, stale, withSpot } from "../core/prices";
+import {
+  type Currency,
+  currencies,
+  type FiatSettings,
+  type History,
+  parseHistory,
+  priceAt,
+  refreshed,
+  stale,
+  withSpot,
+} from "../core/prices";
 import type { WalletTx } from "../core/view";
-import { useHidden, useVaultState } from "./vault";
-
-export const currencies = ["USD", "EUR", "GBP", "CAD", "AUD", "CHF", "JPY"] as const;
-export type Currency = (typeof currencies)[number];
-export type FiatSettings = { source: "blockchain" | "mempool" | "demo"; currency: Currency };
+import { type Key, readRecord, vaultKey, writeRecord } from "../core/wallets";
+import { Button, Field, inputClass, LinkButton, Notice } from "../ui/kit";
+import { Sheet } from "../ui/sheet";
+import { useHidden, useVault, useVaultState } from "./vault";
 
 type PriceSource = {
   name: string;
@@ -74,7 +83,7 @@ type Quote = {
   rates: Partial<Record<Currency, { value: number; fetchedAt: number }>>;
   fetchedAt: number;
 };
-type Held = { key: string; history?: History; failed: boolean };
+type Held = { key: Key<History>; history?: History; failed: boolean };
 const FiatContext = createContext<{ quote: Quote | null; failed: boolean; now: number; held: Held | null }>({
   quote: null,
   failed: false,
@@ -136,19 +145,19 @@ export function FiatProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setHeld(null);
     if (!source || !download || !currency || !vault) return;
-    const key = historyKey(source, currency);
+    const key = vaultKey.prices(source, currency);
     const controller = new AbortController();
     const refresh = async () => {
-      const cached = await vault.get<History>(key).catch(() => undefined);
+      const cached = await readRecord(vault, key).catch(() => undefined);
       if (controller.signal.aborted) return;
       setHeld({ key, history: cached, failed: false });
       if (!stale(cached, seconds())) return;
       try {
         const points = parseHistory(await download(currency, controller.signal), currency);
         if (!points.length) throw new Error("No prices returned");
-        const next = refreshed(await vault.get<History>(key), points, seconds());
+        const next = refreshed(await readRecord(vault, key), points, seconds());
         if (controller.signal.aborted) return;
-        await vault.put(key, next);
+        await writeRecord(vault, key, next);
         if (!controller.signal.aborted) setHeld({ key, history: next, failed: false });
       } catch {
         if (!controller.signal.aborted) setHeld({ key, history: cached, failed: true });
@@ -163,7 +172,7 @@ export function FiatProvider({ children }: { children: ReactNode }) {
   }, [vault, source, download, currency]);
 
   const shownQuote = quote?.source === source ? quote : null;
-  const shownHeld = (source && currency && held?.key === historyKey(source, currency) && held) || null;
+  const shownHeld = (source && currency && held?.key === vaultKey.prices(source, currency) && held) || null;
   useEffect(() => {
     const rate = currency && shownQuote?.rates[currency];
     if (!rate || !vault || !shownHeld) return;
@@ -174,14 +183,14 @@ export function FiatProvider({ children }: { children: ReactNode }) {
     );
     if (!next) return;
     setHeld({ ...shownHeld, history: next });
-    vault.put(shownHeld.key, next).catch(() => {});
+    writeRecord(vault, shownHeld.key, next).catch(() => {});
   }, [shownQuote, shownHeld, vault, currency]);
 
   const off = state.phase === "open" && !state.settings.fiat;
   useEffect(() => {
     if (off && vault)
       vault
-        .keys("prices/")
+        .keys(vaultKey.prices.prefix)
         .then((keys) => (keys.length ? vault.delete(...keys) : undefined))
         .catch(() => {});
   }, [off, vault]);
@@ -300,5 +309,95 @@ export function TxRowFiat({ tx }: { tx: WalletTx }) {
       </span>
       <span className="sr-only">, {label}</span>
     </span>
+  );
+}
+
+export function FiatControl() {
+  const { settings, saveSettings } = useVault();
+  const [open, setOpen] = useState(false);
+  const [source, setSource] = useState<FiatSettings["source"] | "">(settings.fiat?.source ?? "");
+  const [currency, setCurrency] = useState<Currency>(settings.fiat?.currency ?? "USD");
+  const [error, setError] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const save = async (fiat: FiatSettings | null) => {
+    setBusy(true);
+    setError(false);
+    try {
+      await saveSettings({ fiat });
+      setOpen(false);
+    } catch {
+      setError(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      <LinkButton
+        className="justify-self-start text-sm"
+        onClick={() => {
+          setSource(settings.fiat?.source ?? "");
+          setCurrency(settings.fiat?.currency ?? "USD");
+          setOpen(true);
+        }}
+      >
+        {settings.fiat ? "Fiat price settings" : "Show fiat value"}
+      </LinkButton>
+      <Sheet open={open} onClose={() => setOpen(false)} title="Fiat prices">
+        <p className="m-0 text-sm text-ink-2">
+          {import.meta.env.MODE === "demo"
+            ? "The demo uses made-up prices and contacts no price service."
+            : "Your chosen service will see your IP address and when you request prices. mempool.space also sees your currency, as it sends that currency's price history. Wallet addresses and balances stay in this browser. Prices refresh every five minutes while the vault is unlocked."}
+        </p>
+        <Field label="Price source">
+          {(props) => (
+            <select
+              {...props}
+              className={inputClass}
+              value={source}
+              onChange={(e) => setSource(e.target.value as FiatSettings["source"])}
+            >
+              <option value="" disabled>
+                Choose a service
+              </option>
+              {Object.entries(priceSources).map(([value, item]) => (
+                <option key={value} value={value}>
+                  {item!.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
+        <Field label="Currency">
+          {(props) => (
+            <select
+              {...props}
+              className={inputClass}
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value as Currency)}
+            >
+              {currencies.map((value) => (
+                <option key={value}>{value}</option>
+              ))}
+            </select>
+          )}
+        </Field>
+        {import.meta.env.MODE !== "demo" && (
+          <p className="m-0 text-sm text-ink-3">
+            With mempool.space, past transactions use its price history, downloaded once a day. Blockchain.com offers
+            current prices only.
+          </p>
+        )}
+        {error && <Notice tone="bad">Could not save your choice. Try again.</Notice>}
+        <Button disabled={!source || busy} onClick={() => source && void save({ source, currency })}>
+          {settings.fiat ? "Save fiat settings" : "Enable fiat prices"}
+        </Button>
+        {settings.fiat && (
+          <Button disabled={busy} onClick={() => void save(null)}>
+            Turn off fiat prices
+          </Button>
+        )}
+      </Sheet>
+    </>
   );
 }

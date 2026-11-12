@@ -7,7 +7,9 @@ export type History = { fetchedAt: number; points: Point[] };
 const HOUR = 3600;
 const DAY = 24 * HOUR;
 
-export const historyKey = (source: string, currency: string) => `prices/${source}/${currency}`;
+export const currencies = ["USD", "EUR", "GBP", "CAD", "AUD", "CHF", "JPY"] as const;
+export type Currency = (typeof currencies)[number];
+export type FiatSettings = { source: "blockchain" | "mempool" | "demo"; currency: Currency };
 
 export function parseHistory(body: unknown, currency: string): Point[] {
   const prices = (body as { prices?: unknown } | null)?.prices;

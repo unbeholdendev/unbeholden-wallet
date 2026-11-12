@@ -1,10 +1,11 @@
+import { Amount } from "../app/amount";
 import { useWalletSnapshot } from "../app/session";
-import { COINBASE, txWhen, type WalletTx } from "../core/view";
-import { Amount } from "../ui/amount";
+import { txWhen } from "../core/history";
+import { sourcesOf } from "../core/sources";
+import { COINBASE, type WalletTx } from "../core/view";
 import { dateText, shortId, txFallback } from "../ui/format";
 import { Icon } from "../ui/icons";
 import { Chip, Empty, linkClass } from "../ui/kit";
-import { sourcesOf } from "../ui/sources";
 import { outpoint } from "../wallet/coin";
 import { Opening, SourceTitle } from "./parts";
 

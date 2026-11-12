@@ -5,7 +5,8 @@ import { outpoint } from "../wallet/coin";
 import { deriveAddress } from "../wallet/derive";
 import { descriptorFromExtendedKey } from "../wallet/descriptor";
 import { BIP84_ZPUB } from "../wallet/vectors";
-import { blankDraft, type Draft, planSend, type SendDraft, type SendSource } from "./send";
+import { blankDraft, type Draft, planSend, type SendDraft } from "./send";
+import type { Source } from "./sources";
 import type { WalletCoin } from "./wallet";
 
 const descriptor = descriptorFromExtendedKey(BIP84_ZPUB, "mainnet");
@@ -35,7 +36,8 @@ function coin(n: number, value: number, status: WalletCoin["status"] = "confirme
 
 const pay = (address: string, amount: string, max = false): Draft => ({ key: 0, address, amount, max, label: "" });
 const draftOf = (drafts: Draft[], picked: string[] | null = null): SendDraft => ({ ...blankDraft(), drafts, picked });
-const each = (coins: WalletCoin[]): SendSource[] => coins.map((c) => ({ name: c.address, kyc: [], coins: [c] }));
+const each = (coins: WalletCoin[]): Pick<Source, "name" | "kyc" | "coins">[] =>
+  coins.map((c) => ({ name: c.address, kyc: [], coins: [c] }));
 
 function plan(coins: WalletCoin[], draft: SendDraft, skipForeign = false) {
   return planSend({ coins, groups: new Map() }, each(coins), draft, 2, wallet, skipForeign);
@@ -113,7 +115,7 @@ describe("planSend", () => {
 
   it("suggests the sources that already know the user when no one source covers the payment", () => {
     const coins = [coin(1, 30_000), coin(2, 30_000), coin(3, 30_000)];
-    const sources: SendSource[] = [
+    const sources: Pick<Source, "name" | "kyc" | "coins">[] = [
       { name: "Exchange", kyc: [coins[0]!], coins: [coins[0]!] },
       { name: "Broker", kyc: [coins[1]!], coins: [coins[1]!] },
       { name: "Friend", kyc: [], coins: [coins[2]!] },

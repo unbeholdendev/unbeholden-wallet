@@ -1,11 +1,12 @@
 import { type ReactNode, useRef, useState } from "react";
+import { ExplorerLink } from "../app/explorer";
 import { useOpenFailure, useWalletSession } from "../app/session";
+import type { Source } from "../core/sources";
 import type { LabelType } from "../core/wallet";
-import { ExplorerLink } from "../ui/explorer";
+import { groupSats } from "../ui/amount";
 import { Icon } from "../ui/icons";
 import { Button, inputClass, linkClass, Notice } from "../ui/kit";
-import { type Source, SourceTag } from "../ui/sources";
-import { useToast } from "../ui/toast";
+import { SourceTag } from "../ui/sources";
 import { outpoint } from "../wallet/coin";
 
 /** A label that turns into a text field on click. Enter or leaving the field saves; Escape cancels. */
@@ -113,22 +114,6 @@ export function Opening({ title }: { title: string }) {
   );
 }
 
-export function CopyButton({ text, what }: { text: string; what: string }) {
-  const toast = useToast();
-  return (
-    <Button
-      size="sm"
-      icon="copy"
-      onClick={async () => {
-        await navigator.clipboard.writeText(text);
-        toast(`${what} copied`);
-      }}
-    >
-      Copy
-    </Button>
-  );
-}
-
 /** A source's name, editable, what it is, and whether whoever paid it knows who the user is. */
 export function SourceTitle({ source, on = false }: { source: Source; on?: boolean }) {
   const session = useWalletSession();
@@ -144,7 +129,12 @@ export function SourceTitle({ source, on = false }: { source: Source; on?: boole
         <SourceTag source={source} large on={on} />
       </EditableLabel>
       <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-manila-ink">
-        {source.note}
+        {[
+          source.firstSeen === null ? "Not yet confirmed" : `First seen in block ${groupSats(source.firstSeen)}`,
+          source.coins.length > 1 ? "already linked on-chain" : "",
+        ]
+          .filter(Boolean)
+          .join(", ")}
         <button
           type="button"
           role="switch"

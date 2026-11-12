@@ -1,10 +1,10 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
+import type { FiatSettings } from "../core/prices";
 import type { WalletTx } from "../core/view";
-import { FiatControl } from "../ui/fiat";
 import { createVault, destroyVault, unlockVault } from "../vault/vault";
-import { FiatAmount, FiatProvider, type FiatSettings, TxFiat, TxRowFiat } from "./fiat";
+import { FiatAmount, FiatControl, FiatProvider, TxFiat, TxRowFiat } from "./fiat";
 import { useVault, useVaultState, VaultProvider } from "./vault";
 
 async function storedHistory(currency: string) {

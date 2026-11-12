@@ -2,6 +2,7 @@ import type { Store } from "../vault/vault";
 import { outpoint } from "../wallet/coin";
 import { type Bip329Record, formatBip329, parseBip329, sameOrigin } from "./bip329";
 import type { WalletSession } from "./wallet";
+import { readRecord, vaultKey, writeRecord } from "./wallets";
 
 export type Annotations = Pick<WalletSession, "setLabel" | "setFrozen" | "setKyc" | "exportLabels" | "importLabels"> & {
   labels: Record<string, string>;
@@ -16,13 +17,13 @@ export async function openAnnotations(
   origin: string | null,
   changed: () => void,
 ): Promise<Annotations> {
-  const labels: Record<string, string> = (await vault.get(`labels/${id}`)) ?? {};
-  const frozen = new Set<string>((await vault.get<string[]>(`frozen/${id}`)) ?? []);
-  const kyc = new Set<string>((await vault.get<string[]>(`kyc/${id}`)) ?? []);
+  const labels = (await readRecord(vault, vaultKey.labels(id))) ?? {};
+  const frozen = new Set((await readRecord(vault, vaultKey.frozen(id))) ?? []);
+  const kyc = new Set((await readRecord(vault, vaultKey.kyc(id))) ?? []);
 
-  const saveLabels = () => vault.put(`labels/${id}`, labels);
-  const saveFrozen = () => vault.put(`frozen/${id}`, [...frozen]);
-  const saveKyc = () => vault.put(`kyc/${id}`, [...kyc]);
+  const saveLabels = () => writeRecord(vault, vaultKey.labels(id), labels);
+  const saveFrozen = () => writeRecord(vault, vaultKey.frozen(id), [...frozen]);
+  const saveKyc = () => writeRecord(vault, vaultKey.kyc(id), [...kyc]);
 
   return {
     labels,

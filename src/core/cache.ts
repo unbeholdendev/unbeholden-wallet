@@ -6,7 +6,8 @@ import { outpoint } from "../wallet/coin";
 import { deriveAddress } from "../wallet/derive";
 import type { Descriptor } from "../wallet/descriptor";
 import { NETWORKS, type Network } from "../wallet/network";
-import { type Cache, emptyCache, lastUsed as lastUsedOn, type Parsed, parseTx } from "./view";
+import { emptyCache, lastUsed as lastUsedOn, type Parsed, parseTx } from "./view";
+import { readRecord, vaultKey, writeRecord } from "./wallets";
 
 const PARSE = {
   allowUnknownInputs: true,
@@ -27,8 +28,9 @@ export async function openCache(
 ) {
   const btc = NETWORKS[network];
   const chains = descriptor.keys[0]!.path.some(Array.isArray) ? 2 : 1;
-  let cache = (await vault.get<Cache>(`cache/${id}/state`)) ?? emptyCache(Array.from({ length: chains }, () => []));
-  let raw: Record<string, string> = (await vault.get(`cache/${id}/txs`)) ?? {};
+  const keys = vaultKey.cache(id);
+  let cache = (await readRecord(vault, keys.state)) ?? emptyCache(Array.from({ length: chains }, () => []));
+  let raw = (await readRecord(vault, keys.txs)) ?? {};
   let txsChanged = false;
 
   const scripts = new Map<string, { script: string; hash: string }>();
@@ -151,8 +153,8 @@ export async function openCache(
       cache.seen[tx.id] ??= now();
     },
     async persist() {
-      await vault.put(`cache/${id}/state`, cache);
-      if (txsChanged) await vault.put(`cache/${id}/txs`, raw);
+      await writeRecord(vault, keys.state, cache);
+      if (txsChanged) await writeRecord(vault, keys.txs, raw);
       txsChanged = false;
     },
   };

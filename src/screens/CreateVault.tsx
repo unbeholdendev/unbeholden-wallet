@@ -1,9 +1,9 @@
 import { type FormEvent, useState } from "react";
+import { Amount } from "../app/amount";
 import { useConnection } from "../app/connection";
 import { Heading, Page } from "../app/layout";
 import { useWallet, useWalletSnapshot } from "../app/session";
 import { useVault } from "../app/vault";
-import { Amount } from "../ui/amount";
 import { Button, Field, inputClass, linkClass, Notice, Segmented } from "../ui/kit";
 import { NO_PASSPHRASE, PassphraseInput, Strength, strength } from "./passphrase";
 

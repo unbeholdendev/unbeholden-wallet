@@ -63,5 +63,163 @@
     "parser": {
       "tailwindDirectives": true
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["src/wallet/**", "!**/*.test.*"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "**/transport/**",
+                      "**/vault/**",
+                      "**/backend/**",
+                      "**/core/**",
+                      "**/ui/**",
+                      "**/app/**",
+                      "**/screens/**"
+                    ],
+                    "message": "src/wallet may not import from a layer above it. See the layer order in AGENTS.md."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/transport/**", "!**/*.test.*"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["**/vault/**", "**/backend/**", "**/core/**", "**/ui/**", "**/app/**", "**/screens/**"],
+                    "message": "src/transport may not import from a layer above it. See the layer order in AGENTS.md."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/vault/**", "!**/*.test.*"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "**/wallet/**",
+                      "**/transport/**",
+                      "**/backend/**",
+                      "**/core/**",
+                      "**/ui/**",
+                      "**/app/**",
+                      "**/screens/**"
+                    ],
+                    "message": "src/vault may not import from a layer above it. See the layer order in AGENTS.md."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/backend/**", "!**/*.test.*"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["**/transport/**", "**/vault/**", "**/core/**", "**/ui/**", "**/app/**", "**/screens/**"],
+                    "message": "src/backend may not import from a layer above it. See the layer order in AGENTS.md."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/core/**", "!**/*.test.*"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["**/ui/**", "**/app/**", "**/screens/**"],
+                    "message": "src/core may not import from a layer above it. See the layer order in AGENTS.md."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/ui/**", "!**/*.test.*"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["**/app/**", "**/screens/**"],
+                    "message": "src/ui may not import from a layer above it. See the layer order in AGENTS.md."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/app/**", "!**/*.test.*"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["**/screens/**"],
+                    "message": "src/app may not import from a layer above it. See the layer order in AGENTS.md."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

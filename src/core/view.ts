@@ -136,13 +136,11 @@ export const emptyCache = (addresses: string[][]): Cache => ({
 export const lastUsed = ({ cache, scriptOf }: Pick<ViewSource, "cache" | "scriptOf">, chain: number) =>
   cache.addresses[chain]!.findLastIndex((a) => cache.histories[scriptOf(a).hash]);
 
-/** Balance, history, addresses and coins, worked out from the cached chain data alone. */
-export function deriveView(source: ViewSource) {
-  const { descriptor, cache, labels, frozen, kyc, parsed, scriptOf, addressOf } = source;
-  const entries = new Map<string, HistoryEntry>();
-  for (const list of Object.values(cache.histories)) {
-    for (const entry of list) entries.set(entry.txid, entry);
-  }
+/** The wallet's addresses per chain, and the same by script. */
+function addressesOf(
+  { descriptor, cache, labels, scriptOf }: Pick<ViewSource, "descriptor" | "cache" | "labels" | "scriptOf">,
+  txs: Parsed[],
+) {
   const own = new Map<string, AddressInfo>();
   const addresses = cache.addresses.map((list, chain) =>
     list.map((address, index) => {
@@ -162,20 +160,41 @@ export function deriveView(source: ViewSource) {
       return info;
     }),
   );
-
-  const txs = [...entries.keys()].flatMap((txid) => parsed(txid) ?? []);
   const paidTo = new Map<string, number>();
-  const spent = new Set<string>();
   for (const tx of txs) {
     for (const script of new Set(tx.outputs.map((o) => o.script))) {
       paidTo.set(script, (paidTo.get(script) ?? 0) + 1);
     }
-    for (const input of tx.inputs) spent.add(outpoint(input));
   }
   for (const [script, count] of paidTo) {
     const info = own.get(script);
     if (info && count > 1) info.reused = true;
   }
+  return { addresses, own };
+}
+
+const total = (coins: WalletCoin[]) => sum(coins.map((c) => c.value));
+
+function balanceOf(coins: WalletCoin[]): Balance {
+  return {
+    confirmed: total(coins.filter((c) => c.status === "confirmed")),
+    unconfirmed: total(coins.filter((c) => c.status !== "confirmed")),
+    frozen: total(coins.filter((c) => c.frozen)),
+    foreign: total(coins.filter((c) => !c.frozen && c.status === "foreign-unconfirmed")),
+    spendable: total(coins.filter((c) => !c.frozen && (c.status === "confirmed" || c.status === "own-change"))),
+  };
+}
+
+/** Balance, history, addresses and coins, worked out from the cached chain data alone. */
+export function deriveView(source: ViewSource) {
+  const { cache, labels, frozen, kyc, parsed, addressOf } = source;
+  const entries = new Map<string, HistoryEntry>();
+  for (const list of Object.values(cache.histories)) {
+    for (const entry of list) entries.set(entry.txid, entry);
+  }
+  const txs = [...entries.keys()].flatMap((txid) => parsed(txid) ?? []);
+  const { addresses, own } = addressesOf(source, txs);
+  const spent = new Set(txs.flatMap((tx) => tx.inputs.map(outpoint)));
 
   const prevout = (input: { txid: string; vout: number }) => parsed(input.txid)?.outputs[input.vout];
   const statuses = new Map<string, CoinStatus>();
@@ -291,17 +310,10 @@ export function deriveView(source: ViewSource) {
     });
 
   const [receive = [], change = []] = addresses;
-  const total = (list: WalletCoin[]) => sum(list.map((c) => c.value));
   return {
     tip,
     syncedAt: cache.syncedAt ?? null,
-    balance: {
-      confirmed: total(coins.filter((c) => c.status === "confirmed")),
-      unconfirmed: total(coins.filter((c) => c.status !== "confirmed")),
-      frozen: total(coins.filter((c) => c.frozen)),
-      foreign: total(coins.filter((c) => !c.frozen && c.status === "foreign-unconfirmed")),
-      spendable: total(coins.filter((c) => !c.frozen && (c.status === "confirmed" || c.status === "own-change"))),
-    },
+    balance: balanceOf(coins),
     transactions,
     addresses: { receive, change },
     /** The receive address after the last used one. */
@@ -316,54 +328,3 @@ export function deriveView(source: ViewSource) {
 /** Where change goes: the first unused change address, or the next receive one for a single-chain descriptor. */
 export const nextChange = (view: Pick<View, "addresses" | "nextReceive">) =>
   view.addresses.change.find((a) => !a.used) ?? view.nextReceive;
-
-export const isOutgoing = (tx: WalletTx) => tx.inputs.some((i) => i.mine);
-
-/** Unix seconds: block time, else when first seen. */
-export const txWhen = (tx: WalletTx) => tx.time ?? (tx.seenAt === null ? null : Math.floor(tx.seenAt / 1000));
-
-export const feeRate = (tx: Pick<WalletTx, "fee" | "vsize">) =>
-  tx.fee === null ? null : Math.round((tx.fee / tx.vsize) * 10) / 10;
-
-export const txDirection = (tx: WalletTx) =>
-  !isOutgoing(tx) ? "received" : tx.outputs.every((o) => o.mine) ? "to self" : "sent";
-
-const csvField = (value: string | number | null) => {
-  const text = String(value ?? "");
-  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-};
-
-/** The history as CSV. The fee is filled in only where this wallet paid it. */
-export function historyCsv(transactions: WalletTx[]) {
-  const btc = (sats: number | null) => (sats === null ? null : (sats / 1e8).toFixed(8));
-  const rows = transactions.map((tx) => {
-    const when = txWhen(tx);
-    const fee = isOutgoing(tx) ? tx.fee : null;
-    return [
-      when === null ? null : new Date(when * 1000).toISOString(),
-      tx.txid,
-      txDirection(tx),
-      btc(tx.net),
-      tx.net,
-      btc(fee),
-      fee,
-      tx.confirmations,
-      tx.height,
-      // A spreadsheet runs a cell starting with = + - @ as a formula, and labels can come from an imported file.
-      tx.label && /^[=+\-@]/.test(tx.label) ? `'${tx.label}` : tx.label,
-    ];
-  });
-  const head = [
-    "date",
-    "txid",
-    "direction",
-    "net_btc",
-    "net_sats",
-    "fee_btc",
-    "fee_sats",
-    "confirmations",
-    "height",
-    "label",
-  ];
-  return `${[head, ...rows].map((r) => r.map(csvField).join(",")).join("\r\n")}\r\n`;
-}

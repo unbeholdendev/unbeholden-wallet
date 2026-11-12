@@ -1,10 +1,11 @@
 import { useState } from "react";
+import { Amount } from "../../app/amount";
 import { navigate } from "../../app/route";
 import { useSendDraft, useWallet, useWalletSnapshot } from "../../app/session";
 import { type BumpProblem, planBump, planCpfp } from "../../core/bump";
 import { blankDraft, stillPending } from "../../core/send";
 import { nextChange } from "../../core/view";
-import { Amount, groupSats } from "../../ui/amount";
+import { groupSats } from "../../ui/amount";
 import { Button, Empty, linkClass, Notice, Panel } from "../../ui/kit";
 import { outpoint } from "../../wallet/coin";
 import { type FeeChoice, rateOf, rateText } from "../../wallet/fees";

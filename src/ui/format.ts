@@ -1,4 +1,5 @@
-import { txDirection, type WalletTx } from "../core/view";
+import { txDirection } from "../core/history";
+import type { WalletTx } from "../core/view";
 import { groupSats } from "./amount";
 
 /** The server's host and port, or the text itself when it is not a URL. */

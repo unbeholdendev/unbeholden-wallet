@@ -8,8 +8,10 @@ import { checkAddress, parseAmount } from "../wallet/parse";
 import { assessPrivacy, type PrivacyReport } from "../wallet/privacy";
 import { buildPsbt } from "../wallet/psbt";
 import { type Payment, type Spend, type SpendProblem, selectCoins, spend, type WalletKind } from "../wallet/select";
+import type { Source } from "./sources";
 import { nextChange } from "./view";
 import type { WalletCoin, WalletSnapshot } from "./wallet";
+import { readRecord, vaultKey, writeRecord } from "./wallets";
 
 /** One recipient as typed. */
 export type Draft = { key: number; address: string; amount: string; max: boolean; label: string };
@@ -52,7 +54,7 @@ export const blankDraft = (): SendDraft => ({
   built: null,
 });
 
-type Saved = Omit<SendDraft, "built"> & {
+export type SavedSend = Omit<SendDraft, "built"> & {
   built: Omit<NonNullable<SendDraft["built"]>, "psbt" | "signed" | "partial"> & {
     psbt: string;
     signed?: string;
@@ -63,14 +65,17 @@ type Saved = Omit<SendDraft, "built"> & {
 /** Keeps a send with a built PSBT in the vault, so it outlasts a lock or a reload, and forgets one without. */
 export async function saveSend(vault: Store, walletId: string, draft: SendDraft | null): Promise<void> {
   const built = draft?.built;
-  if (!built) return vault.delete(`send/${walletId}`);
+  if (!built) return vault.delete(vaultKey.send(walletId));
   const signed = built.signed && hex.encode(built.signed);
   const partial = built.partial && hex.encode(built.partial);
-  await vault.put(`send/${walletId}`, { ...draft, built: { ...built, psbt: hex.encode(built.psbt), signed, partial } });
+  await writeRecord(vault, vaultKey.send(walletId), {
+    ...draft,
+    built: { ...built, psbt: hex.encode(built.psbt), signed, partial },
+  });
 }
 
 export async function loadSend(vault: Store, walletId: string): Promise<SendDraft | null> {
-  const saved = await vault.get<Saved>(`send/${walletId}`);
+  const saved = await readRecord(vault, vaultKey.send(walletId));
   if (!saved) return null;
   const { psbt, signed, partial, ...built } = saved.built;
   const bytes = (text?: string) => (text ? hex.decode(text) : undefined);
@@ -85,9 +90,6 @@ export const bulk = (c: WalletCoin) => selectable(c) && c.status !== "foreign-un
 
 /** Why a send cannot go to review yet. */
 export type SendProblem = { kind: "no-recipient" } | { kind: "bad-address" } | { kind: "no-amount" } | SpendProblem;
-
-/** Coins the chain shows to have one owner, as far as planning a send needs them. */
-export type SendSource = { name: string; kyc: readonly unknown[]; coins: WalletCoin[] };
 
 export type SendPlan = {
   /** Per recipient, its address spelt canonically, or "" while it is not a valid one. */
@@ -118,7 +120,7 @@ export type SendPlan = {
  */
 export function planSend(
   snapshot: Pick<WalletSnapshot, "coins" | "groups">,
-  sources: SendSource[],
+  sources: Pick<Source, "name" | "kyc" | "coins">[],
   draft: SendDraft,
   feeRate: number,
   wallet: WalletKind & { network: Network },

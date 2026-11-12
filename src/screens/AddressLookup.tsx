@@ -1,14 +1,15 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { Amount } from "../app/amount";
 import { useConnection } from "../app/connection";
 import { useNetwork, useOwners } from "../app/session";
 import { RefusedError } from "../backend/backend";
 import { AMOUNTS_PAGE, addressAmounts, type LookedUpAddress, lookupAddress } from "../core/lookup";
-import { Amount, groupSats } from "../ui/amount";
+import { groupSats } from "../ui/amount";
 import { dateText, shortId } from "../ui/format";
-import { Button, Chip, linkClass } from "../ui/kit";
+import { Button, Chip, CopyButton, linkClass } from "../ui/kit";
 import { checkAddress } from "../wallet/parse";
 import { Missing } from "./Lookup";
-import { CopyButton, GroupedAddress } from "./parts";
+import { GroupedAddress } from "./parts";
 
 type Found = { address: string } & ({ found: LookedUpAddress } | { refused: string } | { error: string });
 

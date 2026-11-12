@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { useVault } from "../app/vault";
-import { linkClass } from "./kit";
+import { linkClass } from "../ui/kit";
+import { useVault } from "./vault";
 
 export function explorerBase(value: string): string {
   if (!value.trim()) return "";

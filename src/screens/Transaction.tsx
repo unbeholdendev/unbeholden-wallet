@@ -1,24 +1,18 @@
 import type { ReactNode } from "react";
+import { Amount } from "../app/amount";
+import { ExplorerLink } from "../app/explorer";
 import { TxFiat } from "../app/fiat";
 import { navigate } from "../app/route";
 import { useOwners, useWalletSnapshot } from "../app/session";
-import {
-  type AddressInfo,
-  feeRate,
-  isOutgoing,
-  type TxInput,
-  type TxOutput,
-  txWhen,
-  type WalletTx,
-} from "../core/view";
-import { Amount, groupSats } from "../ui/amount";
-import { ExplorerLink } from "../ui/explorer";
+import { feeRate, isOutgoing, txWhen } from "../core/history";
+import type { AddressInfo, TxInput, TxOutput, WalletTx } from "../core/view";
+import { groupSats } from "../ui/amount";
 import { confText, dateText, satsText, shortId, timeText, txFallback } from "../ui/format";
 import { Icon } from "../ui/icons";
-import { Button, Chip, linkClass } from "../ui/kit";
+import { Button, Chip, CopyButton, linkClass } from "../ui/kit";
 import { effectiveFeeRate, eta, type FeeBucket, type MempoolTx, mempoolPosition, mvb, rateText } from "../wallet/fees";
 import { Lookup } from "./Lookup";
-import { CopyButton, EditableLabel, GroupedAddress, Opening } from "./parts";
+import { EditableLabel, GroupedAddress, Opening } from "./parts";
 import { useFeeHistogram } from "./send/fees";
 
 function Back() {

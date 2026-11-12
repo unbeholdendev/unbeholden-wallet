@@ -1,10 +1,11 @@
+import { Amount } from "../../app/amount";
 import { useWallet } from "../../app/session";
 import { selectable } from "../../core/send";
+import type { Source } from "../../core/sources";
 import type { WalletCoin } from "../../core/wallet";
-import { Amount, btcParts, groupSats } from "../../ui/amount";
+import { btcParts, groupSats } from "../../ui/amount";
 import { Icon, type IconName } from "../../ui/icons";
 import { Button, Chip } from "../../ui/kit";
-import type { Source } from "../../ui/sources";
 import { outpoint } from "../../wallet/coin";
 import { rateText } from "../../wallet/fees";
 import { spendCost } from "../../wallet/select";

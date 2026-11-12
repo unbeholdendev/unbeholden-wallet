@@ -1,107 +1,15 @@
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { useConnection } from "../app/connection";
 import { Heading, isIos } from "../app/layout";
 import { navigate } from "../app/route";
 import { useVault } from "../app/vault";
-import { type WalletRecord, walletDescriptor } from "../core/wallets";
-import { descriptorsFromUr, descriptorUrDecoder } from "../transport/ur";
+import { canonical, interpret, keyNetwork } from "../core/key-input";
 import { Icon } from "../ui/icons";
 import { Button, Field, inputClass, Notice, Segmented } from "../ui/kit";
-import { QrScanner } from "../ui/QrScanner";
-import { Sheet } from "../ui/sheet";
 import { useToast } from "../ui/toast";
-import { formatDescriptor, type ScriptType } from "../wallet/descriptor";
-import { normaliseExtendedKey } from "../wallet/extended-key";
-import type { Network } from "../wallet/network";
-
-type Reading = {
-  descriptor?: string;
-  fingerprint?: string;
-  /** A multisig's k, and each key's fingerprint, null for a key without an origin. */
-  multi?: { threshold: number; fingerprints: (string | null)[] };
-  needsType?: boolean;
-  error?: string;
-};
-
-const canonical = (wallet: Pick<WalletRecord, "descriptor" | "network" | "scriptType">) =>
-  formatDescriptor(walletDescriptor(wallet));
-
-// xpub, ypub, zpub, Ypub and Zpub are the mainnet prefixes in SLIP-132. Keys for
-// every test network look alike, so the server's chain picks between them.
-const keyNetwork = (text: string, server: Network | null): Network =>
-  /(^|[(\],])[xyzYZ]pub/.test(text.trim()) ? "mainnet" : server && server !== "mainnet" ? server : "signet";
-
-function interpret(text: string, network: Network, scriptType: ScriptType | null): Reading {
-  const input = text.trim();
-  if (!input) return {};
-  try {
-    const needsType = !/[([]/.test(input) && normaliseExtendedKey(input, network).scriptType === null;
-    if (needsType && !scriptType) return { needsType };
-    const descriptor = walletDescriptor({ descriptor: input, network, scriptType });
-    const { keys, multi } = descriptor;
-    return {
-      needsType,
-      descriptor: formatDescriptor(descriptor),
-      fingerprint: multi ? undefined : keys[0]!.origin?.fingerprint,
-      multi: multi && { threshold: multi.threshold, fingerprints: keys.map((k) => k.origin?.fingerprint ?? null) },
-    };
-  } catch (error) {
-    return { error: `${(error as Error).message}.` };
-  }
-}
-
-function DescriptorText({ children }: { children: string }) {
-  return (
-    <p className="m-0 rounded-control border border-rule bg-sunk px-3 py-2.5 font-mono text-[0.86em] leading-relaxed break-all text-ink select-all">
-      {children}
-    </p>
-  );
-}
-
-/** The descriptor with its copy and download buttons. */
-export function DescriptorBackup({
-  name,
-  network,
-  descriptor,
-  onSaved,
-}: {
-  name: string;
-  network: Network;
-  descriptor: string;
-  onSaved?: () => void;
-}) {
-  const toast = useToast();
-
-  const copy = async () => {
-    await navigator.clipboard.writeText(descriptor);
-    onSaved?.();
-    toast("Descriptor copied");
-  };
-
-  const download = () => {
-    const body = `${name}\n${network}\n\n${descriptor}\n`;
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(new Blob([body], { type: "text/plain" }));
-    link.download = `${name.replace(/[^\w-]+/g, "-")}-descriptor.txt`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-    onSaved?.();
-  };
-
-  return (
-    <>
-      <DescriptorText>{descriptor}</DescriptorText>
-      <div className="flex flex-wrap gap-2">
-        <Button icon="copy" onClick={copy}>
-          Copy
-        </Button>
-        <Button icon="file" onClick={download}>
-          Download as a text file
-        </Button>
-      </div>
-    </>
-  );
-}
+import type { ScriptType } from "../wallet/descriptor";
+import { DescriptorBackup, DescriptorText } from "./import/DescriptorBackup";
+import { ScanDescriptor } from "./import/ScanDescriptor";
 
 export function ImportWallet() {
   const { wallets, addWallet } = useVault();
@@ -116,10 +24,6 @@ export function ImportWallet() {
   const [scanning, setScanning] = useState(false);
   const [step, setStep] = useState<"key" | "backup">("key");
   const [saved, setSaved] = useState(false);
-  const decoder = useRef(descriptorUrDecoder());
-  const [progress, setProgress] = useState({ captured: 0, expected: 0 });
-  const [choices, setChoices] = useState<string[]>([]);
-  const [scanError, setScanError] = useState<string | null>(null);
 
   const server = connection.phase === "connected" || connection.phase === "retrying" ? connection.network : null;
   const network = keyNetwork(text, server ?? wallets.find((w) => w.network !== "mainnet")?.network ?? null);
@@ -137,40 +41,6 @@ export function ImportWallet() {
   const next = (event: FormEvent) => {
     event.preventDefault();
     if (reading.descriptor && !duplicate) setStep("backup");
-  };
-
-  const closeScan = () => {
-    setScanning(false);
-    decoder.current = descriptorUrDecoder();
-    setProgress({ captured: 0, expected: 0 });
-    setChoices([]);
-    setScanError(null);
-  };
-
-  const take = (descriptor: string) => {
-    setText(descriptor);
-    closeScan();
-  };
-
-  const scanned = (result: string) => {
-    const d = decoder.current;
-    if (!/^ur:/i.test(result.trim())) return take(result);
-    const restart = (error: Error) => {
-      decoder.current = descriptorUrDecoder();
-      setScanError(`${error.message}. Starting the scan again.`);
-    };
-    if (!d.receive(result)) return d.error && restart(d.error);
-    setScanError(null);
-    setProgress(d.progress);
-    if (!d.result) return;
-    try {
-      const found = descriptorsFromUr(d.result);
-      const supported = found.filter((f) => /^(wpkh|tr|wsh\((sorted)?multi)\(/.test(f));
-      if (supported.length > 1) setChoices(supported);
-      else take(supported[0] ?? found[0]!);
-    } catch (error) {
-      restart(error as Error);
-    }
   };
 
   const finish = async () => {
@@ -380,33 +250,7 @@ export function ImportWallet() {
           Continue to backup <Icon name="chev" className="size-[18px] -rotate-90" />
         </Button>
       </div>
-      <Sheet open={scanning} onClose={closeScan} title="Scan the descriptor">
-        {choices.length ? (
-          <div className="grid gap-3">
-            <p className="m-0 text-ink-2">
-              Your signer sent this account for more than one script type. Choose the one your wallet uses: addresses
-              starting bc1q are wpkh, bc1p are tr.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {choices.map((choice) => (
-                <Button key={choice} onClick={() => take(choice)}>
-                  {choice.startsWith("tr(") ? "Taproot, tr" : "Native SegWit, wpkh"}
-                </Button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <>
-            {scanning && <QrScanner onResult={scanned} />}
-            <p className="m-0 text-sm text-ink-3" aria-live="polite">
-              {progress.expected > 1
-                ? `${progress.captured} of ${progress.expected} parts captured. Keep the code in view while it loops.`
-                : "Hold the QR code your signer shows inside the frame."}
-            </p>
-            {scanError && <Notice tone="bad">{scanError}</Notice>}
-          </>
-        )}
-      </Sheet>
+      <ScanDescriptor open={scanning} onClose={() => setScanning(false)} onScanned={setText} />
     </form>
   );
 }

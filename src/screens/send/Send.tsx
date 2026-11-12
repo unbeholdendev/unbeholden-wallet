@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { Amount } from "../../app/amount";
 import { useConnection } from "../../app/connection";
 import { useSendDraft, useWallet, useWalletSession, useWalletSnapshot } from "../../app/session";
 import { useBook, useVault } from "../../app/vault";
@@ -13,14 +14,14 @@ import {
   selectable,
   stillPending,
 } from "../../core/send";
+import { type Source, sourcesOf } from "../../core/sources";
 import { nextChange } from "../../core/view";
 import type { WalletCoin, WalletSnapshot } from "../../core/wallet";
-import { Amount, groupSats } from "../../ui/amount";
+import { groupSats } from "../../ui/amount";
 import { shortId } from "../../ui/format";
 import { Icon } from "../../ui/icons";
 import { Button, Chip, linkClass, Notice } from "../../ui/kit";
 import { Sheet } from "../../ui/sheet";
-import { type Source, sourcesOf } from "../../ui/sources";
 import { outpoint } from "../../wallet/coin";
 import { type FeeChoice, rateOf, rateText } from "../../wallet/fees";
 import { CoinList } from "./CoinList";

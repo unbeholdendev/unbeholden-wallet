@@ -1,12 +1,14 @@
 import { type ReactNode, useEffect, useState } from "react";
+import { Amount } from "../app/amount";
 import { useConnection } from "../app/connection";
 import { useNetwork, useOwners } from "../app/session";
+import { feeRate } from "../core/history";
 import { type DecodedTx, type LookedUpTx, lookupTransaction } from "../core/lookup";
-import { COINBASE, feeRate } from "../core/view";
-import { Amount, groupSats } from "../ui/amount";
+import { COINBASE } from "../core/view";
+import { groupSats } from "../ui/amount";
 import { confText, satsText, shortId } from "../ui/format";
-import { Chip, Empty, linkClass } from "../ui/kit";
-import { CopyButton, GroupedAddress } from "./parts";
+import { Chip, CopyButton, Empty, linkClass } from "../ui/kit";
+import { GroupedAddress } from "./parts";
 
 type Found = { txid: string } & ({ tx: LookedUpTx } | { tx: null } | { error: string });
 

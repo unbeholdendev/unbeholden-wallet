@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
+import { Amount } from "../app/amount";
 import { useReceiveSkips, useWallet, useWalletSnapshot } from "../app/session";
 import { useUnit, useVault } from "../app/vault";
 import type { WalletSnapshot } from "../core/wallet";
+import { type PaymentRequest, readRecord, vaultKey, writeRecord } from "../core/wallets";
 import { qrPath } from "../transport/qr";
-import { Amount } from "../ui/amount";
 import { shortId } from "../ui/format";
-import { Button, Chip, Field, inputClass, LinkButton, linkClass, Panel } from "../ui/kit";
+import { Button, Chip, CopyButton, Field, inputClass, LinkButton, linkClass, Panel } from "../ui/kit";
 import { useToast } from "../ui/toast";
 import { btcText, parseAmount, parseBtc } from "../wallet/parse";
-import { CopyButton, EditableLabel, GroupedAddress, Opening } from "./parts";
+import { EditableLabel, GroupedAddress, Opening } from "./parts";
 
 /** A BIP21 request. Only the address part is upper case: that fits the denser alphanumeric QR mode, and a label keeps its case. */
 // https://github.com/bitcoin/bips/blob/master/bip-0021.mediawiki
@@ -19,9 +20,6 @@ export function bip21(address: string, sats: number | null, label: string | null
   const params = query.toString().replace(/\+/g, "%20");
   return `bitcoin:${address}`.toUpperCase() + (params && `?${params}`);
 }
-
-/** Its label is the address's label. */
-export type PaymentRequest = { address: string; sats: number | null };
 
 export function received(snapshot: WalletSnapshot, address: string) {
   let confirmed = 0;
@@ -109,7 +107,7 @@ export function Receive() {
   const [requests, setRequests] = useState<PaymentRequest[] | null>(null);
   const [shown, setShown] = useState<string | null>(null);
   useEffect(() => {
-    vault.get<PaymentRequest[]>(`requests/${id}`).then(
+    readRecord(vault, vaultKey.requests(id)).then(
       (saved) => setRequests(saved ?? []),
       () => {},
     );
@@ -135,7 +133,7 @@ export function Receive() {
   const sats = inSats ? parseAmount(`${amount}sats`) : parseBtc(amount);
   const isRequest = requested.has(next.address);
   const saveRequests = (list: PaymentRequest[], done: () => void) =>
-    vault.put(`requests/${id}`, list).then(
+    writeRecord(vault, vaultKey.requests(id), list).then(
       () => (setRequests(list), done()),
       () => toast("The request list wasn't saved"),
     );

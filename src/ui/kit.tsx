@@ -1,5 +1,6 @@
 import { type ComponentProps, type ReactNode, useId } from "react";
 import { Icon, type IconName } from "./icons";
+import { useToast } from "./toast";
 
 const buttonBase =
   "inline-flex items-center justify-center gap-2 rounded-control border font-bold transition-colors disabled:cursor-not-allowed disabled:border-rule disabled:bg-rule disabled:text-ink-3";
@@ -175,5 +176,21 @@ export function Notice({ tone, children }: { tone: "warn" | "bad" | "ok"; childr
       <Icon name={tone === "ok" ? "check" : "warn"} className="mt-px size-[18px]" />
       <div>{children}</div>
     </div>
+  );
+}
+
+export function CopyButton({ text, what }: { text: string; what: string }) {
+  const toast = useToast();
+  return (
+    <Button
+      size="sm"
+      icon="copy"
+      onClick={async () => {
+        await navigator.clipboard.writeText(text);
+        toast(`${what} copied`);
+      }}
+    >
+      Copy
+    </Button>
   );
 }

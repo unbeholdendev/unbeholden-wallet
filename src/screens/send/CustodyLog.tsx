@@ -1,7 +1,8 @@
 import { useLayoutEffect, useRef } from "react";
-import { Amount } from "../../ui/amount";
+import { Amount } from "../../app/amount";
+import type { Source } from "../../core/sources";
 import { Icon } from "../../ui/icons";
-import { type Source, SourceTag } from "../../ui/sources";
+import { SourceTag } from "../../ui/sources";
 import { outpoint } from "../../wallet/coin";
 
 /**

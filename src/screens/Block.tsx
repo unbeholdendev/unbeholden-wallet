@@ -3,8 +3,7 @@ import { useConnection } from "../app/connection";
 import { type LookedUpBlock, lookupBlock } from "../core/lookup";
 import { groupSats } from "../ui/amount";
 import { dateText, timeText } from "../ui/format";
-import { Empty, linkClass } from "../ui/kit";
-import { CopyButton } from "./parts";
+import { CopyButton, Empty, linkClass } from "../ui/kit";
 
 type Found = { height: number } & ({ block: LookedUpBlock } | { error: string });
 

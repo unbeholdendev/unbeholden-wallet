@@ -1,8 +1,8 @@
 import { useState } from "react";
+import { UnitSwitch } from "../../app/amount";
 import { useUnit } from "../../app/vault";
 import type { Draft } from "../../core/send";
 import type { Contact } from "../../core/wallets";
-import { UnitSwitch } from "../../ui/amount";
 import { Icon } from "../../ui/icons";
 import { Button, Field, inputClass, LinkButton, Panel } from "../../ui/kit";
 import { QrScanner } from "../../ui/QrScanner";

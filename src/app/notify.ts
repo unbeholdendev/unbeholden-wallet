@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { isOutgoing } from "../core/view";
+import { isOutgoing } from "../core/history";
 import type { WalletSession } from "../core/wallet";
 import { useConnection } from "./connection";
 import { useWalletSessions } from "./session";

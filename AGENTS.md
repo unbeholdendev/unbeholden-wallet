@@ -32,6 +32,19 @@ The app is at app.wallet.unbeholden.dev, the demo at demo.wallet.unbeholden.dev.
 Nothing checks the bundle for external origins. The CSP is the only thing
 holding the no-outbound-requests guarantee, so read what a new dependency ships.
 
+## Layers
+
+`src/` imports only within a layer or down: `wallet` at the bottom;
+`transport` and `backend` above it, neither importing the other; `vault`
+importing none of them; then `core` < `ui` < `app` < `screens`. Tests and the
+root files (`App.tsx`, `main.tsx`, `demo.tsx`, `fixture.ts`) sit above all.
+`bun run lint` fails any other import.
+
+Every vault record name and its stored type is in `vaultKey` in
+`src/core/wallets.ts`; read and write through `readRecord`/`writeRecord`, never
+`vault.get/put` with a string. Never change a name or a stored shape: existing
+vaults and backups must load.
+
 ## Constants and test vectors
 
 A constant you cannot work out from the code carries the URL it came from, on

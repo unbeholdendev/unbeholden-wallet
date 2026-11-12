@@ -2,7 +2,6 @@ import { createContext, type ReactNode, useCallback, useContext, useEffect, useM
 import {
   backupRecords,
   type Contact,
-  type Settings as CoreSettings,
   createWallet,
   deleteWallet,
   getSettings,
@@ -10,10 +9,15 @@ import {
   type Merged,
   mergeBackup,
   type NewWallet,
+  readRecord,
   renameWallet,
   renameWalletGroup,
+  type Settings,
   saveSettings,
+  type Unit,
+  vaultKey,
   type WalletRecord,
+  writeRecord,
 } from "../core/wallets";
 import { log } from "../log";
 import {
@@ -31,20 +35,6 @@ import {
   Vault,
   vaultExists,
 } from "../vault/vault";
-import type { Network } from "../wallet/network";
-import type { FiatSettings } from "./fiat";
-
-export type Settings = CoreSettings & {
-  idleMinutes?: number;
-  walletId?: string;
-  notify?: boolean;
-  skipForeignUnconfirmed?: boolean;
-  fiat?: FiatSettings | null;
-  unit?: Unit;
-  hide?: boolean;
-  explorers?: Partial<Record<Network, string>>;
-};
-export type Unit = "btc" | "sats";
 
 export type Persistence = Awaited<ReturnType<typeof requestPersistence>>;
 
@@ -118,11 +108,11 @@ export function useBook() {
   const { vault, restored } = useVault();
   const [book, setBook] = useState<Contact[]>([]);
   useEffect(() => {
-    vault.get<Contact[]>("book").then((b) => setBook(b ?? []));
+    readRecord(vault, vaultKey.book).then((b) => setBook(b ?? []));
   }, [vault, restored]);
   const save = useCallback(
     async (next: Contact[]) => {
-      await vault.put("book", next);
+      await writeRecord(vault, vaultKey.book, next);
       setBook(next);
     },
     [vault],

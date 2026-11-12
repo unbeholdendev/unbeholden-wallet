@@ -3,12 +3,11 @@ import { type ReactNode, useMemo, useState } from "react";
 import { useConnection } from "../../app/connection";
 import { navigate } from "../../app/route";
 import { useWallet, useWalletSession, useWalletSnapshot } from "../../app/session";
-import { Amount, groupSats } from "../../ui/amount";
-import { hostText, shortId } from "../../ui/format";
+import { claimOutputs, signNotices } from "../../core/sign";
+import { groupSats } from "../../ui/amount";
+import { hostText } from "../../ui/format";
 import { Icon } from "../../ui/icons";
-import { Button, Chip, LinkButton, Notice, Panel } from "../../ui/kit";
-import { sourcesOf } from "../../ui/sources";
-import { rateText } from "../../wallet/fees";
+import { Button, Chip, LinkButton, Notice } from "../../ui/kit";
 import {
   adoptExternal,
   type Collected,
@@ -19,9 +18,9 @@ import {
   parsePsbt,
   reviewPsbt,
 } from "../../wallet/psbt";
-import { CustodyLog } from "./CustodyLog";
 import { download, ExportQr } from "./ExportQr";
 import { ScanBack } from "./ScanBack";
+import { Check, Recap } from "./SignReview";
 
 type Stage = "show" | "scan" | "verified";
 
@@ -30,22 +29,6 @@ const STEPS: [Stage, string][] = [
   ["scan", "Scan back"],
   ["verified", "Broadcast"],
 ];
-
-function Facts({ rows }: { rows: [ReactNode, ReactNode][] }) {
-  return (
-    <dl className="m-0 grid">
-      {rows.map(([k, v], i) => (
-        <div
-          key={i}
-          className="flex items-baseline justify-between gap-3 border-b border-dotted border-rule-2 py-2 text-sm last:border-b-0"
-        >
-          <dt className="text-ink-2">{k}</dt>
-          <dd className="m-0 min-w-0 text-right">{v}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
 
 /**
  * Check and show to the signer, take the signed PSBT back, broadcast. `built` is
@@ -95,20 +78,11 @@ export function SignFlow({
   const [refusal, setRefusal] = useState<string | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
-  const paths = new Map(
-    [...(snapshot?.addresses.receive ?? []), ...(snapshot?.addresses.change ?? [])].map((a) => [a.address, a.path]),
+  const review = useMemo(
+    () => claimOutputs(reviewPsbt(built, descriptor, network), snapshot?.addresses),
+    [built, descriptor, network, snapshot],
   );
-  const review = useMemo(() => {
-    const review = reviewPsbt(built, descriptor, network);
-    // A PSBT signed elsewhere need not say which outputs are this wallet's, so its known addresses say too.
-    const change = new Set(snapshot?.addresses.change.map((a) => a.address));
-    const outputs = review.outputs.map((o) =>
-      o.address && paths.has(o.address) ? { ...o, mine: true, change: change.has(o.address) } : o,
-    );
-    return { ...review, outputs };
-  }, [built, descriptor, network, snapshot]);
   const inputCount = useMemo(() => parsePsbt(built).inputsLength, [built]);
-  const sources = useMemo(() => (snapshot && inputs ? sourcesOf(snapshot) : []), [snapshot, inputs]);
 
   const { multi } = descriptor;
   const [collected, setCollected] = useState(() =>
@@ -153,93 +127,6 @@ export function SignFlow({
   };
 
   const at = STEPS.findIndex(([s]) => s === stage);
-  const payments = review.outputs.filter((o) => !o.change);
-  const leaving = payments.filter((o) => !o.mine).reduce((a, o) => a + o.value, 0);
-  const notices =
-    review.fee > leaving / 10 && leaving > 0
-      ? [
-          ...warnings,
-          `The fee is ${Math.round((review.fee / leaving) * 100)}% of what you're sending. Make sure that's what you meant.`,
-        ]
-      : warnings;
-
-  const check = (
-    <Panel
-      title={external || stage === "verified" ? "Check before you broadcast" : "Check before you sign"}
-      aside={`${review.outputs.length} output${review.outputs.length === 1 ? "" : "s"}`}
-    >
-      <ul className="m-0 grid list-none gap-2 p-0">
-        {[...review.outputs]
-          .sort((a, b) => Number(a.change) - Number(b.change))
-          .map((o, i) => (
-            <li
-              key={i}
-              className={`grid gap-1 rounded-control border px-3 py-2.5 ${o.change ? "border-rule bg-sunk" : "border-rule-2"}`}
-            >
-              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                <span className="text-sm font-medium text-ink-2">
-                  {o.change
-                    ? "Change back to you"
-                    : o.mine
-                      ? "To one of your own addresses"
-                      : `Payment ${payments.indexOf(o) + 1}${o.address && names[o.address] ? ` to ${names[o.address]}` : ""}`}
-                </span>
-                <span className="text-md font-medium">
-                  <Amount sats={o.value} unit />
-                </span>
-              </div>
-              <span className="font-mono text-[0.86em] break-all">{o.address ?? "A script with no address"}</span>
-              {o.mine && o.address && paths.get(o.address) && (
-                <span className="font-mono text-xs text-ink-3">{paths.get(o.address)}</span>
-              )}
-            </li>
-          ))}
-      </ul>
-      <Facts
-        rows={[
-          ["Fee", `${groupSats(review.fee)} sats`],
-          ["Fee rate", `${rateText(review.feeRate)} sat/vB, about ${review.vsize} vB`],
-          ...summary,
-          ["Total leaving the wallet", <Amount sats={leaving + review.fee} unit />],
-        ]}
-      />
-      {!external && (
-        <p className="m-0 text-sm text-ink-2">
-          <Chip tone="carbon">Replaceable (RBF)</Chip> Every transaction this wallet builds can be replaced, so you can
-          raise its fee later if it's slow to confirm.
-        </p>
-      )}
-      {notices.map((w) => (
-        <Notice key={w} tone="warn">
-          {w}
-        </Notice>
-      ))}
-    </Panel>
-  );
-
-  const change = review.outputs.filter((o) => o.change).reduce((a, o) => a + o.value, 0);
-  const recap = (
-    <Panel title={label || "This payment"} className="@min-[900px]:sticky @min-[900px]:top-20">
-      <Facts
-        rows={[
-          ["Sending", <Amount sats={leaving} unit />],
-          [
-            "To",
-            payments.length === 1 ? (
-              <span className="font-mono">
-                {payments[0]!.address ? shortId(payments[0]!.address, 10, 8) : "A script with no address"}
-              </span>
-            ) : (
-              `${payments.length} recipients`
-            ),
-          ],
-          ["Fee", `${groupSats(review.fee)} sats, ${rateText(review.feeRate)} sat/vB`],
-          ["Change", change ? <Amount sats={change} /> : "None"],
-        ]}
-      />
-      {inputs && <CustodyLog sources={sources} selected={new Set(inputs)} still />}
-    </Panel>
-  );
 
   const cosigners = multi && !external && (
     <Notice tone={collected ? "ok" : "warn"}>
@@ -251,7 +138,16 @@ export function SignFlow({
 
   const body = (
     <>
-      {stage !== "scan" && check}
+      {stage !== "scan" && (
+        <Check
+          title={external || stage === "verified" ? "Check before you broadcast" : "Check before you sign"}
+          review={review}
+          names={names}
+          summary={summary}
+          notices={signNotices(review, warnings)}
+          external={external}
+        />
+      )}
       <section
         className={`grid justify-items-stretch gap-4 rounded-panel border border-rule bg-sheet p-4 @min-[900px]:items-start @min-[900px]:gap-x-8 @min-[900px]:gap-y-5 @min-[900px]:p-6 ${stage === "show" ? "@min-[900px]:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] @min-[900px]:grid-rows-[repeat(4,auto)_1fr]" : "@min-[900px]:grid-cols-[minmax(0,340px)_minmax(0,1fr)]"}`}
       >
@@ -366,7 +262,7 @@ export function SignFlow({
       </nav>
       <div className="grid gap-4 @min-[900px]:grid-cols-[minmax(0,1fr)_340px] @min-[900px]:items-start">
         <div className="grid min-w-0 gap-4">{body}</div>
-        {recap}
+        <Recap label={label} review={review} inputs={inputs} />
       </div>
     </div>
   );
