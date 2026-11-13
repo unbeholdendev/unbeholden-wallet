@@ -196,12 +196,13 @@ app's origin (electrs: `--cors <origin>`), or the browser hides its answers.
 
 The dev server is https only, with a self-signed certificate: the vault
 needs a secure context, and a LAN address over http isn't one. Accept the
-certificate warning once. It needs a real Node: Vite on Bun crashes serving
-https. The devcontainer installs one.
+certificate warning once. It needs Node installed: Vite on Bun crashes
+serving https.
 
 ### Try it on regtest
 
-The devcontainer starts this stack, with a fresh chain, every time it starts.
+Start the stack yourself after `bun install`. Each `regtest:up` begins a fresh
+chain.
 
 ```sh
 bun run regtest:up        # bitcoind + Fulcrum, prints ws://127.0.0.1:50003
